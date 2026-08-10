@@ -26,6 +26,7 @@ fun ConfigNavScreen(
     onNavigateToCover: () -> Unit,
     onNavigateToTheme: () -> Unit,
     onNavigateToBackup: () -> Unit,
+    onNavigateToCustomConfig: () -> Unit,
     onNavigateToAi: () -> Unit,
     onNavigateToDownloadCache: () -> Unit,
     onNavigateToTranslation: () -> Unit,
@@ -77,6 +78,10 @@ fun ConfigNavScreen(
                     ClickableSettingItem(
                         title = stringResource(R.string.backup_restore),
                         onClick = onNavigateToBackup
+                    )
+                    ClickableSettingItem(
+                        title = "自定义配置",
+                        onClick = onNavigateToCustomConfig
                     )
                     ClickableSettingItem(
                         title = stringResource(R.string.ai_config),
