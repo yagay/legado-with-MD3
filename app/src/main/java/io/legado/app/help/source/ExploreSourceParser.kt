@@ -1,6 +1,7 @@
 package io.legado.app.help.source
 
 import io.legado.app.data.entities.rule.ExploreKind
+import io.legado.app.ui.main.explore.ExploreNode
 import kotlin.math.abs
 
 /**
@@ -9,11 +10,10 @@ import kotlin.math.abs
  * Legado 的 exploreUrl 最终通常只是一个有序 List<ExploreKind>，协议本身没有 level/parent。
  * 本构建器只使用“通用结构信号”恢复导航树，不针对任何书源名称或域名：
  *
- * 1. 已存在 children：视为最强结构信号，递归保留。
- * 2. 无 URL/Action 的项目：视为逻辑 Header，并按原始顺序切分子区间。
- * 3. 连续 Header：自动识别父 Header -> 子 Header 的嵌套关系。
- * 4. 可点击整行项 + 后续窄项：在出现多个重复块时识别为父项。
- * 5. 重复尾项模式：例如 [分类, 完结, 连载] 重复 N 次，自动恢复为
+ * 1. 无 URL/Action 的项目：视为逻辑 Header，并按原始顺序切分子区间。
+ * 2. 连续 Header：自动识别父 Header -> 子 Header 的嵌套关系。
+ * 3. 可点击整行项 + 后续窄项：在出现多个重复块时识别为父项。
+ * 4. 重复尾项模式：例如 [分类, 完结, 连载] 重复 N 次，自动恢复为
  *    分类 -> [全部, 完结, 连载]。
  *
  * layout_flexBasisPercent 只作为“块边界辅助信号”，绝不直接等同于层级。
@@ -23,24 +23,19 @@ object ExploreSourceParser {
     private const val MAX_REPEATED_BLOCK = 8
     private const val EPS = 0.02f
 
-    fun parse(kinds: List<ExploreKind>): List<ExploreKind> {
+    fun parse(kinds: List<ExploreKind>): List<ExploreNode> {
         if (kinds.isEmpty()) return emptyList()
-        return buildLevel(kinds.map(::normalizeExplicitChildren))
+        return buildLevel(kinds)
     }
 
-    private fun buildLevel(input: List<ExploreKind>): List<ExploreKind> {
+    private fun buildLevel(input: List<ExploreKind>): List<ExploreNode> {
         if (input.isEmpty()) return emptyList()
-
-        // 显式 children 优先；若整层本来就是标准树，不再用启发式重排。
-        if (input.any { it.hasChildren() }) {
-            return input.map(::normalizeExplicitChildren)
-        }
 
         buildByHeaders(input)?.let { return it }
         buildByFullWidthAnchors(input)?.let { return it }
         buildByRepeatedTail(input)?.let { return it }
 
-        return input.map(::normalizeExplicitChildren)
+        return input.map(::leafNode)
     }
 
     /**
@@ -50,7 +45,7 @@ object ExploreSourceParser {
      *   父Header, 子Header, payload..., 子Header, payload..., 父Header, 子Header...
      * 其中“后面紧跟 Header 的 Header”会被识别为更高一级父节点。
      */
-    private fun buildByHeaders(items: List<ExploreKind>): List<ExploreKind>? {
+    private fun buildByHeaders(items: List<ExploreKind>): List<ExploreNode>? {
         val headerIndices = items.indices.filter { items[it].isGroupHeader() }
         if (headerIndices.isEmpty()) return null
 
@@ -61,7 +56,7 @@ object ExploreSourceParser {
         // 至少两个父 Header 才认为存在稳定的“父分组 -> 子分组”重复结构。
         if (parentHeaderIndices.size >= 2) {
             val firstParent = parentHeaderIndices.first()
-            val result = mutableListOf<ExploreKind>()
+            val result = mutableListOf<ExploreNode>()
             if (firstParent > 0) {
                 result += buildLevel(items.subList(0, firstParent))
             }
@@ -70,13 +65,13 @@ object ExploreSourceParser {
                 val end = parentHeaderIndices.getOrNull(idx + 1) ?: items.size
                 val parent = items[start]
                 val childSlice = items.subList(start + 1, end)
-                result += parent.copy(children = buildLevel(childSlice))
+                result += node(parent, buildLevel(childSlice))
             }
             return result
         }
 
         // 普通 Header + 连续子项。
-        val result = mutableListOf<ExploreKind>()
+        val result = mutableListOf<ExploreNode>()
         val firstHeader = headerIndices.first()
         if (firstHeader > 0) {
             result += buildLevel(items.subList(0, firstHeader))
@@ -86,7 +81,7 @@ object ExploreSourceParser {
             val end = headerIndices.getOrNull(idx + 1) ?: items.size
             val header = items[start]
             val childSlice = items.subList(start + 1, end)
-            result += header.copy(children = buildLevel(childSlice))
+            result += node(header, buildLevel(childSlice))
         }
         return result
     }
@@ -95,7 +90,7 @@ object ExploreSourceParser {
      * 识别：父项(basis≈1, 有URL) + 一组窄项，且这种块至少出现两次。
      * basis 仅用于确认重复块边界，不作为层级本身。
      */
-    private fun buildByFullWidthAnchors(items: List<ExploreKind>): List<ExploreKind>? {
+    private fun buildByFullWidthAnchors(items: List<ExploreKind>): List<ExploreNode>? {
         val anchors = items.indices.filter { index ->
             val item = items[index]
             item.targetUrl() != null && isFullWidth(item)
@@ -110,15 +105,15 @@ object ExploreSourceParser {
 
         // 必须从首个 anchor 开始形成稳定块；前缀保留为平级，避免误吞。
         val first = usefulAnchors.first()
-        val result = mutableListOf<ExploreKind>()
-        if (first > 0) result += items.subList(0, first)
+        val result = mutableListOf<ExploreNode>()
+        if (first > 0) result += items.subList(0, first).map(::leafNode)
 
         usefulAnchors.forEachIndexed { idx, start ->
             val end = usefulAnchors.getOrNull(idx + 1) ?: items.size
             val anchor = items[start]
             val childSlice = items.subList(start + 1, end)
             val children = buildLevel(childSlice)
-            result += anchor.copy(children = withDefaultChildIfUseful(anchor, children))
+            result += node(anchor, withDefaultChildIfUseful(anchor, children))
         }
         return result
     }
@@ -130,7 +125,7 @@ object ExploreSourceParser {
      *
      * 这是纯结构算法：要求 >=3 个完整块、尾部标题在各块相同、首项标题大多不同。
      */
-    private fun buildByRepeatedTail(items: List<ExploreKind>): List<ExploreKind>? {
+    private fun buildByRepeatedTail(items: List<ExploreKind>): List<ExploreNode>? {
         val n = items.size
         if (n < 6) return null
 
@@ -168,7 +163,7 @@ object ExploreSourceParser {
                 val leader = items[start]
                 val tail = items.subList(start + 1, start + blockSize)
                 val children = buildLevel(tail)
-                leader.copy(children = withDefaultChildIfUseful(leader, children))
+                node(leader, withDefaultChildIfUseful(leader, children))
             }
         }
         return null
@@ -176,8 +171,8 @@ object ExploreSourceParser {
 
     private fun withDefaultChildIfUseful(
         parent: ExploreKind,
-        children: List<ExploreKind>
-    ): List<ExploreKind> {
+        children: List<ExploreNode>
+    ): List<ExploreNode> {
         val parentUrl = parent.targetUrl() ?: return children
         if (children.isEmpty()) return children
         if (children.any { isDefaultTitle(it.title) }) return children
@@ -186,19 +181,29 @@ object ExploreSourceParser {
         val looksLikeStatusDimension = childTitles.any { it in STATUS_TITLES }
         if (!looksLikeStatusDimension) return children
 
-        val sampleStyle = children.firstOrNull()?.style
+        val sampleStyle = children.firstOrNull()?.originalKind?.style
         val defaultNode = ExploreKind(
             title = "全部",
             url = parentUrl,
             style = sampleStyle
         )
-        return listOf(defaultNode) + children
+        return listOf(leafNode(defaultNode)) + children
     }
 
-    private fun normalizeExplicitChildren(kind: ExploreKind): ExploreKind {
-        val children = kind.children
-        return if (children.isNullOrEmpty()) kind else kind.copy(children = parse(children))
-    }
+    private fun leafNode(kind: ExploreKind) = node(kind, emptyList())
+
+    private fun node(kind: ExploreKind, children: List<ExploreNode>) = ExploreNode(
+        title = kind.title,
+        url = kind.targetUrl(),
+        children = children,
+        originalKind = kind
+    )
+
+    private fun ExploreKind.isGroupHeader(): Boolean =
+        url.isNullOrBlank() && action.isNullOrBlank()
+
+    private fun ExploreKind.targetUrl(): String? =
+        action?.takeIf { it.isNotBlank() } ?: url?.takeIf { it.isNotBlank() }
 
     private fun isFullWidth(kind: ExploreKind): Boolean = basis(kind) >= 1f - EPS
 
