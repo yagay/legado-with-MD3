@@ -284,6 +284,7 @@ fun MainActivity.mainEntryProvider(
             onNavigateToChat = {
                 onNavigateToRoute(MainRouteAiChat)
             },
+            onNavigateToRoute = onNavigateToRoute,
             onNavigateToSearch = { key ->
                 onNavigateToRoute(
                     MainRouteSearch(

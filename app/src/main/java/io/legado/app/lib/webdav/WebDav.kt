@@ -88,12 +88,31 @@ open class WebDav(
         val raw = url.toString()
             .replace("davs://", "https://")
             .replace("dav://", "http://")
+        val isHttps = raw.startsWith("https")
+        val content = raw.substringAfter("://")
+        val host = content.substringBefore("/")
+        val pathSegments = content.substringAfter("/", "")
+
         return@lazy kotlin.runCatching {
-            URLEncoder.encode(raw, "UTF-8")
-                .replace("+", "%20")
-                .replace("%3A", ":")
-                .replace("%2F", "/")
-            raw.toHttpUrl().toString()
+            val builder = okhttp3.HttpUrl.Builder()
+                .scheme(if (isHttps) "https" else "http")
+
+            if (host.contains(":")) {
+                builder.host(host.substringBefore(":"))
+                builder.port(host.substringAfter(":").toInt())
+            } else {
+                builder.host(host)
+            }
+
+            if (pathSegments.isNotEmpty()) {
+                pathSegments.split("/").forEach {
+                    if (it.isNotEmpty()) builder.addPathSegment(it)
+                }
+                if (pathSegments.endsWith("/")) {
+                    builder.addPathSegment("")
+                }
+            }
+            builder.build().toString()
         }.getOrNull()
     }
     private val webDavClient by lazy {
@@ -154,7 +173,7 @@ open class WebDav(
     private suspend fun propFindResponse(
         propsList: List<String> = emptyList(),
         depth: Int = 1
-    ): String? {
+    ): String? = withContext(IO) {
         val requestProps = StringBuilder()
         for (p in propsList) {
             requestProps.append("<a:").append(p).append("/>\n")
@@ -164,8 +183,8 @@ open class WebDav(
         } else {
             String.format(DIR, requestProps.toString() + "\n")
         }
-        val url = httpUrl ?: return null
-        return webDavClient.newCallResponse {
+        val url = httpUrl ?: return@withContext null
+        return@withContext webDavClient.newCallResponse {
             url(url)
             addHeader("Depth", depth.toString())
             // 添加RequestBody对象，可以只返回的属性。如果设为null，则会返回全部属性
@@ -247,10 +266,10 @@ open class WebDav(
     /**
      * 文件是否存在
      */
-    suspend fun exists(): Boolean {
-        val url = httpUrl ?: return false
-        return kotlin.runCatching {
-            return webDavClient.newCallResponse {
+    suspend fun exists(): Boolean = withContext(IO) {
+        val url = httpUrl ?: return@withContext false
+        return@withContext kotlin.runCatching {
+            return@runCatching webDavClient.newCallResponse {
                 url(url)
                 addHeader("Depth", "0")
                 val requestBody = EXISTS.toRequestBody("application/xml".toMediaType())
@@ -264,8 +283,8 @@ open class WebDav(
     /**
      * 检查用户名密码是否有效
      */
-    suspend fun check(): Boolean {
-        return kotlin.runCatching {
+    suspend fun check(): Boolean = withContext(IO) {
+        return@withContext kotlin.runCatching {
             webDavClient.newCallResponse {
                 url(url)
                 addHeader("Depth", "0")
@@ -281,10 +300,10 @@ open class WebDav(
      * 根据自己的URL，在远程处创建对应的文件夹
      * @return 是否创建成功
      */
-    suspend fun makeAsDir(): Boolean {
-        val url = httpUrl ?: return false
+    suspend fun makeAsDir(): Boolean = withContext(IO) {
+        val url = httpUrl ?: return@withContext false
         //防止报错
-        return kotlin.runCatching {
+        return@withContext kotlin.runCatching {
             if (!exists()) {
                 webDavClient.newCallResponse {
                     url(url)
@@ -400,23 +419,23 @@ open class WebDav(
     }
 
     @Throws(WebDavException::class)
-    suspend fun downloadInputStream(): InputStream {
+    suspend fun downloadInputStream(): InputStream = withContext(IO) {
         val url = httpUrl ?: throw WebDavException("WebDav下载出错\nurl为空")
         val byteStream = webDavClient.newCallResponse {
             url(url)
         }.apply {
             checkResult(this)
         }.body.byteStream()
-        return byteStream
+        return@withContext byteStream
     }
 
     /**
      * 移除文件/文件夹
      */
-    suspend fun delete(): Boolean {
-        val url = httpUrl ?: return false
+    suspend fun delete(): Boolean = withContext(IO) {
+        val url = httpUrl ?: return@withContext false
         //防止报错
-        return kotlin.runCatching {
+        return@withContext kotlin.runCatching {
             webDavClient.newCallResponse {
                 url(url)
                 method("DELETE", null)

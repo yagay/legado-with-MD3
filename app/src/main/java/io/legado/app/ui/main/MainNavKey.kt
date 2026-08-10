@@ -71,6 +71,9 @@ data object MainRouteSettingsTheme : MainRoute
 data object MainRouteSettingsBackup : MainRoute
 
 @Serializable
+data object MainRouteSettingsCustomConfig : MainRoute
+
+@Serializable
 data object MainRouteSettingsAi : MainRoute
 
 @Serializable
@@ -243,6 +246,7 @@ object MainRouteConst {
     const val ROUTE_SETTINGS_COVER_ALBUMS = "settings/cover/albums"
     const val ROUTE_SETTINGS_THEME = "settings/theme"
     const val ROUTE_SETTINGS_BACKUP = "settings/backup"
+    const val ROUTE_SETTINGS_CUSTOM_CONFIG = "settings/custom_config"
     const val ROUTE_SETTINGS_AI = "settings/ai"
     const val ROUTE_SETTINGS_AI_SUMMARY = "settings/ai/summary"
     const val ROUTE_SETTINGS_AI_PROMPT = "settings/ai/prompt"

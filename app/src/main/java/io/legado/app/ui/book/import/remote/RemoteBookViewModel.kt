@@ -97,6 +97,7 @@ sealed interface RemoteBookIntent {
     data class ImportArchiveConfirmed(val fileDoc: FileDoc, val fileName: String) : RemoteBookIntent
     data class DeleteServer(val server: Server) : RemoteBookIntent
     data class SaveServer(val server: Server) : RemoteBookIntent
+    data object SyncAllFromWebDav : RemoteBookIntent
 }
 
 sealed interface RemoteBookEffect {
@@ -168,6 +169,14 @@ class RemoteBookViewModel(
             )
             is RemoteBookIntent.DeleteServer -> deleteServer(intent.server)
             is RemoteBookIntent.SaveServer -> saveServer(intent.server)
+            RemoteBookIntent.SyncAllFromWebDav -> syncAll()
+        }
+    }
+
+    private fun syncAll() {
+        viewModelScope.launch {
+            io.legado.app.help.AppWebDav.importAllBooksFromWebDav()
+            refreshData()
         }
     }
 

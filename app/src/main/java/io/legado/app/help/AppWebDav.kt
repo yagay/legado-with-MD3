@@ -13,11 +13,14 @@ import io.legado.app.help.storage.Backup
 import io.legado.app.help.storage.BackupRestoreLock
 import io.legado.app.help.storage.Restore
 import io.legado.app.lib.webdav.Authorization
+import io.legado.app.lib.webdav.ObjectNotFoundException
 import io.legado.app.lib.webdav.WebDav
 import io.legado.app.lib.webdav.WebDavException
 import io.legado.app.lib.webdav.WebDavFile
+import io.legado.app.model.remote.RemoteBook
 import io.legado.app.model.remote.RemoteBookWebDav
 import io.legado.app.ui.config.backupConfig.BackupConfig
+import io.legado.app.ui.config.otherConfig.OtherConfig
 import io.legado.app.utils.AlphanumComparator
 import io.legado.app.utils.FileUtils
 import io.legado.app.utils.GSON
@@ -28,10 +31,16 @@ import io.legado.app.utils.fromJsonObject
 import io.legado.app.utils.isJson
 import io.legado.app.utils.normalizeFileName
 import io.legado.app.utils.toastOnUi
+import io.legado.app.model.localBook.LocalBook
+import io.legado.app.constant.BookType
+import io.legado.app.help.book.update
+import io.legado.app.model.analyzeRule.CustomUrl
+import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import splitties.init.appCtx
 import java.io.File
 
@@ -39,10 +48,10 @@ import java.io.File
  * webDav初始化会访问网络,不要放到主线程
  */
 object AppWebDav {
-    private const val defaultWebDavUrl = "https://dav.jianguoyun.com/dav/"
-    private val bookProgressUrl get() = "${rootWebDavUrl}bookProgress/"
-    private val exportsWebDavUrl get() = "${rootWebDavUrl}books/"
-    private val bgWebDavUrl get() = "${rootWebDavUrl}background/"
+    const val defaultWebDavUrl = "https://dav.jianguoyun.com/dav/"
+    val bookProgressUrl get() = "${rootWebDavUrl}bookProgress/"
+    val exportsWebDavUrl get() = "${rootWebDavUrl}books/"
+    val bgWebDavUrl get() = "${rootWebDavUrl}background/"
 
     private val configMutex = Mutex()
     private var appliedConfig: AppliedWebDavConfig? = null
@@ -391,6 +400,57 @@ object AppWebDav {
                     book.syncTime = System.currentTimeMillis()
                     appDb.bookDao.update(book)
                 }
+            }
+        }
+    }
+
+    /**
+     * 从 WebDAV 导入所有书籍
+     */
+    suspend fun importAllBooksFromWebDav() = withContext(IO) {
+        val auth = authorization ?: return@withContext
+        try {
+            appCtx.toastOnUi("开始从 WebDAV 批量同步书籍...")
+            AppLog.put("WebDAV: 正在列出目录 $exportsWebDavUrl")
+            val files = WebDav(exportsWebDavUrl, auth).listFiles()
+            if (files.isEmpty()) {
+                AppLog.put("WebDAV: 目录为空或不存在")
+                return@withContext
+            }
+
+            var successCount = 0
+            var skipCount = 0
+            files.forEachIndexed { index, webDavFile ->
+                if (!webDavFile.isDir && (webDavFile.displayName.endsWith(".epub", true) || webDavFile.displayName.endsWith(".txt", true))) {
+                    if (LocalBook.isOnBookShelf(webDavFile.displayName)) {
+                        skipCount++
+                        AppLog.put("WebDAV: 跳过已存在书籍 ${webDavFile.displayName}")
+                    } else {
+                        try {
+                            appCtx.toastOnUi("同步中 (${index + 1}/${files.size}): ${webDavFile.displayName}")
+                            val remoteBook = RemoteBook(webDavFile)
+                            val bookUrl = defaultBookWebDav?.downloadRemoteBook(remoteBook)
+                            if (bookUrl != null) {
+                                val book = LocalBook.importFile(bookUrl)
+                                book.originName = webDavFile.displayName
+                                book.origin = BookType.webDavTag + CustomUrl(webDavFile.path)
+                                    .putAttribute("serverID", defaultBookWebDav?.serverID)
+                                    .toString()
+                                book.update()
+                                successCount++
+                            }
+                        } catch (e: Exception) {
+                            AppLog.put("WebDAV: 同步书籍 ${webDavFile.displayName} 失败", e)
+                        }
+                    }
+                }
+            }
+            appCtx.toastOnUi("WebDAV 同步完成：成功 $successCount，跳过 $skipCount")
+        } catch (e: Exception) {
+            if (e is ObjectNotFoundException || e.message?.contains("404") == true) {
+                AppLog.put("WebDAV: 导出目录不存在，跳过批量导入")
+            } else {
+                AppLog.put("WebDAV 批量导入书籍失败\n${e.localizedMessage}", e, true)
             }
         }
     }

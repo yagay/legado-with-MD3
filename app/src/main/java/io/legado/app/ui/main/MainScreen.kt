@@ -127,6 +127,7 @@ fun MainScreen(
     useRail: Boolean,
     onOpenSettings: () -> Unit,
     onNavigateToChat: () -> Unit,
+    onNavigateToRoute: (MainRoute) -> Unit,
     onNavigateToSearch: (String?) -> Unit,
     onNavigateToScopedSearch: (String) -> Unit,
     onNavigateToRemoteImport: () -> Unit,
@@ -606,6 +607,7 @@ fun MainScreen(
                             MainDestination.My -> MyRouteScreen(
                                 onOpenSettings = onOpenSettings,
                                 onNavigateToChat = onNavigateToChat,
+                                onNavigateToRoute = onNavigateToRoute,
                                 onNavigate = { event ->
                                     when (event) {
                                         PrefClickEvent.OpenBookCacheManage -> onNavigateToBookCacheManage()

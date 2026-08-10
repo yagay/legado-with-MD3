@@ -34,6 +34,15 @@ data class FileDoc(
 
     val isContentScheme get() = uri.isContentScheme()
 
+    val freshSize: Long
+        get() {
+            return if (isContentScheme) {
+                DocumentFile.fromSingleUri(appCtx, uri)?.length() ?: 0L
+            } else {
+                asFile()?.length() ?: 0L
+            }
+        }
+
     fun readBytes(): ByteArray {
         return uri.readBytes(appCtx)
     }

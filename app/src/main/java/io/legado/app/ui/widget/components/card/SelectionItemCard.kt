@@ -13,8 +13,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -61,6 +64,7 @@ fun SelectionItemCard(
     modifier: Modifier = Modifier,
     subtitle: String? = null,
     supportingContent: @Composable (() -> Unit)? = null,
+    titleBadge: @Composable (() -> Unit)? = null,
     isEnabled: Boolean = true,
     isSelected: Boolean = false,
     inSelectionMode: Boolean = false,
@@ -115,6 +119,7 @@ fun SelectionItemCard(
             title = title,
             subtitle = subtitle,
             supportingContent = supportingContent,
+            titleBadge = titleBadge,
             isEnabled = isEnabled,
             isSelected = isSelected,
             inSelectionMode = inSelectionMode,
@@ -135,6 +140,7 @@ fun SelectionItemCardContent(
     title: String,
     subtitle: String? = null,
     supportingContent: @Composable (() -> Unit)? = null,
+    titleBadge: @Composable (() -> Unit)? = null,
     isEnabled: Boolean = true,
     isSelected: Boolean = false,
     inSelectionMode: Boolean = false,
@@ -186,12 +192,19 @@ fun SelectionItemCardContent(
             BasicComponent(
                 modifier = Modifier.weight(1f)
             ) {
-                AppText(
-                    text = title,
-                    style = LegadoTheme.typography.titleSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    AppText(
+                        text = title,
+                        style = LegadoTheme.typography.titleSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    titleBadge?.let {
+                        Spacer(Modifier.width(6.dp))
+                        it()
+                    }
+                }
                 when {
                     supportingContent != null -> supportingContent()
                     !subtitle.isNullOrBlank() -> {
@@ -208,12 +221,19 @@ fun SelectionItemCardContent(
             ListItem(
                 modifier = Modifier.weight(1f),
                 headlineContent = {
-                    AppText(
-                        text = title,
-                        style = LegadoTheme.typography.titleSmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        AppText(
+                            text = title,
+                            style = LegadoTheme.typography.titleSmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        titleBadge?.let {
+                            Spacer(Modifier.width(6.dp))
+                            it()
+                        }
+                    }
                 },
                 supportingContent = when {
                     supportingContent != null -> supportingContent
@@ -295,6 +315,7 @@ fun LazyItemScope.ReorderableSelectionItem(
     modifier: Modifier = Modifier,
     subtitle: String? = null,
     supportingContent: @Composable (() -> Unit)? = null,
+    titleBadge: @Composable (() -> Unit)? = null,
     isEnabled: Boolean = true,
     isSelected: Boolean = false,
     inSelectionMode: Boolean = false,
@@ -335,6 +356,7 @@ fun LazyItemScope.ReorderableSelectionItem(
             title = title,
             subtitle = subtitle,
             supportingContent = supportingContent,
+            titleBadge = titleBadge,
             isEnabled = isEnabled,
             isSelected = isSelected,
             inSelectionMode = inSelectionMode,

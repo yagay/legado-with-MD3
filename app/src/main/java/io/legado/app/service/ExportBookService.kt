@@ -28,6 +28,7 @@ import io.legado.app.help.book.BookHelp
 import io.legado.app.help.book.ContentProcessor
 import io.legado.app.help.book.getExportFileName
 import io.legado.app.help.book.isLocalModified
+import io.legado.app.lib.webdav.WebDav
 import io.legado.app.model.ReadBook
 import io.legado.app.model.localBook.LocalBook
 import io.legado.app.ui.main.MainActivity
@@ -178,7 +179,15 @@ class ExportBookService : BaseService(), KoinComponent {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setGroup(groupKey)
             .setGroupSummary(true)
-        startForeground(NotificationId.ExportBookService, notification.build())
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(
+                NotificationId.ExportBookService,
+                notification.build(),
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            )
+        } else {
+            startForeground(NotificationId.ExportBookService, notification.build())
+        }
     }
 
     private fun upExportNotification(finish: Boolean = false) {
@@ -332,7 +341,15 @@ class ExportBookService : BaseService(), KoinComponent {
         }
         if (currentExportSettings.exportToWebDav) {
             // 导出到webdav
-            AppWebDav.exportWebDav(bookDoc.uri, filename)
+            val auth = AppWebDav.authorization
+            if (auth != null) {
+                val remoteFile = WebDav(AppWebDav.exportsWebDavUrl + filename, auth).getWebDavFile()
+                if (remoteFile != null && remoteFile.size == bookDoc.freshSize) {
+                    AppLog.put("WebDAV: $filename 已是最新，跳过上传")
+                } else {
+                    AppWebDav.exportWebDav(bookDoc.uri, filename)
+                }
+            }
         }
     }
 
@@ -488,7 +505,15 @@ class ExportBookService : BaseService(), KoinComponent {
 
         if (currentExportSettings.exportToWebDav) {
             // 导出到webdav
-            AppWebDav.exportWebDav(bookDoc.uri, filename)
+            val auth = AppWebDav.authorization
+            if (auth != null) {
+                val remoteFile = WebDav(AppWebDav.exportsWebDavUrl + filename, auth).getWebDavFile()
+                if (remoteFile != null && remoteFile.size == bookDoc.freshSize) {
+                    AppLog.put("WebDAV: $filename 已是最新，跳过上传")
+                } else {
+                    AppWebDav.exportWebDav(bookDoc.uri, filename)
+                }
+            }
         }
     }
 
@@ -959,7 +984,15 @@ class ExportBookService : BaseService(), KoinComponent {
 
             if (currentExportSettings.exportToWebDav) {
                 // 导出到webdav
-                AppWebDav.exportWebDav(bookDoc.uri, filename)
+                val auth = AppWebDav.authorization
+                if (auth != null) {
+                    val remoteFile = WebDav(AppWebDav.exportsWebDavUrl + filename, auth).getWebDavFile()
+                    if (remoteFile != null && remoteFile.size == bookDoc.freshSize) {
+                        AppLog.put("WebDAV: $filename 已是最新，跳过上传")
+                    } else {
+                        AppWebDav.exportWebDav(bookDoc.uri, filename)
+                    }
+                }
             }
         }
 

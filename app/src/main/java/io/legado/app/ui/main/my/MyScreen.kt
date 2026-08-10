@@ -2,8 +2,11 @@ package io.legado.app.ui.main.my
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,6 +18,8 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -31,6 +36,7 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.OpenInBrowser
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Source
@@ -45,13 +51,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.legado.app.R
-import io.legado.app.ui.book.bookmark.AllBookmarkActivity
-import io.legado.app.ui.book.toc.rule.TxtTocRuleActivity
-import io.legado.app.ui.dict.rule.DictRuleActivity
-import io.legado.app.ui.file.FileManageActivity
-import io.legado.app.ui.replace.ReplaceRuleActivity
+import io.legado.app.ui.main.MainRoute
 import io.legado.app.ui.theme.adaptiveContentPadding
+import io.legado.app.ui.theme.adaptiveHorizontalPadding
 import io.legado.app.ui.widget.components.AppScaffold
+import io.legado.app.ui.widget.components.SearchBar
 import io.legado.app.ui.widget.components.SplicedColumnGroup
 import io.legado.app.ui.widget.components.button.series.SmallPlainButton
 import io.legado.app.ui.widget.components.settingItem.ClickableSettingItem
@@ -59,6 +63,11 @@ import io.legado.app.ui.widget.components.settingItem.SwitchSettingItem
 import io.legado.app.ui.widget.components.topbar.GlassMediumFlexibleTopAppBar
 import io.legado.app.ui.widget.components.topbar.GlassTopAppBarDefaults
 import io.legado.app.ui.widget.components.topbar.TopBarActionButton
+import io.legado.app.ui.book.bookmark.AllBookmarkActivity
+import io.legado.app.ui.book.toc.rule.TxtTocRuleActivity
+import io.legado.app.ui.dict.rule.DictRuleActivity
+import io.legado.app.ui.file.FileManageActivity
+import io.legado.app.ui.replace.ReplaceRuleActivity
 import org.koin.androidx.compose.koinViewModel
 
 
@@ -68,6 +77,7 @@ fun MyRouteScreen(
     viewModel: MyViewModel = koinViewModel(),
     onOpenSettings: () -> Unit,
     onNavigateToChat: () -> Unit,
+    onNavigateToRoute: (MainRoute) -> Unit,
     onNavigate: (PrefClickEvent) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -76,6 +86,7 @@ fun MyRouteScreen(
         onIntent = viewModel::onIntent,
         onOpenSettings = onOpenSettings,
         onNavigateToChat = onNavigateToChat,
+        onNavigateToRoute = onNavigateToRoute,
         onNavigate = onNavigate,
     )
 }
@@ -87,6 +98,7 @@ fun MyScreen(
     onIntent: (MyIntent) -> Unit,
     onOpenSettings: () -> Unit,
     onNavigateToChat: () -> Unit,
+    onNavigateToRoute: (MainRoute) -> Unit,
     onNavigate: (PrefClickEvent) -> Unit,
 ) {
     val scrollBehavior = GlassTopAppBarDefaults.defaultScrollBehavior()
@@ -98,6 +110,11 @@ fun MyScreen(
             GlassMediumFlexibleTopAppBar(
                 title = stringResource(R.string.my),
                 actions = {
+                    TopBarActionButton(
+                        onClick = { onIntent(MyIntent.SetSearchMode(!state.isSearch)) },
+                        imageVector = Icons.Default.Search,
+                        contentDescription = stringResource(R.string.search)
+                    )
                     TopBarActionButton(
                         onClick = {
                             onNavigate(
@@ -111,21 +128,69 @@ fun MyScreen(
                         contentDescription = stringResource(R.string.help)
                     )
                 },
-                scrollBehavior = scrollBehavior
+                scrollBehavior = scrollBehavior,
+                bottomContent = {
+                    AnimatedVisibility(
+                        modifier = Modifier
+                            .adaptiveHorizontalPadding(),
+                        visible = state.isSearch,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut()
+                    ) {
+                        Box(modifier = Modifier.padding(bottom = 8.dp)) {
+                            SearchBar(
+                                query = state.searchKey,
+                                onQueryChange = { onIntent(MyIntent.SetSearchQuery(it)) },
+                                placeholder = stringResource(R.string.search_placeholder),
+                            )
+                        }
+                    }
+                }
             )
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(
-                    adaptiveContentPadding(
-                        top = padding.calculateTopPadding(),
-                        bottom = 120.dp
+        if (state.isSearch && state.searchKey.isNotBlank()) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(
+                        adaptiveContentPadding(
+                            top = padding.calculateTopPadding(),
+                            bottom = 120.dp
+                        )
+                    ),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(state.searchResults) { result ->
+                    ClickableSettingItem(
+                        title = result.title,
+                        description = result.description,
+                        onClick = {
+                            when (val action = result.action) {
+                                is SettingAction.Navigate -> onNavigateToRoute(action.route)
+                                is SettingAction.Activity -> onNavigate(
+                                    PrefClickEvent.StartActivity(
+                                        action.destination
+                                    )
+                                )
+                                is SettingAction.Event -> onNavigate(action.event)
+                            }
+                        }
                     )
-                )
-        ) {
+                }
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(
+                        adaptiveContentPadding(
+                            top = padding.calculateTopPadding(),
+                            bottom = 120.dp
+                        )
+                    )
+            ) {
             SplicedColumnGroup(
                 title = ""
             ) {
@@ -245,6 +310,7 @@ fun MyScreen(
             }
         }
     }
+}
 }
 
 

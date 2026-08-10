@@ -281,6 +281,11 @@ fun RemoteBookScreen(
         searchPlaceholder = "搜索",
         topBarActions = {
             TopBarActionButton(
+                onClick = { onIntent(RemoteBookIntent.SyncAllFromWebDav) },
+                imageVector = Icons.Default.CloudDownload,
+                contentDescription = "批量同步"
+            )
+            TopBarActionButton(
                 onClick = onOpenServers,
                 imageVector = Icons.Default.Storage,
                 contentDescription = stringResource(R.string.a11y_server_list)
