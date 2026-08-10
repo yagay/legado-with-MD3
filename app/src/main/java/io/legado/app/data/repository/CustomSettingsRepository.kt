@@ -29,11 +29,14 @@ class CustomSettingsRepository : CustomSettingsGateway {
 }
 
 internal fun Preferences.toCustomSettings(): CustomSettings = CustomSettings(
-    masterSwitch = compatDsBoolean(CustomPreferKey.masterSwitch) ?: false,
+    masterSwitch = compatDsBoolean(CustomPreferKey.masterSwitch) ?: true,
     discoveryLayoutMode = compatDsInt(CustomPreferKey.discoveryLayoutMode) ?: 0,
     discoveryLayoutSwitcherEnabled = compatDsBoolean(CustomPreferKey.discoveryLayoutSwitcherEnabled) ?: true,
     discoveryAutoCollapse = compatDsBoolean(CustomPreferKey.discoveryAutoCollapse) ?: true,
     loginShowEarthIcon = compatDsBoolean(CustomPreferKey.loginShowEarthIcon) ?: true,
+    autoBackupOnBackground = compatDsBoolean(CustomPreferKey.autoBackupOnBackground) ?: false,
+    autoBackupOnBackgroundIntervalMinutes =
+        (compatDsInt(CustomPreferKey.autoBackupOnBackgroundIntervalMinutes) ?: 1).coerceAtLeast(1),
     autoExportBooksOnBackup = compatDsBoolean(CustomPreferKey.autoExportBooksOnBackup) ?: false,
     autoImportBooksOnRestore = compatDsBoolean(CustomPreferKey.autoImportBooksOnRestore) ?: false
 )
@@ -44,6 +47,8 @@ internal fun CustomSettings.toPrefMap(): Map<String, Any?> = mapOf(
     CustomPreferKey.discoveryLayoutSwitcherEnabled to discoveryLayoutSwitcherEnabled,
     CustomPreferKey.discoveryAutoCollapse to discoveryAutoCollapse,
     CustomPreferKey.loginShowEarthIcon to loginShowEarthIcon,
+    CustomPreferKey.autoBackupOnBackground to autoBackupOnBackground,
+    CustomPreferKey.autoBackupOnBackgroundIntervalMinutes to autoBackupOnBackgroundIntervalMinutes,
     CustomPreferKey.autoExportBooksOnBackup to autoExportBooksOnBackup,
     CustomPreferKey.autoImportBooksOnRestore to autoImportBooksOnRestore
 )
