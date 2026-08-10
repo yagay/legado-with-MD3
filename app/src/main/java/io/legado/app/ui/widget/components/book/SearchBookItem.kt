@@ -57,6 +57,8 @@ fun SearchBookListItem(
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
     sharedCoverKey: String? = null,
     sourceCount: Int? = null,
+    coverHeight: androidx.compose.ui.unit.Dp? = null,
+    adaptContentToCoverHeight: Boolean = false,
 ) {
     Row(
         modifier = modifier
@@ -69,9 +71,15 @@ fun SearchBookListItem(
             )
             .then(if (showPadding) Modifier.adaptiveHorizontalPadding(vertical = 8.dp) else Modifier)
     ) {
-        Box(modifier = Modifier
-            .width(72.dp)
-            .aspectRatio(5f / 7f)) {
+        Box(
+            modifier = Modifier.then(
+                if (coverHeight != null) {
+                    Modifier.height(coverHeight).aspectRatio(5f / 7f)
+                } else {
+                    Modifier.width(72.dp).aspectRatio(5f / 7f)
+                }
+            )
+        ) {
             CoilBookCover(
                 name = book.name,
                 author = book.author,
@@ -108,7 +116,13 @@ fun SearchBookListItem(
         Column(
             modifier = Modifier
                 .weight(1f)
-                .align(Alignment.CenterVertically)
+                .then(
+                    if (adaptContentToCoverHeight && coverHeight != null) {
+                        Modifier.height(coverHeight)
+                    } else {
+                        Modifier.align(Alignment.CenterVertically)
+                    }
+                )
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 AppText(
@@ -159,18 +173,32 @@ fun SearchBookListItem(
             Spacer(modifier = Modifier.height(4.dp))
 
             val intro = remember(book.intro) { HtmlFormatter.formatSummaryText(book.intro) }
+            val kinds = remember(book.wordCount, book.kind) { book.getKindList() }
+            val introMaxLines = remember(coverHeight, adaptContentToCoverHeight, kinds.isNotEmpty()) {
+                if (adaptContentToCoverHeight && coverHeight != null) {
+                    val reserved = if (kinds.isNotEmpty()) 70f else 42f
+                    ((coverHeight.value - reserved) / 15f)
+                        .toInt()
+                        .coerceIn(2, 10)
+                } else {
+                    2
+                }
+            }
             if (intro.isNotEmpty()) {
                 AppText(
                     text = intro,
                     style = LegadoTheme.typography.labelSmall,
                     color = LegadoTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    minLines = 2,
+                    maxLines = introMaxLines,
+                    minLines = if (adaptContentToCoverHeight) 1 else 2,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
 
-            val kinds = remember(book.wordCount, book.kind) { book.getKindList() }
+            if (adaptContentToCoverHeight && coverHeight != null) {
+                Spacer(modifier = Modifier.weight(1f))
+            }
+
             if (kinds.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(4.dp))
                 val scrollState = rememberScrollState()
