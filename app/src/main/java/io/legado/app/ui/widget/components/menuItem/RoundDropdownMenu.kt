@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material3.DropdownMenu
@@ -27,8 +27,6 @@ import io.legado.app.ui.theme.ProvideAppContentColor
 import io.legado.app.ui.theme.ProvideAppDensity
 import io.legado.app.ui.theme.ThemeResolver
 import io.legado.app.ui.theme.rememberOpaqueColorScheme
-import top.yukonga.miuix.kmp.basic.ListPopupColumn
-import top.yukonga.miuix.kmp.overlay.OverlayListPopup
 import top.yukonga.miuix.kmp.window.WindowListPopup
 
 val LocalUseMiuixWindowPopup = staticCompositionLocalOf { false }
@@ -48,15 +46,15 @@ fun RoundDropdownMenu(
     val popupContainerColor = LegadoTheme.colorScheme.surfaceContainer
 
     if (isMiuix) {
-        val popupContentColor = LegadoTheme.colorScheme.onSurface
-        WindowListPopup(
-            show = expanded,
-            onDismissRequest = onDismissRequest,
-            popupModifier = modifier
-        ) {
-            ProvideAppDensity {
-                ProvideAppContentColor(popupContentColor) {
-                    ListPopupColumn {
+        if (expanded) {
+            val popupContentColor = LegadoTheme.colorScheme.onSurface
+            WindowListPopup(
+                show = expanded,
+                onDismissRequest = onDismissRequest,
+                popupModifier = modifier
+            ) {
+                ProvideAppDensity {
+                    ProvideAppContentColor(popupContentColor) {
                         Column(modifier = Modifier.background(popupContainerColor)) {
                             Spacer(Modifier.height(12.dp))
                             content(onDismissRequest)
@@ -105,26 +103,27 @@ fun RoundDropdownMenuLazy(
     shape: Shape = MaterialTheme.shapes.medium,
     shadowElevation: Dp = 4.dp,
     verticalSpacing: Dp = 8.dp,
-    maxHeight: Dp = 320.dp,
+    width: Dp = 280.dp,
+    height: Dp = 320.dp,
     content: LazyListScope.(dismiss: () -> Unit) -> Unit
 ) {
     val isMiuix = ThemeResolver.isMiuixEngine(LegadoTheme.composeEngine)
     val popupContainerColor = LegadoTheme.colorScheme.surfaceContainer
 
     if (isMiuix) {
-        val popupContentColor = LegadoTheme.colorScheme.onSurface
-        WindowListPopup(
-            show = expanded,
-            onDismissRequest = onDismissRequest,
-            popupModifier = modifier
-        ) {
-            ProvideAppDensity {
-                ProvideAppContentColor(popupContentColor) {
-                    ListPopupColumn {
+        if (expanded) {
+            val popupContentColor = LegadoTheme.colorScheme.onSurface
+            WindowListPopup(
+                show = expanded,
+                onDismissRequest = onDismissRequest,
+                popupModifier = modifier
+            ) {
+                ProvideAppDensity {
+                    ProvideAppContentColor(popupContentColor) {
                         LazyColumn(
                             modifier = Modifier
-                                .background(popupContainerColor)
-                                .heightIn(max = maxHeight),
+                                .requiredSize(width = width, height = height)
+                                .background(popupContainerColor),
                             verticalArrangement = Arrangement.spacedBy(verticalSpacing)
                         ) {
                             item { Spacer(Modifier.height(12.dp)) }
@@ -155,7 +154,7 @@ fun RoundDropdownMenuLazy(
                     shapes = Shapes()
                 ) {
                     LazyColumn(
-                        modifier = Modifier.heightIn(max = maxHeight),
+                        modifier = Modifier.requiredSize(width = width, height = height),
                         verticalArrangement = Arrangement.spacedBy(verticalSpacing)
                     ) {
                         content(onDismissRequest)
