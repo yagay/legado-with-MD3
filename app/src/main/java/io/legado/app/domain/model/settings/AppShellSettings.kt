@@ -29,4 +29,7 @@ data class AppShellSettings(
     val navIconRssSelected: String = "",
     val navIconMySelected: String = "",
     val launcherIcon: String = "ic_launcher",
+    // Compatibility field used by the uploaded discovery implementation.
+    // The authoritative persisted default layout lives in CustomSettings.
+    val exploreLayoutMode: Int = 0,
 )
