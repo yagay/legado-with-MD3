@@ -2,48 +2,43 @@ package io.legado.app.ui.config.customConfig
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import io.legado.app.domain.gateway.BackupSettingsGateway
 import io.legado.app.domain.gateway.CustomSettingsGateway
-import io.legado.app.domain.model.settings.BackupSettings
 import io.legado.app.domain.model.settings.CustomSettings
 import io.legado.app.help.storage.Backup
+import io.legado.app.help.AppWebDav
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import splitties.init.appCtx
 
 class CustomConfigViewModel(
     private val settingsGateway: CustomSettingsGateway,
-    private val backupSettingsGateway: BackupSettingsGateway,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(
-        CustomConfigUiState(
-            settings = settingsGateway.currentSettings,
-            backupSettings = backupSettingsGateway.currentSettings,
-        )
+        CustomConfigUiState(settings = settingsGateway.currentSettings)
     )
     val uiState = _uiState.asStateFlow()
 
     init {
         viewModelScope.launch {
-            combine(
-                settingsGateway.settings,
-                backupSettingsGateway.settings
-            ) { custom, backup ->
-                CustomConfigUiState(custom, backup)
-            }.collect { newState ->
-                _uiState.value = newState
+            settingsGateway.settings.collect { settings ->
+                _uiState.value = CustomConfigUiState(settings)
             }
         }
     }
 
     fun onIntent(intent: CustomConfigIntent) {
         when (intent) {
+            is CustomConfigIntent.SetDiscoveryLayoutMode -> {
+                update { it.copy(discoveryLayoutMode = intent.value.coerceIn(0, 1)) }
+            }
             is CustomConfigIntent.SetAutoBackupOnBackground -> {
-                updateBackup { it.copy(autoBackupOnBackground = intent.value) }
+                update { it.copy(autoBackupOnBackground = intent.value) }
             }
             is CustomConfigIntent.SetAutoBackupOnBackgroundInterval -> {
-                updateBackup { it.copy(autoBackupOnBackgroundInterval = intent.value) }
+                update {
+                    it.copy(autoBackupOnBackgroundIntervalMinutes = intent.value.coerceAtLeast(1))
+                }
             }
             is CustomConfigIntent.SetAutoExportBooksOnBackup -> {
                 update { it.copy(autoExportBooksOnBackup = intent.value) }
@@ -52,22 +47,15 @@ class CustomConfigViewModel(
                 update { it.copy(autoImportBooksOnRestore = intent.value) }
             }
             CustomConfigIntent.ExportAllToWebDav -> {
-                io.legado.app.utils.LogUtils.d("CustomConfig", "触发一键导出书籍到 WebDAV")
-                Backup.exportAllCachedBooks(splitties.init.appCtx, force = true)
+                Backup.exportAllCachedBooks(appCtx, force = true)
             }
             CustomConfigIntent.ImportAllFromWebDav -> {
-                viewModelScope.launch {
-                    io.legado.app.help.AppWebDav.importAllBooksFromWebDav()
-                }
+                viewModelScope.launch { AppWebDav.importAllBooksFromWebDav() }
             }
         }
     }
 
     private fun update(transform: (CustomSettings) -> CustomSettings) {
         viewModelScope.launch { settingsGateway.update(transform) }
-    }
-
-    private fun updateBackup(transform: (BackupSettings) -> BackupSettings) {
-        viewModelScope.launch { backupSettingsGateway.update(transform) }
     }
 }
