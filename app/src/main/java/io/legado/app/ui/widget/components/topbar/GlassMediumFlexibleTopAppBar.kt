@@ -1,28 +1,41 @@
 package io.legado.app.ui.widget.components.topbar
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MediumFlexibleTopAppBar
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarColors
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.legado.app.ui.theme.LegadoTheme
 import io.legado.app.ui.theme.LocalAppUiConfiguration
@@ -30,6 +43,8 @@ import io.legado.app.ui.theme.LocalHazeState
 import io.legado.app.ui.theme.ThemeResolver
 import io.legado.app.ui.theme.responsiveHazeEffect
 import io.legado.app.ui.widget.components.GlassDefaults
+import io.legado.app.ui.widget.components.menuItem.RoundDropdownMenu
+import io.legado.app.ui.widget.components.menuItem.RoundDropdownMenuLazy
 import io.legado.app.ui.widget.components.text.AdaptiveAnimatedText
 import io.legado.app.ui.widget.components.text.AnimatedTextLine
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
@@ -49,9 +64,23 @@ fun GlassMediumFlexibleTopAppBar(
     subtitle: String? = null,
     scrollBehavior: GlassTopAppBarScrollBehavior? = null,
     navigationIcon: @Composable () -> Unit = {},
+    subtitleDropdownMenu: (@Composable (onDismiss: () -> Unit) -> Unit)? = null,
+    subtitleDropdownMenuLazy: (LazyListScope.(onDismiss: () -> Unit) -> Unit)? = null,
+    subtitleDropdownMenuWidth: Dp = 280.dp,
+    subtitleDropdownMenuHeight: Dp = 320.dp,
+    subtitleMenuExpanded: Boolean? = null,
+    onSubtitleMenuExpandedChange: ((Boolean) -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
     bottomContent: @Composable (ColumnScope.() -> Unit)? = null
 ) {
+    var internalShowSubtitleMenu by remember { mutableStateOf(false) }
+    val showSubtitleMenu = subtitleMenuExpanded ?: internalShowSubtitleMenu
+    fun setSubtitleMenuExpanded(expanded: Boolean) {
+        if (subtitleMenuExpanded == null) {
+            internalShowSubtitleMenu = expanded
+        }
+        onSubtitleMenuExpandedChange?.invoke(expanded)
+    }
 
     val hazeState = LocalHazeState.current
     val themeSettings = LocalAppUiConfiguration.current.theme
@@ -91,36 +120,23 @@ fun GlassMediumFlexibleTopAppBar(
     )
     val subtitleText = subtitle?.takeIf { it.isNotBlank() }
 
-    Column(
-        modifier = finalModifier
-    ) {
+    Column(modifier = finalModifier) {
         when {
             isMiuix -> {
-                // Reserve constant status-bar space (ignoring visibility) instead
-                // of MiuixTopAppBar's default animating status-bar padding. This
-                // matches Material3's TopAppBar (systemBarsForVisualComponents) so
-                // the bar/content doesn't reflow down when the status bar is
-                // re-shown — e.g. returning from a reader that hid it.
                 MiuixTopAppBar(
                     modifier = Modifier.windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility),
                     title = title,
                     subtitle = subtitleText.orEmpty(),
                     navigationIcon = navigationIcon,
-                    actions = {
-                        TopBarActionsRow(
-                            modifier = Modifier.padding(end = miuixTopBarActionsEndPadding())
-                        ) { actions() }
-                    },
+                    actions = actions,
                     color = Color.Transparent,
                     defaultWindowInsetsPadding = false,
-                    navigationIconPadding = miuixTopBarSlotPadding(),
-                    actionIconPadding = miuixTopBarSlotPadding(),
                     scrollBehavior = (scrollBehavior as? MiuixGlassScrollBehavior)?.miuixBehavior
                 )
             }
 
             else -> {
-                if (themeSettings.useFlexibleTopAppBar) {
+                if (themeSettings.useFlexibleTopAppBar && subtitleDropdownMenu == null && subtitleDropdownMenuLazy == null) {
                     MediumFlexibleTopAppBar(
                         modifier = Modifier,
                         title = {
@@ -133,13 +149,43 @@ fun GlassMediumFlexibleTopAppBar(
                         },
                         subtitle = subtitleText?.let { text ->
                             {
-                                AnimatedTextLine(text = text)
+                                val rowModifier = if (subtitleDropdownMenu != null || subtitleDropdownMenuLazy != null) {
+                                    Modifier.clickable { setSubtitleMenuExpanded(true) }
+                                } else Modifier
+                                Row(modifier = rowModifier, verticalAlignment = Alignment.CenterVertically) {
+                                    AnimatedTextLine(text = text)
+                                    if (subtitleDropdownMenu != null || subtitleDropdownMenuLazy != null) {
+                                        Icon(
+                                            imageVector = Icons.Default.ArrowDropDown,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        if (subtitleDropdownMenuLazy != null) {
+                                            RoundDropdownMenuLazy(
+                                                expanded = showSubtitleMenu,
+                                                onDismissRequest = { setSubtitleMenuExpanded(false) },
+                                                width = subtitleDropdownMenuWidth,
+                                                height = subtitleDropdownMenuHeight
+                                            ) {
+                                                subtitleDropdownMenuLazy { setSubtitleMenuExpanded(false) }
+                                            }
+                                        } else if (subtitleDropdownMenu != null) {
+                                            RoundDropdownMenu(
+                                                expanded = showSubtitleMenu,
+                                                onDismissRequest = { setSubtitleMenuExpanded(false) }
+                                            ) {
+                                                subtitleDropdownMenu { setSubtitleMenuExpanded(false) }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         },
                         navigationIcon = navigationIcon,
                         actions = {
                             Box(modifier = Modifier.padding(end = 12.dp)) {
-                                TopBarActionsRow { actions() }
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { actions() }
                             }
                         },
                         scrollBehavior = (scrollBehavior as? M3GlassScrollBehavior)?.m3Behavior,
@@ -157,20 +203,50 @@ fun GlassMediumFlexibleTopAppBar(
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 subtitleText?.let { text ->
-                                    AnimatedTextLine(
-                                        text = text,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
+                                    val rowModifier = if (subtitleDropdownMenu != null || subtitleDropdownMenuLazy != null) {
+                                        Modifier.clickable { setSubtitleMenuExpanded(true) }
+                                    } else Modifier
+                                    Row(modifier = rowModifier, verticalAlignment = Alignment.CenterVertically) {
+                                        AnimatedTextLine(
+                                            text = text,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        if (subtitleDropdownMenu != null || subtitleDropdownMenuLazy != null) {
+                                            Icon(
+                                                imageVector = Icons.Default.ArrowDropDown,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp),
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            if (subtitleDropdownMenuLazy != null) {
+                                                RoundDropdownMenuLazy(
+                                                    expanded = showSubtitleMenu,
+                                                    onDismissRequest = { setSubtitleMenuExpanded(false) },
+                                                    width = subtitleDropdownMenuWidth,
+                                                    height = subtitleDropdownMenuHeight
+                                                ) {
+                                                    subtitleDropdownMenuLazy { setSubtitleMenuExpanded(false) }
+                                                }
+                                            } else if (subtitleDropdownMenu != null) {
+                                                RoundDropdownMenu(
+                                                    expanded = showSubtitleMenu,
+                                                    onDismissRequest = { setSubtitleMenuExpanded(false) }
+                                                ) {
+                                                    subtitleDropdownMenu { setSubtitleMenuExpanded(false) }
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         },
                         navigationIcon = navigationIcon,
                         actions = {
                             Box(modifier = Modifier.padding(end = 12.dp)) {
-                                TopBarActionsRow { actions() }
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { actions() }
                             }
                         },
                         scrollBehavior = (scrollBehavior as? M3GlassScrollBehavior)?.m3Behavior,
@@ -215,18 +291,13 @@ object GlassTopAppBarDefaults {
 
     @Composable
     fun glassColors(): TopAppBarColors {
-
-        val containerBaseColor = GlassDefaults.secondaryColorOr {
-            MaterialTheme.colorScheme.surface
-        }
+        val containerBaseColor = GlassDefaults.secondaryColorOr { MaterialTheme.colorScheme.surface }
         val containerColor = GlassDefaults.glassColor(
             noBlurColor = containerBaseColor,
             blurAlpha = GlassDefaults.TransparentAlpha
         )
 
-        val scrolledBaseColor = GlassDefaults.secondaryColorOr {
-            MaterialTheme.colorScheme.surfaceContainer
-        }
+        val scrolledBaseColor = GlassDefaults.secondaryColorOr { MaterialTheme.colorScheme.surfaceContainer }
         val scrolledContainerColor = if (LocalAppUiConfiguration.current.theme.enableBlur) {
             scrolledBaseColor.copy(alpha = GlassDefaults.TransparentAlpha)
         } else {
@@ -251,9 +322,7 @@ object GlassTopAppBarDefaults {
 
     @Composable
     fun scrolledContainerColor(): Color {
-        val baseColor = GlassDefaults.secondaryColorOr {
-            MaterialTheme.colorScheme.surfaceContainer
-        }
+        val baseColor = GlassDefaults.secondaryColorOr { MaterialTheme.colorScheme.surfaceContainer }
         val glassColor = GlassDefaults.glassColor(
             noBlurColor = baseColor,
             blurAlpha = GlassDefaults.TransparentAlpha
@@ -272,7 +341,7 @@ object GlassTopAppBarDefaults {
 
     @Composable
     private fun applyTopBarOpacity(color: Color): Color {
-        val opacity = (LocalAppUiConfiguration.current.theme.topBarOpacity.coerceIn(0, 100)) / 100f
+        val opacity = LocalAppUiConfiguration.current.theme.topBarOpacity.coerceIn(0, 100) / 100f
         return color.copy(alpha = (color.alpha * opacity).coerceIn(0f, 1f))
     }
 }
