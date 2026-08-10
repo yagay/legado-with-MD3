@@ -9,6 +9,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -28,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import io.legado.app.R
@@ -46,6 +50,14 @@ fun <T> ListScaffold(
     title: String,
     state: ListUiState<T>,
     subtitle: String? = null,
+    subtitleDropdownMenu: (@Composable (dismiss: () -> Unit) -> Unit)? = null,
+    subtitleDropdownMenuLazy: (LazyListScope.(dismiss: () -> Unit) -> Unit)? = null,
+    subtitleDropdownMenuWidth: Dp = 280.dp,
+    subtitleDropdownMenuHeight: Dp = 320.dp,
+    subtitleDropdownMenuState: LazyListState = rememberLazyListState(),
+    subtitleDropdownMenuFastScroll: Boolean = false,
+    subtitleMenuExpanded: Boolean? = null,
+    onSubtitleMenuExpandedChange: ((Boolean) -> Unit)? = null,
     onBackClick: (() -> Unit)? = null,
     backNavigationIcon: ImageVector = AppIcons.Back,
     showSearchAction: Boolean = true,
@@ -92,6 +104,14 @@ fun <T> ListScaffold(
             DynamicTopAppBar(
                 title = title,
                 subtitle = subtitle,
+                subtitleDropdownMenu = subtitleDropdownMenu,
+                subtitleDropdownMenuLazy = subtitleDropdownMenuLazy,
+                subtitleDropdownMenuWidth = subtitleDropdownMenuWidth,
+                subtitleDropdownMenuHeight = subtitleDropdownMenuHeight,
+                subtitleDropdownMenuState = subtitleDropdownMenuState,
+                subtitleDropdownMenuFastScroll = subtitleDropdownMenuFastScroll,
+                subtitleMenuExpanded = subtitleMenuExpanded,
+                onSubtitleMenuExpandedChange = onSubtitleMenuExpandedChange,
                 state = state,
                 scrollBehavior = scrollBehavior,
                 onBackClick = onBackClick,

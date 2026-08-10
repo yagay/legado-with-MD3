@@ -12,4 +12,6 @@ data class BackupSettings(
     val onlyLatestBackup: Boolean = true,
     val backupSyncMode: String = "both",
     val backupPath: String? = null,
+    val autoBackupOnBackground: Boolean = false,
+    val autoBackupOnBackgroundInterval: Int = 1,
 )

@@ -53,6 +53,8 @@ sealed interface BackupConfigIntent {
     data class SetSyncBookProgress(val value: Boolean) : BackupConfigIntent
     data class SetSyncBookProgressPlus(val value: Boolean) : BackupConfigIntent
     data class SetAutoCheckNewBackup(val value: Boolean) : BackupConfigIntent
+    data class SetAutoBackupOnBackground(val value: Boolean) : BackupConfigIntent
+    data class SetAutoBackupOnBackgroundInterval(val value: Int) : BackupConfigIntent
     data class SetOnlyLatestBackup(val value: Boolean) : BackupConfigIntent
     data class SetBackupSyncMode(val value: String) : BackupConfigIntent
     data class OpenSheet(val sheet: BackupConfigSheet) : BackupConfigIntent

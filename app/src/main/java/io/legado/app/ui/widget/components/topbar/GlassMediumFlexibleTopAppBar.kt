@@ -1,28 +1,22 @@
 package io.legado.app.ui.widget.components.topbar
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MediumFlexibleTopAppBar
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarColors
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.legado.app.ui.theme.LegadoTheme
 import io.legado.app.ui.theme.LocalAppUiConfiguration
@@ -30,6 +24,8 @@ import io.legado.app.ui.theme.LocalHazeState
 import io.legado.app.ui.theme.ThemeResolver
 import io.legado.app.ui.theme.responsiveHazeEffect
 import io.legado.app.ui.widget.components.GlassDefaults
+import io.legado.app.ui.widget.components.menuItem.RoundDropdownMenu
+import io.legado.app.ui.widget.components.menuItem.RoundDropdownMenuLazy
 import io.legado.app.ui.widget.components.text.AdaptiveAnimatedText
 import io.legado.app.ui.widget.components.text.AnimatedTextLine
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
@@ -49,9 +45,25 @@ fun GlassMediumFlexibleTopAppBar(
     subtitle: String? = null,
     scrollBehavior: GlassTopAppBarScrollBehavior? = null,
     navigationIcon: @Composable () -> Unit = {},
+    subtitleDropdownMenu: (@Composable (onDismiss: () -> Unit) -> Unit)? = null,
+    subtitleDropdownMenuLazy: (LazyListScope.(onDismiss: () -> Unit) -> Unit)? = null,
+    subtitleDropdownMenuWidth: Dp = 280.dp,
+    subtitleDropdownMenuHeight: Dp = 320.dp,
+    subtitleDropdownMenuState: LazyListState = rememberLazyListState(),
+    subtitleDropdownMenuFastScroll: Boolean = false,
+    subtitleMenuExpanded: Boolean? = null,
+    onSubtitleMenuExpandedChange: ((Boolean) -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
     bottomContent: @Composable (ColumnScope.() -> Unit)? = null
 ) {
+    var internalShowSubtitleMenu by remember { mutableStateOf(false) }
+    val showSubtitleMenu = subtitleMenuExpanded ?: internalShowSubtitleMenu
+    fun setSubtitleMenuExpanded(expanded: Boolean) {
+        if (subtitleMenuExpanded == null) {
+            internalShowSubtitleMenu = expanded
+        }
+        onSubtitleMenuExpandedChange?.invoke(expanded)
+    }
 
     val hazeState = LocalHazeState.current
     val themeSettings = LocalAppUiConfiguration.current.theme
@@ -120,6 +132,12 @@ fun GlassMediumFlexibleTopAppBar(
             }
 
             else -> {
+                // A subtitle menu must not change the top-app-bar layout. Explore uses
+                // the subtitle as its source picker in waterfall mode; falling back to
+                // the compact TopAppBar here moved both the "Discovery" title and the
+                // popup anchor compared with list mode. The popup itself is composed
+                // once below this bar, so MediumFlexibleTopAppBar can safely keep the
+                // same positioning in both modes.
                 if (themeSettings.useFlexibleTopAppBar) {
                     MediumFlexibleTopAppBar(
                         modifier = Modifier,
@@ -133,7 +151,20 @@ fun GlassMediumFlexibleTopAppBar(
                         },
                         subtitle = subtitleText?.let { text ->
                             {
-                                AnimatedTextLine(text = text)
+                                val rowModifier = if (subtitleDropdownMenu != null || subtitleDropdownMenuLazy != null) {
+                                    Modifier.clickable { setSubtitleMenuExpanded(true) }
+                                } else Modifier
+                                Row(modifier = rowModifier, verticalAlignment = Alignment.CenterVertically) {
+                                    AnimatedTextLine(text = text)
+                                    if (subtitleDropdownMenu != null || subtitleDropdownMenuLazy != null) {
+                                        Icon(
+                                            imageVector = if (showSubtitleMenu) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                            contentDescription = if (showSubtitleMenu) "收起书源菜单" else "展开书源菜单",
+                                            modifier = Modifier.size(24.dp),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
                             }
                         },
                         navigationIcon = navigationIcon,
@@ -157,13 +188,26 @@ fun GlassMediumFlexibleTopAppBar(
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 subtitleText?.let { text ->
-                                    AnimatedTextLine(
-                                        text = text,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
+                                    val rowModifier = if (subtitleDropdownMenu != null || subtitleDropdownMenuLazy != null) {
+                                        Modifier.clickable { setSubtitleMenuExpanded(true) }
+                                    } else Modifier
+                                    Row(modifier = rowModifier, verticalAlignment = Alignment.CenterVertically) {
+                                        AnimatedTextLine(
+                                            text = text,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        if (subtitleDropdownMenu != null || subtitleDropdownMenuLazy != null) {
+                                            Icon(
+                                                imageVector = if (showSubtitleMenu) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                                contentDescription = if (showSubtitleMenu) "收起书源菜单" else "展开书源菜单",
+                                                modifier = Modifier.size(24.dp),
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         },
@@ -177,6 +221,30 @@ fun GlassMediumFlexibleTopAppBar(
                         colors = transparentColors
                     )
                 }
+            }
+        }
+
+        // TopAppBar may compose its title/subtitle slot more than once while
+        // measuring or animating. A Popup inside that slot therefore creates
+        // duplicate windows for the same expanded state. Keep the clickable
+        // subtitle in the slot, but own exactly one popup at this outer level.
+        if (subtitleDropdownMenuLazy != null) {
+            RoundDropdownMenuLazy(
+                expanded = showSubtitleMenu,
+                onDismissRequest = { setSubtitleMenuExpanded(false) },
+                width = subtitleDropdownMenuWidth,
+                height = subtitleDropdownMenuHeight,
+                state = subtitleDropdownMenuState,
+                showFastScroll = subtitleDropdownMenuFastScroll
+            ) {
+                subtitleDropdownMenuLazy { setSubtitleMenuExpanded(false) }
+            }
+        } else if (subtitleDropdownMenu != null) {
+            RoundDropdownMenu(
+                expanded = showSubtitleMenu,
+                onDismissRequest = { setSubtitleMenuExpanded(false) }
+            ) {
+                subtitleDropdownMenu { setSubtitleMenuExpanded(false) }
             }
         }
 

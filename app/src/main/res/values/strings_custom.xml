@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="auto_backup_on_background">Auto Backup on Background</string>
+    <string name="auto_backup_on_background_summary">Trigger a backup after the app is in the background for a set duration, bypassing the daily limit.</string>
+    <string name="auto_backup_on_background_interval">Backup Delay (minutes)</string>
+</resources>

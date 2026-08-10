@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="auto_backup_on_background">切到后台自动备份</string>
+    <string name="auto_backup_on_background_summary">切换到后台指定时间后自动备份，绕过每日备份次数限制</string>
+    <string name="auto_backup_on_background_interval">自动备份等待时长（分钟）</string>
+</resources>

@@ -57,7 +57,7 @@ fun ExploreKindSelectSheet(
 
     LaunchedEffect(show, sourceUrl) {
         if (show && !sourceUrl.isNullOrBlank()) {
-            kinds = repository.getSourceExploreKinds(sourceUrl)
+            kinds = repository.getSourceExploreTree(sourceUrl).flattenOriginalKinds()
         }
     }
 

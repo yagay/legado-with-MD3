@@ -7,8 +7,10 @@ import io.legado.app.data.entities.SearchBook
 import io.legado.app.data.entities.rule.ExploreKind
 import io.legado.app.domain.gateway.ExploreBooksGateway
 import io.legado.app.help.source.SourceHelp
+import io.legado.app.help.source.ExploreSourceParser
 import io.legado.app.help.source.exploreKinds
 import io.legado.app.model.webBook.WebBook
+import io.legado.app.ui.main.explore.*
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -20,6 +22,7 @@ interface ExploreRepository {
     fun getExploreSources(query: String, selectedGroup: String): Flow<List<BookSourcePart>>
     suspend fun getBookSource(sourceUrl: String): BookSource?
     suspend fun getSourceExploreKinds(sourceUrl: String): List<ExploreKind>
+    suspend fun getSourceExploreTree(sourceUrl: String): ExploreTree
     suspend fun topSource(bookSource: BookSourcePart)
     suspend fun deleteSource(sourceUrl: String)
 }
@@ -93,7 +96,20 @@ class ExploreRepositoryImpl(
 
     override suspend fun getSourceExploreKinds(sourceUrl: String): List<ExploreKind> = withContext(IO) {
         val source = appDb.bookSourceDao.getBookSource(sourceUrl)
-        return@withContext source?.exploreKinds() ?: emptyList()
+        val rawKinds = source?.exploreKinds() ?: emptyList()
+        return@withContext ExploreSourceParser.parse(rawKinds)
+    }
+
+    override suspend fun getSourceExploreTree(sourceUrl: String): ExploreTree = withContext(IO) {
+        val source = appDb.bookSourceDao.getBookSource(sourceUrl)
+        val rawKinds = source?.exploreKinds() ?: emptyList()
+        val parsedKinds = ExploreSourceParser.parse(rawKinds)
+        val mode = if (parsedKinds.any { it.hasChildren() }) ExploreMode.TREE else ExploreMode.FLAT
+        return@withContext ExploreTree(
+            rootNodes = ExploreTreeBuilder.build(parsedKinds),
+            mode = mode,
+            filterGroups = if (mode == ExploreMode.FLAT) ExploreFilterBuilder.build(parsedKinds) else emptyList()
+        )
     }
 
     override suspend fun topSource(bookSource: BookSourcePart) {

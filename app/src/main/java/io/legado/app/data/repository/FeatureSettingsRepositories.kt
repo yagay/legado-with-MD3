@@ -261,6 +261,8 @@ internal fun Preferences.toBackupSettings(): BackupSettings = BackupSettings(
     onlyLatestBackup = compatDsBoolean(PreferKey.onlyLatestBackup) ?: true,
     backupSyncMode = compatDsString(PreferKey.backupSyncMode) ?: "both",
     backupPath = compatDsString(PreferKey.backupPath),
+    autoBackupOnBackground = compatDsBoolean(PreferKey.autoBackupOnBackground) ?: false,
+    autoBackupOnBackgroundInterval = compatDsInt(PreferKey.autoBackupOnBackgroundInterval) ?: 1,
 )
 
 internal fun BackupSettings.toPrefMap(): Map<String, Any?> = mapOf(
@@ -275,6 +277,8 @@ internal fun BackupSettings.toPrefMap(): Map<String, Any?> = mapOf(
     PreferKey.onlyLatestBackup to onlyLatestBackup,
     PreferKey.backupSyncMode to backupSyncMode,
     PreferKey.backupPath to backupPath,
+    PreferKey.autoBackupOnBackground to autoBackupOnBackground,
+    PreferKey.autoBackupOnBackgroundInterval to autoBackupOnBackgroundInterval,
 )
 
 internal fun Preferences.toAppShellSettings(): AppShellSettings = AppShellSettings(
@@ -308,6 +312,7 @@ internal fun Preferences.toAppShellSettings(): AppShellSettings = AppShellSettin
     navIconRssSelected = compatDsString(PreferKey.navIconRssSelected) ?: "",
     navIconMySelected = compatDsString(PreferKey.navIconMySelected) ?: "",
     launcherIcon = compatDsString(PreferKey.launcherIcon) ?: "ic_launcher",
+    exploreLayoutMode = compatDsInt(PreferKey.exploreLayoutMode) ?: 0,
 )
 
 internal fun AppShellSettings.toPrefMap(): Map<String, Any?> = mapOf(
@@ -339,6 +344,7 @@ internal fun AppShellSettings.toPrefMap(): Map<String, Any?> = mapOf(
     PreferKey.navIconRssSelected to navIconRssSelected,
     PreferKey.navIconMySelected to navIconMySelected,
     PreferKey.launcherIcon to launcherIcon,
+    PreferKey.exploreLayoutMode to exploreLayoutMode,
 )
 
 internal fun Preferences.toThemeSettings(): ThemeSettings = ThemeSettings(

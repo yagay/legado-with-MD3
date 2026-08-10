@@ -127,7 +127,7 @@ fun MainScreen(
     useRail: Boolean,
     onOpenSettings: () -> Unit,
     onNavigateToChat: () -> Unit,
-    onNavigateToRoute: (MainRoute) -> Unit,
+    onNavigateToRoute: (androidx.navigation3.runtime.NavKey) -> Unit,
     onNavigateToSearch: (String?) -> Unit,
     onNavigateToScopedSearch: (String) -> Unit,
     onNavigateToRemoteImport: () -> Unit,
@@ -585,6 +585,7 @@ fun MainScreen(
                                 },
                                 onOpenEdit = onNavigateToBookSourceEdit,
                                 onOpenSearch = onNavigateToScopedSearch,
+                                onOpenBookInfo = onNavigateToBookInfo,
                             )
                             MainDestination.Rss -> RssRouteScreen(
                                 onOpenSort = { sourceUrl, sortUrl, key ->
@@ -613,6 +614,7 @@ fun MainScreen(
                                         PrefClickEvent.OpenBookCacheManage -> onNavigateToBookCacheManage()
                                         PrefClickEvent.OpenBookSourceManage -> onNavigateToBookSourceManage()
                                         PrefClickEvent.OpenReadRecord -> onNavigateToReadRecord()
+                                        is PrefClickEvent.NavigateToRoute -> onNavigateToRoute(event.route)
                                         else -> onIntent(MainUiIntent.HandlePreferenceClick(event))
                                     }
                                 }

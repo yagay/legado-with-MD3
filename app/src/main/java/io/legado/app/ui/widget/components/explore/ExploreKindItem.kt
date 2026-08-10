@@ -130,8 +130,10 @@ private fun KindText(
                 .padding(end = if (trailingIcon == null) 0.dp else 18.dp),
             style = LegadoTheme.typography.labelMediumEmphasized,
             textAlign = textAlign,
-            overflow = TextOverflow.Ellipsis,
-            maxLines = 1
+            // 所有发现层级都禁止省略/截断：频道、分类、状态、榜单以及更深层级
+            // 空间不足时允许文本自动换行，宁可增加卡片高度也完整显示标题。
+            overflow = TextOverflow.Clip,
+            maxLines = Int.MAX_VALUE
         )
         if (trailingIcon != null) {
             Box(

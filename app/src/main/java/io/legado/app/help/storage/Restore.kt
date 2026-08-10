@@ -34,9 +34,11 @@ import io.legado.app.data.entities.readRecord.ReadRecord
 import io.legado.app.data.entities.readRecord.ReadRecordDetail
 import io.legado.app.data.entities.readRecord.ReadRecordSession
 import io.legado.app.domain.gateway.AppLocaleGateway
+import io.legado.app.domain.gateway.CustomSettingsGateway
 import io.legado.app.domain.gateway.ReadStyleGateway
 import io.legado.app.ui.book.read.ConfigUpdateAction
 import io.legado.app.ui.book.read.ReadConfigUpdateBus
+import io.legado.app.help.AppWebDav
 import io.legado.app.help.DirectLinkUpload
 import io.legado.app.help.LauncherIconHelp
 import io.legado.app.help.book.isLocal
@@ -383,6 +385,12 @@ object Restore : KoinComponent {
         }
 
         appCtx.toastOnUi(R.string.restore_success)
+
+        val customSettingsGateway: CustomSettingsGateway = get()
+        if (customSettingsGateway.currentSettings.autoImportBooksOnRestore) {
+            AppWebDav.importAllBooksFromWebDav()
+        }
+
         withContext(Main) {
             delay(100)
             get<AppLocaleGateway>().setLanguage(OtherConfig.language)

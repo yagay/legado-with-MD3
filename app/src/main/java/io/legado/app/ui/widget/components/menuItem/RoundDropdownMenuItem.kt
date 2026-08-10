@@ -1,7 +1,8 @@
 package io.legado.app.ui.widget.components.menuItem
 
 import androidx.compose.foundation.LocalIndication
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -40,6 +41,7 @@ import top.yukonga.miuix.kmp.icon.basic.Check
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.basic.Text as MiuixText
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun RoundDropdownMenuItem(
     text: String,
@@ -52,6 +54,7 @@ fun RoundDropdownMenuItem(
     enabled: Boolean = true,
     contentPadding: PaddingValues = MenuDefaults.DropdownMenuItemContentPadding,
     interactionSource: MutableInteractionSource? = null,
+    onLongClick: (() -> Unit)? = null,
 ) {
     val isMiuix = ThemeResolver.isMiuixEngine(LegadoTheme.composeEngine)
     val interaction = interactionSource ?: remember { MutableInteractionSource() }
@@ -69,11 +72,12 @@ fun RoundDropdownMenuItem(
             modifier = modifier
                 .fillMaxWidth()
                 .drawBehind { drawRect(backgroundColor) }
-                .clickable(
+                .combinedClickable(
                     interactionSource = interaction,
                     indication = LocalIndication.current,
                     enabled = enabled,
-                    onClick = onClick
+                    onClick = onClick,
+                    onLongClick = onLongClick
                 )
                 .padding(horizontal = 20.dp, vertical = 12.dp)
         ) {
@@ -130,15 +134,19 @@ fun RoundDropdownMenuItem(
         val containerColor = legadoColorScheme.surface
 
         Surface(
-            onClick = onClick,
             modifier = modifier
                 .padding(horizontal = 8.dp)
-                .fillMaxWidth(),
-            enabled = enabled,
+                .fillMaxWidth()
+                .combinedClickable(
+                    interactionSource = interaction,
+                    indication = LocalIndication.current,
+                    enabled = enabled,
+                    onClick = onClick,
+                    onLongClick = onLongClick
+                ),
             shape = MaterialTheme.shapes.small,
             color = containerColor,
-            contentColor = contentColor,
-            interactionSource = interaction
+            contentColor = contentColor
         ) {
             Row(
                 modifier = Modifier

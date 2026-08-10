@@ -9,8 +9,10 @@ import android.content.pm.ApplicationInfo
 import android.graphics.BitmapFactory
 import android.os.Build
 import androidx.core.graphics.scale
+import androidx.lifecycle.ProcessLifecycleOwner
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
+import io.legado.app.BuildConfig
 import com.github.liuyueyi.quick.transfer.constants.TransType
 import com.google.android.material.color.DynamicColors
 import com.google.android.material.color.DynamicColorsOptions
@@ -61,6 +63,7 @@ import io.legado.app.help.http.okHttpClient
 import io.legado.app.help.rhino.NativeBaseSource
 import io.legado.app.help.source.SourceHelp
 import io.legado.app.help.storage.Backup
+import io.legado.app.help.storage.BackupLifecycleObserver
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.model.BookCover
 import io.legado.app.ui.book.read.page.entities.TextLine
@@ -168,6 +171,7 @@ class App : Application(), SingletonImageLoader.Factory {
             ThreadUtils.setThreadAssertsDisabledForTesting(true)
         }
         registerActivityLifecycleCallbacks(LifecycleHelp)
+        ProcessLifecycleOwner.get().lifecycle.addObserver(BackupLifecycleObserver)
         Coroutine.async {
             get<BackupSettingsGateway>().settings
                 .map {

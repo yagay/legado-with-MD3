@@ -10,6 +10,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -17,18 +18,23 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.automirrored.outlined.Label
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.VerticalAlignTop
+import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -48,16 +54,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.legado.app.R
 import io.legado.app.data.entities.BookSourcePart
+import io.legado.app.data.entities.SearchBook
+import io.legado.app.data.entities.rule.ExploreKind
 import io.legado.app.domain.usecase.ExploreKindUiUseCase
 import io.legado.app.help.source.getExploreInfoMap
 import io.legado.app.ui.book.search.SearchScope
@@ -71,14 +83,17 @@ import io.legado.app.ui.widget.components.card.GlassCard
 import io.legado.app.ui.widget.components.card.TextCard
 import io.legado.app.ui.widget.components.divider.PillHeaderDivider
 import io.legado.app.ui.widget.components.explore.ExploreKindMultiTypeItem
+import io.legado.app.ui.widget.components.explore.calculateExploreKindRows
 import io.legado.app.ui.widget.components.lazylist.FastScrollLazyColumn
 import io.legado.app.ui.widget.components.list.ListScaffold
 import io.legado.app.ui.widget.components.list.TopFloatingStickyItem
 import io.legado.app.ui.widget.components.menuItem.MenuItemIcon
 import io.legado.app.ui.widget.components.menuItem.RoundDropdownMenu
 import io.legado.app.ui.widget.components.menuItem.RoundDropdownMenuItem
+import io.legado.app.ui.widget.components.modalBottomSheet.AppModalBottomSheet
 import io.legado.app.ui.widget.components.progressIndicator.AppContainedLoadingIndicator
 import io.legado.app.ui.widget.components.text.AppText
+import io.legado.app.ui.widget.components.topbar.TopBarActionButton
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -95,6 +110,7 @@ fun ExploreRouteScreen(
     onOpenLogin: (sourceUrl: String) -> Unit,
     onOpenEdit: (sourceUrl: String) -> Unit,
     onOpenSearch: (scopeRaw: String) -> Unit,
+    onOpenBookInfo: (name: String, author: String, bookUrl: String, origin: String?, coverPath: String?, sharedCoverKey: String?) -> Unit,
 ) {
     val context = LocalContext.current
     val activity = context as? AppCompatActivity
@@ -127,15 +143,33 @@ fun ExploreRouteScreen(
                 is ExploreEffect.OpenLogin -> {
                     onOpenLogin(effect.sourceUrl)
                 }
+                is ExploreEffect.OpenBookInfo -> {
+                    onOpenBookInfo(
+                        effect.name,
+                        effect.author,
+                        effect.bookUrl,
+                        effect.origin,
+                        effect.coverPath,
+                        effect.sharedCoverKey
+                    )
+                }
             }
         }
     }
+
+    var showSourceMenu by remember { mutableStateOf(false) }
 
     ExploreScreen(
         state = uiState,
         onIntent = viewModel::onIntent,
         onOpenExploreShow = onOpenExploreShow,
+        onOpenBookInfo = onOpenBookInfo,
+        onShowSourceMenu = { showSourceMenu = true },
+        onBookClick = { book, sharedCoverKey ->
+            viewModel.onIntent(ExploreIntent.OpenBook(book, sharedCoverKey))
+        }
     )
+
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -144,6 +178,9 @@ fun ExploreScreen(
     state: ExploreViewModel.ExploreUiState,
     onIntent: (ExploreIntent) -> Unit,
     onOpenExploreShow: (title: String?, sourceUrl: String, exploreUrl: String?) -> Unit,
+    onOpenBookInfo: (name: String, author: String, bookUrl: String, origin: String?, coverPath: String?, sharedCoverKey: String?) -> Unit,
+    onShowSourceMenu: () -> Unit = {},
+    onBookClick: (SearchBook, String?) -> Unit = { _, _ -> }
 ) {
     val listItems by remember(state.items, state.expandedId, state.exploreKinds) {
         derivedStateOf { buildExploreListItems(state) }
@@ -151,6 +188,14 @@ fun ExploreScreen(
     var sourceToDeleteUrl by rememberSaveable { mutableStateOf<String?>(null) }
     val sourceToDelete = remember(sourceToDeleteUrl, state.items) {
         state.items.firstOrNull { it.bookSourceUrl == sourceToDeleteUrl }
+    }
+    // Long-pressing a source in the waterfall source picker switches the SAME
+    // popup into the standard source action menu instead of opening a nested popup.
+    // This avoids the double-popup problem while keeping the exact same actions
+    // available as the list layout's source long-press menu.
+    var sourceActionMenuUrl by rememberSaveable { mutableStateOf<String?>(null) }
+    val sourceActionMenuSource = remember(sourceActionMenuUrl, state.items) {
+        state.items.firstOrNull { it.bookSourceUrl == sourceActionMenuUrl }
     }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -169,14 +214,232 @@ fun ExploreScreen(
 
     val composeEngine = ThemeResolver.isMiuixEngine(composeEngine)
 
+    // Source picker popup is lazy-rendered for speed, but must have a concrete
+    // size so Popup/DropdownMenu never asks LazyColumn for intrinsic sizes.
+    // Width follows the longest visible source name; height grows with item
+    // count and stops at a comfortable maximum, so one/few sources do not
+    // leave a giant empty panel.
+    val sourceMenuItems = remember(state.items) {
+        state.items.distinctBy { it.bookSourceUrl }
+    }
+    val sourceMenuListState = rememberLazyListState()
+    var sourceMenuExpanded by rememberSaveable { mutableStateOf(false) }
+    val defaultSourceIndex = remember(sourceMenuItems, state.selectedSuite?.defaultSourceUrl) {
+        sourceMenuItems.indexOfFirst {
+            it.bookSourceUrl == state.selectedSuite?.defaultSourceUrl
+        }
+    }
+    LaunchedEffect(sourceMenuExpanded, defaultSourceIndex, sourceActionMenuSource) {
+        if (sourceMenuExpanded && sourceActionMenuSource == null && defaultSourceIndex >= 0) {
+            // Miuix adds one outer spacer before the shared header item.
+            val menuPrefixCount = if (composeEngine) 2 else 1
+            sourceMenuListState.scrollToItem(defaultSourceIndex + menuPrefixCount)
+        }
+    }
+    val sourceMenuTextStyle = MaterialTheme.typography.labelLarge
+    val sourceMenuTextMeasurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val sourceMenuWidth = remember(sourceMenuItems, sourceMenuTextStyle, density) {
+        val longestPx = sourceMenuItems.maxOfOrNull { source ->
+            sourceMenuTextMeasurer.measure(
+                text = AnnotatedString(source.bookSourceName),
+                style = sourceMenuTextStyle,
+                maxLines = 1
+            ).size.width
+        } ?: 0
+        with(density) { longestPx.toDp() + 88.dp }
+            .coerceIn(190.dp, 360.dp)
+    }
+    val configuration = LocalConfiguration.current
+    val sourceMenuMaxHeight = remember(configuration.screenHeightDp) {
+        // Match the effective maximum height used by the standard top-right
+        // DropdownMenu: keep the same 48dp vertical safety margin on both
+        // sides of the window, instead of using a fixed 420dp cap.
+        (configuration.screenHeightDp.dp - 96.dp).coerceAtLeast(124.dp)
+    }
+    val sourceActionCount = remember(sourceActionMenuSource) {
+        sourceActionMenuSource?.let { source ->
+            // Back + top + edit + search + optional login + set-home + refresh + delete
+            7 + if (source.hasLoginUrl) 1 else 0
+        } ?: 0
+    }
+    val sourceMenuHeight = remember(sourceMenuItems.size, sourceActionCount, sourceMenuMaxHeight) {
+        // Approx. header 44dp + each menu row 56dp + outer breathing room.
+        // When a source is long-pressed the same popup changes to the action menu,
+        // so size it from the action count instead of the source count.
+        val rowCount = if (sourceActionCount > 0) sourceActionCount else sourceMenuItems.size
+        (68 + rowCount * 56).dp
+            .coerceIn(124.dp, sourceMenuMaxHeight)
+    }
+    val sourcePopupWidth = remember(sourceMenuWidth, sourceActionMenuSource) {
+        if (sourceActionMenuSource != null) maxOf(sourceMenuWidth, 240.dp) else sourceMenuWidth
+    }
+
     ListScaffold(
         title = stringResource(R.string.discovery),
         state = state,
-        subtitle = state.selectedGroup.ifEmpty { stringResource(R.string.all) },
+        subtitle = if (state.layoutMode == 0) state.selectedGroup.ifEmpty { stringResource(R.string.all) } else state.selectedSourceName ?: state.selectedSuite?.displayName,
+        subtitleDropdownMenuWidth = sourcePopupWidth,
+        subtitleDropdownMenuHeight = sourceMenuHeight,
+        subtitleDropdownMenuState = sourceMenuListState,
+        subtitleDropdownMenuFastScroll = state.layoutMode == 1,
+        subtitleMenuExpanded = if (state.layoutMode == 1) sourceMenuExpanded else null,
+        onSubtitleMenuExpandedChange = if (state.layoutMode == 1) {
+            { expanded ->
+                sourceMenuExpanded = expanded
+                if (!expanded) sourceActionMenuUrl = null
+            }
+        } else null,
+        subtitleDropdownMenuLazy = if (state.layoutMode == 1) {
+            { dismiss ->
+                val actionSource = sourceActionMenuSource
+                if (actionSource == null) {
+                    item(key = "source_menu_header") {
+                        PillHeaderDivider(title = "选择首页源")
+                    }
+                    items(
+                        items = sourceMenuItems,
+                        key = { it.bookSourceUrl }
+                    ) { source ->
+                        RoundDropdownMenuItem(
+                            text = source.bookSourceName,
+                            isSelected = source.bookSourceUrl == state.selectedSuite?.defaultSourceUrl,
+                            onClick = {
+                                sourceActionMenuUrl = null
+                                onIntent(ExploreIntent.SetSuiteDefaultSource(source.bookSourceUrl))
+                                dismiss()
+                            },
+                            onLongClick = {
+                                // Do not create a second Popup. Reuse this popup and swap
+                                // its content to the same action set used by list headers.
+                                sourceActionMenuUrl = source.bookSourceUrl
+                                scope.launch { sourceMenuListState.scrollToItem(0) }
+                            }
+                        )
+                    }
+                } else {
+                    item(key = "source_action_header_${actionSource.bookSourceUrl}") {
+                        PillHeaderDivider(title = actionSource.bookSourceName)
+                    }
+                    item(key = "source_action_back") {
+                        RoundDropdownMenuItem(
+                            leadingIcon = { MenuItemIcon(Icons.Default.ArrowBack) },
+                            text = "返回书源列表",
+                            onClick = { sourceActionMenuUrl = null }
+                        )
+                    }
+                    item(key = "source_action_top") {
+                        RoundDropdownMenuItem(
+                            leadingIcon = { MenuItemIcon(Icons.Default.VerticalAlignTop) },
+                            text = stringResource(R.string.to_top),
+                            onClick = {
+                                onIntent(ExploreIntent.TopSource(actionSource))
+                                sourceActionMenuUrl = null
+                                dismiss()
+                            }
+                        )
+                    }
+                    item(key = "source_action_edit") {
+                        RoundDropdownMenuItem(
+                            leadingIcon = { MenuItemIcon(Icons.Default.Edit) },
+                            text = stringResource(R.string.edit),
+                            onClick = {
+                                onIntent(ExploreIntent.OpenEdit(actionSource))
+                                sourceActionMenuUrl = null
+                                dismiss()
+                            }
+                        )
+                    }
+                    item(key = "source_action_search") {
+                        RoundDropdownMenuItem(
+                            leadingIcon = { MenuItemIcon(Icons.Default.Search) },
+                            text = stringResource(R.string.search),
+                            onClick = {
+                                onIntent(ExploreIntent.OpenSearch(actionSource))
+                                sourceActionMenuUrl = null
+                                dismiss()
+                            }
+                        )
+                    }
+                    if (actionSource.hasLoginUrl) {
+                        item(key = "source_action_login") {
+                            RoundDropdownMenuItem(
+                                leadingIcon = { MenuItemIcon(Icons.AutoMirrored.Filled.Login) },
+                                text = stringResource(R.string.login),
+                                onClick = {
+                                    onIntent(ExploreIntent.OpenLogin(actionSource))
+                                    sourceActionMenuUrl = null
+                                    dismiss()
+                                }
+                            )
+                        }
+                    }
+                    item(key = "source_action_home") {
+                        RoundDropdownMenuItem(
+                            leadingIcon = { MenuItemIcon(Icons.Default.Dashboard) },
+                            text = "设为示例首页源",
+                            onClick = {
+                                onIntent(ExploreIntent.SetSuiteDefaultSource(actionSource.bookSourceUrl))
+                                sourceActionMenuUrl = null
+                                dismiss()
+                            }
+                        )
+                    }
+                    item(key = "source_action_refresh") {
+                        RoundDropdownMenuItem(
+                            leadingIcon = { MenuItemIcon(Icons.Default.Refresh) },
+                            text = stringResource(R.string.refresh),
+                            onClick = {
+                                onIntent(ExploreIntent.RefreshKinds(actionSource))
+                                sourceActionMenuUrl = null
+                                dismiss()
+                            }
+                        )
+                    }
+                    item(key = "source_action_delete") {
+                        RoundDropdownMenuItem(
+                            leadingIcon = {
+                                MenuItemIcon(
+                                    Icons.Default.Delete,
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            },
+                            text = stringResource(R.string.delete),
+                            color = LegadoTheme.colorScheme.error,
+                            onClick = {
+                                sourceToDeleteUrl = actionSource.bookSourceUrl
+                                sourceActionMenuUrl = null
+                                dismiss()
+                            }
+                        )
+                    }
+                }
+            }
+        } else null,
         onSearchQueryChange = { onIntent(ExploreIntent.Search(it)) },
         onSearchToggle = { onIntent(ExploreIntent.ToggleSearch(it)) },
         searchPlaceholder = stringResource(R.string.search),
+        topBarActions = {
+            if (state.layoutMode == 1) {
+                TopBarActionButton(
+                    onClick = { onIntent(ExploreIntent.RefreshSuite) },
+                    imageVector = Icons.Default.Refresh,
+                    contentDescription = stringResource(R.string.refresh)
+                )
+            }
+            if (state.layoutSwitcherEnabled) {
+                TopBarActionButton(
+                    onClick = { onIntent(ExploreIntent.ToggleLayoutMode) },
+                    imageVector = if (state.layoutMode == 0) Icons.Default.Dashboard else Icons.AutoMirrored.Filled.ViewList,
+                    contentDescription = stringResource(R.string.a11y_switch_layout)
+                )
+            }
+        },
         dropDownMenuContent = { dismiss ->
+            // 普通列表和瀑布流统一使用同一套“书源分组”菜单。
+            // 在瀑布流模式下，选择分组只负责筛选左上角“发现”标题下拉菜单
+            // 中可见的书源名称；真正切换书源仍由左上角下拉菜单完成。
+            // 这样两个布局的右上角三点菜单内容和功能完全一致，也避免维护两份逻辑。
             RoundDropdownMenuItem(
                 leadingIcon = { MenuItemIcon(Icons.Default.Group) },
                 text = stringResource(R.string.all),
@@ -192,125 +455,136 @@ fun ExploreScreen(
         },
         contentWindowInsets = WindowInsets(0)
     ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize()) {
-            if (state.items.isEmpty()) {
-                EmptyMessage(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(
-                            top = paddingValues.calculateTopPadding(),
-                            bottom = paddingValues.calculateBottomPadding()
-                        ),
-                    messageResId = R.string.explore_empty
-                )
-                return@Box
-            }
+        if (state.layoutMode == 1) {
+            DiscoverySuiteScreen(
+                state = state,
+                onIntent = onIntent,
+                onOpenExploreShow = onOpenExploreShow,
+                onBookClick = onBookClick,
+                paddingValues = paddingValues
+            )
+        } else {
+            Box(modifier = Modifier.fillMaxSize()) {
+                if (state.items.isEmpty()) {
+                    EmptyMessage(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(
+                                top = paddingValues.calculateTopPadding(),
+                                bottom = paddingValues.calculateBottomPadding()
+                            ),
+                        messageResId = R.string.explore_empty
+                    )
+                    return@Box
+                }
 
-            FastScrollLazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = adaptiveContentPadding(
-                    top = paddingValues.calculateTopPadding(),
-                    bottom = 120.dp
-                )
-            ) {
-                items(
-                    items = listItems,
-                    key = { it.key }
-                ) { listItem ->
-                    when (listItem) {
-                        is ExploreListItem.Header -> {
-                            val item = listItem.source
-                            val isExpanded = state.expandedId == item.bookSourceUrl
-                        ExploreSourceHeader(
-                            modifier = Modifier.animateItem(),
-                            item = item,
-                            isExpanded = isExpanded,
-                            loadingKinds = if (isExpanded) state.loadingKinds else false,
-                            onClick = { onIntent(ExploreIntent.ToggleExpand(item)) },
-                            onTop = { onIntent(ExploreIntent.TopSource(item)) },
-                            onEdit = { onIntent(ExploreIntent.OpenEdit(item)) },
-                            onSearch = { onIntent(ExploreIntent.OpenSearch(item)) },
-                            onLogin = { onIntent(ExploreIntent.OpenLogin(item)) },
-                            onRefresh = { onIntent(ExploreIntent.RefreshKinds(item)) },
-                            onDelete = { sourceToDeleteUrl = item.bookSourceUrl },
-                            isMiuix = composeEngine
-                        )
-                        }
+                FastScrollLazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = adaptiveContentPadding(
+                        top = paddingValues.calculateTopPadding(),
+                        bottom = 120.dp
+                    )
+                ) {
+                    items(
+                        items = listItems,
+                        key = { it.key }
+                    ) { listItem ->
+                        when (listItem) {
+                            is ExploreListItem.Header -> {
+                                val item = listItem.source
+                                val isExpanded = state.expandedId == item.bookSourceUrl
+                                ExploreSourceHeader(
+                                    modifier = Modifier.animateItem(),
+                                    item = item,
+                                    isExpanded = isExpanded,
+                                    loadingKinds = if (isExpanded) state.loadingKinds else false,
+                                    onClick = { onIntent(ExploreIntent.ToggleExpand(item)) },
+                                    onTop = { onIntent(ExploreIntent.TopSource(item)) },
+                                    onEdit = { onIntent(ExploreIntent.OpenEdit(item)) },
+                                    onSearch = { onIntent(ExploreIntent.OpenSearch(item)) },
+                                    onLogin = { onIntent(ExploreIntent.OpenLogin(item)) },
+                                    onSetHomeSource = { onIntent(ExploreIntent.SetSuiteDefaultSource(item.bookSourceUrl)) },
+                                    onRefresh = { onIntent(ExploreIntent.RefreshKinds(item)) },
+                                    onDelete = { sourceToDeleteUrl = item.bookSourceUrl },
+                                    isMiuix = composeEngine
+                                )
+                            }
 
-                        is ExploreListItem.KindRow -> {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .animateItem()
-                                    .padding(vertical = 4.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                listItem.rowItems.forEach { (kind, span) ->
-                                    ExploreKindMultiTypeItem(
-                                        kind = kind,
-                                        sourceUrl = listItem.sourceUrl,
-                                        onOpenUrl = { url ->
-                                            onOpenExploreShow(kind.title, listItem.sourceUrl, url)
-                                        },
-                                        modifier = Modifier.weight(span.toFloat()),
-                                        isMiuix = composeEngine,
-                                        displayNameOverride = state.kindDisplayNames[kind.title],
-                                        valueOverride = state.kindValues[kind.title],
-                                        onValueChange = { value ->
-                                            onIntent(
-                                                ExploreIntent.UpdateKindValue(
-                                                    listItem.sourceUrl,
-                                                    kind,
-                                                    value,
+                            is ExploreListItem.KindRow -> {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .animateItem()
+                                        .padding(vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    listItem.rowItems.forEach { (kind, span) ->
+                                        ExploreKindMultiTypeItem(
+                                            kind = kind,
+                                            sourceUrl = listItem.sourceUrl,
+                                            onOpenUrl = { url ->
+                                                onOpenExploreShow(kind.title, listItem.sourceUrl, url)
+                                            },
+                                            modifier = Modifier.weight(span.toFloat()),
+                                            isMiuix = composeEngine,
+                                            displayNameOverride = state.kindDisplayNames[kind.title],
+                                            valueOverride = state.kindValues[kind.title],
+                                            onValueChange = { value ->
+                                                onIntent(
+                                                    ExploreIntent.UpdateKindValue(
+                                                        listItem.sourceUrl,
+                                                        kind,
+                                                        value,
+                                                    )
                                                 )
-                                            )
-                                        },
-                                        onRunAction = {
-                                            onIntent(
-                                                ExploreIntent.RunKindAction(listItem.sourceUrl, kind)
-                                            )
-                                        }
-                                    )
-                                }
+                                            },
+                                            onRunAction = {
+                                                onIntent(
+                                                    ExploreIntent.RunKindAction(listItem.sourceUrl, kind)
+                                                )
+                                            }
+                                        )
+                                    }
 
-                                val totalSpan = listItem.rowItems.sumOf { it.second }
-                                if (totalSpan < 6) {
-                                    Spacer(
-                                        modifier = Modifier.weight((6 - totalSpan).toFloat())
-                                    )
+                                    val totalSpan = listItem.rowItems.sumOf { it.second }
+                                    if (totalSpan < 6) {
+                                        Spacer(
+                                            modifier = Modifier.weight((6 - totalSpan).toFloat())
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
 
-            TopFloatingStickyItem(
-                item = stickyHeaderSource,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(top = paddingValues.calculateTopPadding() + 4.dp, start = 8.dp)
-            ) { item ->
-                TextCard(
-                    text = item.bookSourceName,
-                    textStyle = LegadoTheme.typography.labelMediumEmphasized,
-                    cornerRadius = 12.dp,
-                    horizontalPadding = 12.dp,
-                    verticalPadding = 8.dp,
-                    modifier = Modifier.semantics {
-                        contentDescription = item.bookSourceName
-                        role = Role.Button
-                    },
-                    onClick = {
-                        scope.launch {
-                            val index = listItems.indexOfFirst {
-                                it is ExploreListItem.Header && it.source.bookSourceUrl == item.bookSourceUrl
+                TopFloatingStickyItem(
+                    item = stickyHeaderSource,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(top = paddingValues.calculateTopPadding() + 4.dp, start = 8.dp)
+                ) { item ->
+                    TextCard(
+                        text = item.bookSourceName,
+                        textStyle = LegadoTheme.typography.labelMediumEmphasized,
+                        cornerRadius = 12.dp,
+                        horizontalPadding = 12.dp,
+                        verticalPadding = 8.dp,
+                        modifier = Modifier.semantics {
+                            contentDescription = item.bookSourceName
+                            role = Role.Button
+                        },
+                        onClick = {
+                            scope.launch {
+                                val index = listItems.indexOfFirst {
+                                    it is ExploreListItem.Header && it.source.bookSourceUrl == item.bookSourceUrl
+                                }
+                                if (index >= 0) listState.animateScrollToItem(index)
                             }
-                            if (index >= 0) listState.animateScrollToItem(index)
                         }
-                    }
-                )
+                    )
+                }
             }
         }
     }
@@ -328,6 +602,43 @@ fun ExploreScreen(
         dismissText = stringResource(android.R.string.cancel),
         onDismiss = { sourceToDeleteUrl = null },
     )
+
+    DiscoveryConfigSheet(
+        show = state.showDiscoveryConfig,
+        state = state,
+        onIntent = onIntent,
+        onDismissRequest = { onIntent(ExploreIntent.ShowDiscoveryConfig(false)) }
+    )
+}
+
+sealed interface ExploreListItem {
+    val key: String
+
+    data class Header(val source: BookSourcePart) : ExploreListItem {
+        override val key: String = "header_${source.bookSourceUrl}"
+    }
+
+    data class KindRow(
+        val sourceUrl: String,
+        val rowIndex: Int,
+        val rowItems: List<Pair<ExploreKind, Int>>
+    ) : ExploreListItem {
+        override val key: String = "kind_${sourceUrl}_$rowIndex"
+    }
+}
+
+private fun buildExploreListItems(state: ExploreViewModel.ExploreUiState): List<ExploreListItem> {
+    val list = mutableListOf<ExploreListItem>()
+    state.items.forEach { source ->
+        list.add(ExploreListItem.Header(source))
+        if (state.expandedId == source.bookSourceUrl) {
+            val rows = calculateExploreKindRows(state.exploreKinds, maxSpan = 6)
+            rows.forEachIndexed { index, rowItems ->
+                list.add(ExploreListItem.KindRow(source.bookSourceUrl, index, rowItems))
+            }
+        }
+    }
+    return list
 }
 
 
@@ -343,6 +654,7 @@ fun ExploreSourceHeader(
     onEdit: () -> Unit,
     onSearch: () -> Unit,
     onLogin: () -> Unit,
+    onSetHomeSource: () -> Unit,
     onRefresh: () -> Unit,
     onDelete: () -> Unit,
     isMiuix: Boolean,
@@ -449,6 +761,11 @@ fun ExploreSourceHeader(
                             onClick = { onLogin(); showMenu = false }
                         )
                     }
+                    RoundDropdownMenuItem(
+                        leadingIcon = { MenuItemIcon(Icons.Default.Dashboard) },
+                        text = "设为示例首页源",
+                        onClick = { onSetHomeSource(); showMenu = false }
+                    )
                     RoundDropdownMenuItem(
                         leadingIcon = { MenuItemIcon(Icons.Default.Refresh) },
                         text = stringResource(R.string.refresh),

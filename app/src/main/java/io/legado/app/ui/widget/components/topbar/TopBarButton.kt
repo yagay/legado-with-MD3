@@ -116,11 +116,11 @@ internal fun topBarActionSpacing(): Dp {
 }
 
 @Composable
-internal fun miuixTopBarSlotPadding(): Dp =
+fun miuixTopBarSlotPadding(): Dp =
     if (currentTopBarButtonStyle() == TopBarButtonStyle.Plain) 16.dp else 0.dp
 
 @Composable
-internal fun miuixTopBarActionsEndPadding(): Dp =
+fun miuixTopBarActionsEndPadding(): Dp =
     if (currentTopBarButtonStyle() == TopBarButtonStyle.Plain) 0.dp else 12.dp
 
 /** 合并模式下按钮左侧的竖向分隔线（首个按钮不画）。 */
@@ -154,7 +154,7 @@ private fun Modifier.mergedDivider(): Modifier {
  * 单个按钮时胶囊自然退化为普通按钮。Plain 无容器，始终走普通间距 Row。
  */
 @Composable
-internal fun TopBarActionsRow(
+fun TopBarActionsRow(
     modifier: Modifier = Modifier,
     content: @Composable RowScope.() -> Unit
 ) {

@@ -24,6 +24,7 @@ import io.legado.app.ui.config.otherConfig.OtherConfig
 import io.legado.app.utils.AlphanumComparator
 import io.legado.app.utils.FileUtils
 import io.legado.app.utils.GSON
+import io.legado.app.utils.LogUtils
 import io.legado.app.utils.NetworkUtils
 import io.legado.app.utils.UrlUtil
 import io.legado.app.utils.compress.ZipUtils
@@ -54,7 +55,7 @@ object AppWebDav {
     val bgWebDavUrl get() = "${rootWebDavUrl}background/"
 
     private val configMutex = Mutex()
-    private var appliedConfig: AppliedWebDavConfig? = null
+    internal var appliedConfig: AppliedWebDavConfig? = null
 
     @Volatile
     var authorization: Authorization? = null
@@ -109,7 +110,7 @@ object AppWebDav {
         }
     }
 
-    private data class AppliedWebDavConfig(
+    internal data class AppliedWebDavConfig(
         val url: String,
         val account: String,
         val password: String,
@@ -291,6 +292,44 @@ object AppWebDav {
             AppLog.put("WebDav导出失败\n${e.localizedMessage}", e, true)
         }
     }
+
+    suspend fun exportWebDavSmart(uri: Uri, fileName: String, localSize: Long) {
+        if (!NetworkUtils.isAvailable()) {
+            LogUtils.d("AppWebDav", "网络不可用，跳过导出 $fileName")
+            return
+        }
+        val auth = authorization
+        if (auth == null) {
+            LogUtils.d("AppWebDav", "authorization 为空，正在尝试更新配置...")
+            upConfig()
+        }
+        val finalAuth = authorization ?: run {
+            AppLog.put("WebDav导出失败：未配置账号信息", toast = true)
+            return
+        }
+        try {
+            val putUrl = exportsWebDavUrl + fileName
+            val webDav = WebDav(putUrl, finalAuth)
+            val cloudFile = webDav.getWebDavFile()
+            if (cloudFile != null && cloudFile.size >= localSize) {
+                LogUtils.d("AppWebDav", "跳过上传 $fileName: 云端大小 ${cloudFile.size} >= 本地大小 $localSize")
+                return
+            }
+            LogUtils.d("AppWebDav", "开始上传 $fileName 到 WebDAV...")
+            webDav.upload(uri, "text/plain")
+            LogUtils.d("AppWebDav", "上传完成 $fileName")
+        } catch (e: Exception) {
+            currentCoroutineContext().ensureActive()
+            if (e is io.legado.app.lib.webdav.ObjectNotFoundException) {
+                LogUtils.d("AppWebDav", "云端文件不存在，直接上传 $fileName")
+                val putUrl = exportsWebDavUrl + fileName
+                WebDav(putUrl, finalAuth).upload(uri, "text/plain")
+            } else {
+                AppLog.put("WebDav智能导出失败\n${e.localizedMessage}", e, true)
+            }
+        }
+    }
+
 
     suspend fun uploadBookProgress(
         book: Book,

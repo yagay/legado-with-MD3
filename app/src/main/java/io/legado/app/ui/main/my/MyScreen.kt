@@ -8,6 +8,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -156,9 +157,10 @@ fun MyScreen(
                     .padding(
                         adaptiveContentPadding(
                             top = padding.calculateTopPadding(),
-                            bottom = 120.dp
+                            bottom = 0.dp
                         )
                     ),
+                contentPadding = PaddingValues(bottom = 120.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(state.searchResults) { result ->

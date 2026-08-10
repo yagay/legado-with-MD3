@@ -10,6 +10,9 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -21,6 +24,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.legado.app.R
 import io.legado.app.ui.theme.adaptiveHorizontalPadding
@@ -35,6 +39,14 @@ import io.legado.app.ui.widget.components.menuItem.RoundDropdownMenu
 fun <T> DynamicTopAppBar(
     title: String,
     subtitle: String? = null,
+    subtitleDropdownMenu: (@Composable (dismiss: () -> Unit) -> Unit)? = null,
+    subtitleDropdownMenuLazy: (LazyListScope.(dismiss: () -> Unit) -> Unit)? = null,
+    subtitleDropdownMenuWidth: Dp = 280.dp,
+    subtitleDropdownMenuHeight: Dp = 320.dp,
+    subtitleDropdownMenuState: LazyListState = rememberLazyListState(),
+    subtitleDropdownMenuFastScroll: Boolean = false,
+    subtitleMenuExpanded: Boolean? = null,
+    onSubtitleMenuExpandedChange: ((Boolean) -> Unit)? = null,
     state: ListUiState<T>,
     scrollBehavior: GlassTopAppBarScrollBehavior,
     onBackClick: (() -> Unit)? = null,
@@ -70,6 +82,14 @@ fun <T> DynamicTopAppBar(
         },
         useCharMode = isSelecting || state.isLoading,
         subtitle = subtitle,
+        subtitleDropdownMenu = subtitleDropdownMenu,
+        subtitleDropdownMenuLazy = subtitleDropdownMenuLazy,
+        subtitleDropdownMenuWidth = subtitleDropdownMenuWidth,
+        subtitleDropdownMenuHeight = subtitleDropdownMenuHeight,
+        subtitleDropdownMenuState = subtitleDropdownMenuState,
+        subtitleDropdownMenuFastScroll = subtitleDropdownMenuFastScroll,
+        subtitleMenuExpanded = subtitleMenuExpanded,
+        onSubtitleMenuExpandedChange = onSubtitleMenuExpandedChange,
         navigationIcon = {
             if (isSelecting || onBackClick != null) {
                 TopBarNavigationButton(

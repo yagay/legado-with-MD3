@@ -84,11 +84,19 @@ object MainNavigator {
             MainRouteSettingsThemeManage,
             MainRouteSettingsDownloadCache,
             MainRouteSettingsTranslation,
-            MainRouteSettingsCustomConfig -> {
-                backStack.clear()
-                backStack.add(MainRouteHome)
-                backStack.add(MainRouteSettings)
-                backStack.add(route)
+            MainRouteSettingsCustomConfig,
+            MainRouteSettingsLabConfig -> {
+                if (currentRoute == MainRouteHome) {
+                    // “我的”页的搜索结果直接打开目标设置页。保留 Home 在
+                    // 返回栈中，返回时搜索关键字、结果和搜索模式都不会丢失。
+                    backStack.add(route)
+                } else {
+                    // 从其他入口打开时仍建立标准的 设置 -> 具体页面 层级。
+                    backStack.clear()
+                    backStack.add(MainRouteHome)
+                    backStack.add(MainRouteSettings)
+                    backStack.add(route)
+                }
             }
 
             MainRouteImportLocal,

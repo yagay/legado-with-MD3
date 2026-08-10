@@ -1,16 +1,21 @@
 package io.legado.app.help.storage
 
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import androidx.core.net.toUri
 import androidx.documentfile.provider.DocumentFile
 import io.legado.app.constant.AppLog
+import io.legado.app.constant.IntentAction
 import io.legado.app.constant.PreferKey
 import io.legado.app.data.appDb
+import io.legado.app.domain.gateway.CustomSettingsGateway
 import io.legado.app.domain.gateway.ReadStyleGateway
+import io.legado.app.service.ExportBookService
 import io.legado.app.exception.NoStackTraceException
 import io.legado.app.help.AppWebDav
 import io.legado.app.help.DirectLinkUpload
+import io.legado.app.help.book.BookHelp
 import io.legado.app.help.book.isLocal
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.config.AppConfigStore
@@ -22,6 +27,8 @@ import io.legado.app.model.BookCover
 import io.legado.app.utils.FileUtils
 import io.legado.app.utils.GSON
 import io.legado.app.utils.LogUtils
+import io.legado.app.utils.toastOnUi
+import io.legado.app.utils.startForegroundServiceCompat
 import io.legado.app.utils.compress.ZipUtils
 import io.legado.app.utils.createFolderIfNotExist
 import io.legado.app.utils.externalFiles
@@ -109,14 +116,22 @@ object Backup {
         return lastBackup + TimeUnit.DAYS.toMillis(1) < System.currentTimeMillis()
     }
 
-    fun autoBack(context: Context) {
-        if (shouldBackup()) {
+    fun autoBack(context: Context, force: Boolean = false) {
+        if (force || shouldBackup()) {
             Coroutine.async {
+                if (!BackupLifecycleObserver.isAppInBackground) {
+                    LogUtils.d("Backup", "App在前台，取消自动备份")
+                    return@async
+                }
                 BackupRestoreLock.withLock {
-                    if (shouldBackup()) {
+                    if (force || shouldBackup()) {
+                        if (!BackupLifecycleObserver.isAppInBackground) {
+                            LogUtils.d("Backup", "App在前台，中止自动备份")
+                            return@withLock
+                        }
                         val backupZipFileName = getNowZipFileName()
-                        if (!AppWebDav.hasBackUp(backupZipFileName)) {
-                            backup(context, AppConfig.backupPath)
+                        if (force || !AppWebDav.hasBackUp(backupZipFileName)) {
+                            backup(context, AppConfig.backupPath, isAuto = true)
                         } else {
                             LocalConfig.lastBackup = System.currentTimeMillis()
                         }
@@ -131,12 +146,13 @@ object Backup {
     suspend fun backupLocked(context: Context, path: String?, mode: String = "both") {
         BackupRestoreLock.withLock {
             withContext(IO) {
-                backup(context, path, mode)
+                backup(context, path, mode, isAuto = false)
             }
         }
     }
 
-    private suspend fun backup(context: Context, path: String?, mode: String = "both") {
+    private suspend fun backup(context: Context, path: String?, mode: String = "both", isAuto: Boolean) {
+        if (isAuto && !BackupLifecycleObserver.isAppInBackground) return
         LogUtils.d(TAG, "开始备份 path:$path")
         LocalConfig.lastBackup = System.currentTimeMillis()
         val aes = BackupAES()
@@ -316,6 +332,45 @@ object Backup {
             }
         }.let {
             AppWebDav.upBgs(it.toTypedArray())
+        }
+        exportAllCachedBooks(context, isAuto = isAuto)
+    }
+
+    fun exportAllCachedBooks(context: Context, force: Boolean = false, isAuto: Boolean = false) {
+        val customSettingsGateway: CustomSettingsGateway = GlobalContext.get().get()
+        if (!force && !customSettingsGateway.currentSettings.autoExportBooksOnBackup) return
+
+        if (isAuto && !BackupLifecycleObserver.isAppInBackground) {
+            LogUtils.d("Backup", "App在前台，取消自动导出书籍")
+            return
+        }
+
+        val books = appDb.bookDao.all.filter {
+            it.isLocal || BookHelp.countCachedChapters(it) > 0
+        }
+
+        if (books.isEmpty()) {
+            if (!isAuto) context.toastOnUi("没有需要导出的书籍 (仅导出本地书籍或有缓存的书籍)")
+            LogUtils.d("Backup", "没有需要导出的书籍")
+            return
+        }
+
+        if (!isAuto) context.toastOnUi("开始导出 ${books.size} 本书籍")
+        LogUtils.d("Backup", "开始导出 ${books.size} 本书籍")
+
+        books.forEach { book ->
+            if (isAuto && !BackupLifecycleObserver.isAppInBackground) {
+                LogUtils.d("Backup", "App在前台，中止自动导出书籍")
+                return
+            }
+            val intent = Intent(context, ExportBookService::class.java).apply {
+                action = IntentAction.start
+                putExtra("bookUrl", book.bookUrl)
+                putExtra("exportPath", AppConfig.backupPath ?: backupPath)
+                putExtra("exportType", if (AppConfig.exportType == 0) "txt" else "epub")
+                putExtra("exportToWebDav", true)
+            }
+            context.startForegroundServiceCompat(intent)
         }
     }
 

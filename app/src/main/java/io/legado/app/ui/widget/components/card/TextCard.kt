@@ -29,6 +29,7 @@ fun TextCard(
     text: String? = null,
     icon: ImageVector? = null,
     onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
     backgroundColor: Color? = null,
     contentColor: Color? = null,
     cornerRadius: Dp = 8.dp,
@@ -37,6 +38,8 @@ fun TextCard(
     iconSize: Dp = 14.dp,
     spacing: Dp = 4.dp,
     textStyle: TextStyle = LegadoTheme.typography.labelSmallEmphasized,
+    maxLines: Int = 2,
+    overflow: TextOverflow = TextOverflow.Ellipsis,
     border: BorderStroke? = null,
     horizontalArrangement: Arrangement.Horizontal = Arrangement.Start,
 ) {
@@ -52,6 +55,7 @@ fun TextCard(
         containerColor = finalBackgroundColor,
         contentColor = finalContentColor,
         onClick = onClick,
+        onLongClick = onLongClick,
         border = border
     ) {
         Row(
@@ -80,8 +84,8 @@ fun TextCard(
                     text = it,
                     style = textStyle,
                     color = finalContentColor,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    maxLines = maxLines,
+                    overflow = overflow
                 )
             }
         }

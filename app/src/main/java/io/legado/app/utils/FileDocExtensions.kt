@@ -28,6 +28,7 @@ data class FileDoc(
     val uri: Uri
 ) {
 
+
     override fun toString(): String {
         return if (uri.isContentScheme()) uri.toString() else uri.path!!
     }

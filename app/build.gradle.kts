@@ -212,6 +212,7 @@ dependencies {
     implementation(libs.gson)
     implementation(libs.lifecycle.common.java8)
     implementation(libs.lifecycle.service)
+    implementation(libs.lifecycle.process)
     implementation(libs.media.media)
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.datasource.okhttp)
