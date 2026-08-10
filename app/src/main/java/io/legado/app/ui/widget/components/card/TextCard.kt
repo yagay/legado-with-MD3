@@ -21,7 +21,6 @@ import io.legado.app.ui.theme.LegadoTheme
 import io.legado.app.ui.widget.components.icon.AppIcon
 import io.legado.app.ui.widget.components.text.AnimatedTextLine
 
-
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun TextCard(
@@ -29,6 +28,7 @@ fun TextCard(
     text: String? = null,
     icon: ImageVector? = null,
     onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
     backgroundColor: Color? = null,
     contentColor: Color? = null,
     cornerRadius: Dp = 8.dp,
@@ -38,6 +38,8 @@ fun TextCard(
     spacing: Dp = 4.dp,
     textStyle: TextStyle = LegadoTheme.typography.labelSmallEmphasized,
     border: BorderStroke? = null,
+    maxLines: Int = 2,
+    overflow: TextOverflow = TextOverflow.Ellipsis,
     horizontalArrangement: Arrangement.Horizontal = Arrangement.Start,
 ) {
     val defaultBackground = LegadoTheme.colorScheme.surfaceContainer
@@ -52,6 +54,7 @@ fun TextCard(
         containerColor = finalBackgroundColor,
         contentColor = finalContentColor,
         onClick = onClick,
+        onLongClick = onLongClick,
         border = border
     ) {
         Row(
@@ -62,7 +65,6 @@ fun TextCard(
             horizontalArrangement = horizontalArrangement,
             verticalAlignment = Alignment.CenterVertically
         ) {
-
             if (icon != null) {
                 AppIcon(
                     imageVector = icon,
@@ -72,19 +74,19 @@ fun TextCard(
                 )
             }
 
-            if (icon != null && text != null)
+            if (icon != null && text != null) {
                 Spacer(modifier = Modifier.width(spacing))
+            }
 
             text?.let {
                 AnimatedTextLine(
                     text = it,
                     style = textStyle,
                     color = finalContentColor,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    maxLines = maxLines,
+                    overflow = overflow
                 )
             }
         }
     }
 }
-
