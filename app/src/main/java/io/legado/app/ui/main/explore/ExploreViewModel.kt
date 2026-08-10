@@ -6,6 +6,7 @@ import io.legado.app.R
 import io.legado.app.base.BaseViewModel
 import io.legado.app.data.entities.BookSourcePart
 import io.legado.app.data.entities.SearchBook
+import io.legado.app.data.entities.rule.ExploreKind
 import io.legado.app.data.repository.ExploreRepository
 import io.legado.app.domain.usecase.ExploreKindUiUseCase
 import io.legado.app.help.source.clearExploreKindsCache
@@ -248,7 +249,7 @@ class ExploreViewModel(
     }
 
     /**
-     * 根据 ExploreKindTreeBuilder 生成的通用树动态构建筛选行。
+     * 根据 ExploreSourceParser 生成的通用树动态构建筛选行。
      *
      * 这里没有最大层级限制：只要当前选中节点仍有 children，就继续生成下一行。
      * 单一、不可点击的容器节点会自动折叠成当前行标题，避免出现只有一个选项的无意义行。
