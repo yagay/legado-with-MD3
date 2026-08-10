@@ -55,7 +55,7 @@ object AppWebDav {
     val bgWebDavUrl get() = "${rootWebDavUrl}background/"
 
     private val configMutex = Mutex()
-    internal var appliedConfig: AppliedWebDavConfig? = null
+    private var appliedConfig: AppliedWebDavConfig? = null
 
     @Volatile
     var authorization: Authorization? = null
@@ -110,7 +110,7 @@ object AppWebDav {
         }
     }
 
-    internal data class AppliedWebDavConfig(
+    private data class AppliedWebDavConfig(
         val url: String,
         val account: String,
         val password: String,
@@ -329,7 +329,6 @@ object AppWebDav {
             }
         }
     }
-
 
     suspend fun uploadBookProgress(
         book: Book,
