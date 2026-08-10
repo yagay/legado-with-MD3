@@ -6,6 +6,7 @@ import io.legado.app.constant.IntentAction
 import io.legado.app.data.appDb
 import io.legado.app.data.repository.CustomSettingsRepository
 import io.legado.app.help.book.BookHelp
+import io.legado.app.help.book.isLocal
 import io.legado.app.help.config.AppConfig
 import io.legado.app.service.ExportBookService
 import io.legado.app.utils.LogUtils
