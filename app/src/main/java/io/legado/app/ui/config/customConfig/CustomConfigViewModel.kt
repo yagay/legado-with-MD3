@@ -44,7 +44,14 @@ class CustomConfigViewModel(
                 updateBackup { it.copy(autoBackupOnBackground = intent.value) }
             }
             is CustomConfigIntent.SetAutoBackupOnBackgroundInterval -> {
-                updateBackup { it.copy(autoBackupOnBackgroundInterval = intent.value) }
+                updateBackup {
+                    it.copy(
+                        autoBackupOnBackgroundInterval = intent.value.coerceIn(
+                            MIN_BACKUP_INTERVAL_MINUTES,
+                            MAX_BACKUP_INTERVAL_MINUTES
+                        )
+                    )
+                }
             }
             is CustomConfigIntent.SetAutoExportBooksOnBackup -> {
                 update { it.copy(autoExportBooksOnBackup = intent.value) }
@@ -70,5 +77,10 @@ class CustomConfigViewModel(
 
     private fun updateBackup(transform: (BackupSettings) -> BackupSettings) {
         viewModelScope.launch { backupSettingsGateway.update(transform) }
+    }
+
+    private companion object {
+        const val MIN_BACKUP_INTERVAL_MINUTES = 1
+        const val MAX_BACKUP_INTERVAL_MINUTES = 24 * 60
     }
 }
