@@ -6,10 +6,10 @@ import io.legado.app.R
 import io.legado.app.base.BaseViewModel
 import io.legado.app.data.entities.BookSourcePart
 import io.legado.app.data.entities.SearchBook
-import io.legado.app.data.entities.rule.ExploreKind
 import io.legado.app.data.repository.ExploreRepository
 import io.legado.app.domain.usecase.ExploreKindUiUseCase
 import io.legado.app.help.source.clearExploreKindsCache
+import io.legado.app.help.source.ExploreSourceParser
 import io.legado.app.help.source.exploreKinds
 import io.legado.app.help.source.getExploreInfoMap
 import io.legado.app.ui.widget.components.explore.calculateExploreKindRows
@@ -57,7 +57,7 @@ class ExploreViewModel(
     private var exploreJob: Job? = null
     private var kindsJob: Job? = null
     private var suiteSearchJob: Job? = null
-    private var allSourceKinds: List<ExploreKind> = emptyList()
+    private var allSourceKinds: List<ExploreNode> = emptyList()
 
     init {
         val customSettings = customSettingsGateway.currentSettings
@@ -273,12 +273,12 @@ class ExploreViewModel(
             // UI 直接显示“排行榜 [周榜][月榜][总榜]”，而不是“分类 [排行榜]”。
             while (
                 currentLevelItems.size == 1 &&
-                currentLevelItems.first().targetUrl().isNullOrBlank() &&
-                currentLevelItems.first().hasChildren()
+                currentLevelItems.first().url.isNullOrBlank() &&
+                currentLevelItems.first().children.isNotEmpty()
             ) {
                 val container = currentLevelItems.first()
                 inheritedTitle = cleanExploreTitle(container.title).ifBlank { inheritedTitle }
-                currentLevelItems = container.children.orEmpty()
+                currentLevelItems = container.children
                 if (currentLevelItems.isEmpty()) break
             }
             if (currentLevelItems.isEmpty()) break
@@ -287,7 +287,7 @@ class ExploreViewModel(
             val targets = currentLevelItems.map { kind ->
                 DiscoverySuiteWidgetTarget(
                     sourceUrl = defaultSourceUrl,
-                    tagUrl = kind.targetUrl().orEmpty(),
+                    tagUrl = kind.url.orEmpty(),
                     title = kind.title
                 )
             }
@@ -315,10 +315,10 @@ class ExploreViewModel(
             )
 
             val selectedItem = currentLevelItems.firstOrNull { it.title == selectedTitle } ?: break
-            selectedItem.targetUrl()?.let { lastValidUrl = it }
+            selectedItem.url?.let { lastValidUrl = it }
 
             inheritedTitle = selectedItem.title
-            currentLevelItems = selectedItem.children.orEmpty()
+            currentLevelItems = selectedItem.children
             level++
         }
 
@@ -349,21 +349,21 @@ class ExploreViewModel(
         }
     }
 
-    private fun countExploreNodes(kinds: List<ExploreKind>): Int {
+    private fun countExploreNodes(kinds: List<ExploreNode>): Int {
         var count = 0
-        val stack = ArrayDeque<ExploreKind>()
+        val stack = ArrayDeque<ExploreNode>()
         kinds.forEach(stack::addLast)
         while (stack.isNotEmpty()) {
             val node = stack.removeLast()
             count++
-            node.children.orEmpty().forEach(stack::addLast)
+            node.children.forEach(stack::addLast)
         }
         return count
     }
 
     private fun inferSelectorTitle(
         level: Int,
-        items: List<ExploreKind>,
+        items: List<ExploreNode>,
         inheritedTitle: String?
     ): String {
         val cleanTitles = items.map { cleanExploreTitle(it.title) }
@@ -386,10 +386,10 @@ class ExploreViewModel(
             }
         }
 
-        return if (level == 0 && items.all { it.isGroupHeader() }) "分组" else "分类"
+        return if (level == 0 && items.all { it.url.isNullOrBlank() }) "分组" else "分类"
     }
 
-    private fun inferSelectorType(items: List<ExploreKind>): DynamicSelectorUi.SelectorType {
+    private fun inferSelectorType(items: List<ExploreNode>): DynamicSelectorUi.SelectorType {
         val titles = items.map { cleanExploreTitle(it.title) }
         return if (titles.count { it in RANK_SELECTOR_TITLES || it.endsWith("榜") || it.contains("排行") } >= 2) {
             DynamicSelectorUi.SelectorType.RankButtons
@@ -562,7 +562,9 @@ class ExploreViewModel(
 
         viewModelScope.launch(IO) {
             allSourceKinds = try {
-                exploreRepository.getSourceExploreKinds(defaultSourceUrl)
+                ExploreSourceParser.parse(
+                    exploreRepository.getSourceExploreKinds(defaultSourceUrl)
+                )
             } catch (e: Exception) { emptyList() }
 
             rebuildSelectors(suite, defaultSourceUrl)
