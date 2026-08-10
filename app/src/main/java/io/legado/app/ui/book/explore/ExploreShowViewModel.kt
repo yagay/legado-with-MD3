@@ -211,8 +211,7 @@ class ExploreShowViewModel(
     }
 
     private suspend fun loadKinds(sourceUrl: String) {
-        val tree = repository.getSourceExploreTree(sourceUrl)
-        _kindState.update { it.copy(kinds = tree.flattenOriginalKinds()) }
+        _kindState.update { it.copy(kinds = repository.getSourceExploreKinds(sourceUrl)) }
     }
 
     private fun switchKind(kind: ExploreKind) {
