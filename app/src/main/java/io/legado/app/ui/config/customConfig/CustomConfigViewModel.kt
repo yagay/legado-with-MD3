@@ -37,7 +37,8 @@ class CustomConfigViewModel(
                 CustomConfigUiState(
                     custom, 
                     backup, 
-                    listOf("全部" to -1L) + groups.map { it.groupName to it.groupId }
+                    listOf("全部" to -1L, "网络书籍" to -10L, "本地书籍" to -2L) + 
+                            groups.map { it.groupName to it.groupId }
                 )
             }.collect { newState ->
                 _uiState.value = newState

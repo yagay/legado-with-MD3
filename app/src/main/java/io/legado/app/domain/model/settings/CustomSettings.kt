@@ -13,5 +13,5 @@ data class CustomSettings(
     val loginShowEarthIcon: Boolean = true,
     val autoExportBooksOnBackup: Boolean = false,
     val autoImportBooksOnRestore: Boolean = false,
-    val exportGroupMask: Long = -1L // -1 means all groups
+    val exportGroupMask: Long = -10L // -10L means network books by default
 )

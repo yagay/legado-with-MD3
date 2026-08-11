@@ -353,7 +353,12 @@ object Backup {
         val actualGroupMask = groupMask ?: customSettingsGateway.currentSettings.exportGroupMask
 
         val books = appDb.bookDao.all.filter {
-            val inGroup = actualGroupMask == -1L || (it.group and actualGroupMask) != 0L
+            val inGroup = when (actualGroupMask) {
+                -1L -> true
+                -10L -> !it.isLocal
+                -2L -> it.isLocal
+                else -> (it.group and actualGroupMask) != 0L
+            }
             inGroup && (it.isLocal || BookHelp.countCachedChapters(it) > 0)
         }
 
