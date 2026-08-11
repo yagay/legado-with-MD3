@@ -41,7 +41,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.legado.app.data.entities.SearchBook
 import io.legado.app.domain.model.BookShelfState
-import io.legado.app.ui.main.explore.DiscoverySuiteWidgetTarget
+import io.legado.app.enhance.explore.model.DiscoverySuiteWidgetTarget
 import io.legado.app.ui.theme.LegadoTheme
 import io.legado.app.ui.widget.components.book.SearchBookGridItem
 import io.legado.app.ui.widget.components.card.TextCard

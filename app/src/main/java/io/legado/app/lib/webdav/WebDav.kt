@@ -85,35 +85,7 @@ open class WebDav(
 
     private val url: URL = URL(CustomUrl(path).getUrl())
     private val httpUrl: String? by lazy {
-        val raw = url.toString()
-            .replace("davs://", "https://")
-            .replace("dav://", "http://")
-        val isHttps = raw.startsWith("https")
-        val content = raw.substringAfter("://")
-        val host = content.substringBefore("/")
-        val pathSegments = content.substringAfter("/", "")
-
-        return@lazy kotlin.runCatching {
-            val builder = okhttp3.HttpUrl.Builder()
-                .scheme(if (isHttps) "https" else "http")
-
-            if (host.contains(":")) {
-                builder.host(host.substringBefore(":"))
-                builder.port(host.substringAfter(":").toInt())
-            } else {
-                builder.host(host)
-            }
-
-            if (pathSegments.isNotEmpty()) {
-                pathSegments.split("/").forEach {
-                    if (it.isNotEmpty()) builder.addPathSegment(it)
-                }
-                if (pathSegments.endsWith("/")) {
-                    builder.addPathSegment("")
-                }
-            }
-            builder.build().toString()
-        }.getOrNull()
+        io.legado.app.enhance.webdav.WebDavEnhance.getHttpUrl(url)
     }
     private val webDavClient by lazy {
         val authInterceptor = Interceptor { chain ->
@@ -146,8 +118,8 @@ open class WebDav(
      * 获取当前url文件信息
      */
     @Throws(WebDavException::class)
-    suspend fun getWebDavFile(): WebDavFile? {
-        return propFindResponse(depth = 0)?.let {
+    suspend fun getWebDavFile(): WebDavFile? = withContext(IO) {
+        propFindResponse(depth = 0)?.let {
             parseBody(it).firstOrNull()
         }
     }
@@ -157,13 +129,13 @@ open class WebDav(
      * @return 文件列表
      */
     @Throws(WebDavException::class)
-    suspend fun listFiles(): List<WebDavFile> {
+    suspend fun listFiles(): List<WebDavFile> = withContext(IO) {
         propFindResponse()?.let { body ->
-            return parseBody(body).filter {
+            return@withContext parseBody(body).filter {
                 it.path != path
             }
         }
-        return emptyList()
+        return@withContext emptyList()
     }
 
     /**

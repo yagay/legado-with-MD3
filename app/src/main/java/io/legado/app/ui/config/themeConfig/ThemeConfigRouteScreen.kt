@@ -27,6 +27,7 @@ fun ThemeConfigRouteScreen(
     onBackClick: () -> Unit,
     onNavigateToCustomTheme: () -> Unit,
     onNavigateToThemeManage: () -> Unit,
+    searchKey: String? = null,
     viewModel: ThemeConfigViewModel = koinViewModel(),
 ) {
     val context = LocalContext.current
@@ -119,5 +120,6 @@ fun ThemeConfigRouteScreen(
         onBackClick = onBackClick,
         onNavigateToCustomTheme = onNavigateToCustomTheme,
         onNavigateToThemeManage = onNavigateToThemeManage,
+        searchKey = searchKey,
     )
 }

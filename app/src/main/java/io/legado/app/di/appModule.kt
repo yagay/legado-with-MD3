@@ -731,7 +731,6 @@ val appModule = module {
     viewModelOf(::ChangeBookSourceViewModel)
     viewModelOf(::ChangeChapterSourceViewModel)
     viewModelOf(::ExploreViewModel)
-    viewModelOf(::CustomConfigViewModel)
     viewModelOf(::RssViewModel)
     viewModelOf(::SearchViewModel)
     viewModelOf(::BookCacheManageViewModel)

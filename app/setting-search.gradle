@@ -1,0 +1,136 @@
+def generatedCatalog = file('src/main/java/io/legado/app/enhance/settingssearch/GeneratedSettingCatalog.kt')
+
+def settingPages = [
+    [key: 'other', title: 'setting', destination: 'Other', file: 'ui/config/otherConfig/OtherConfigScreen.kt'],
+    [key: 'read', title: 'read_config', destination: 'Read', file: 'ui/config/readConfig/ReadConfigScreen.kt'],
+    [key: 'cover', title: 'cover_config', destination: 'Cover', file: 'ui/config/coverConfig/CoverConfigScreen.kt'],
+    [key: 'theme', title: 'theme_setting', destination: 'Theme', file: 'ui/config/themeConfig/ThemeConfigScreen.kt'],
+    [key: 'backup', title: 'backup_restore', destination: 'Backup', file: 'ui/config/backupConfig/BackupConfigScreen.kt'],
+    [key: 'custom', title: 'custom_config_title', destination: 'Custom', file: 'ui/config/customConfig/CustomConfigScreen.kt'],
+    [key: 'ai', title: 'ai_config', destination: 'Ai', file: 'ui/config/ai/AiConfigScreen.kt'],
+    [key: 'translation', title: 'translation_config', destination: 'Translation', file: 'ui/config/translation/TranslationConfigScreen.kt'],
+    [key: 'download', title: 'download_cache_config', destination: 'DownloadCache', file: 'ui/config/downloadCacheConfig/DownloadCacheConfigScreen.kt'],
+    [key: 'lab', title: 'lab_setting', destination: 'Lab', file: 'ui/config/labConfig/LabConfigScreen.kt'],
+]
+
+def extractCalls = { String source ->
+    def calls = []
+    def matcher = (source =~ /\b([A-Za-z][A-Za-z0-9_]*SettingItem)\s*\(/)
+    while (matcher.find()) {
+        int start = matcher.end() - 1
+        int depth = 0
+        boolean inString = false
+        boolean escaped = false
+        int end = -1
+        for (int index = start; index < source.length(); index++) {
+            char current = source.charAt(index)
+            if (inString) {
+                if (escaped) escaped = false
+                else if (current == '\\') escaped = true
+                else if (current == '"') inString = false
+                continue
+            }
+            if (current == '"') inString = true
+            else if (current == '(') depth++
+            else if (current == ')' && --depth == 0) {
+                end = index
+                break
+            }
+        }
+        if (end > start) calls << [arguments: source.substring(start + 1, end), position: matcher.start()]
+    }
+    calls
+}
+
+tasks.register('generateSettingSearchCatalog') {
+    group = 'code generation'
+    description = 'Generate the My-page setting search index from setting screens.'
+    inputs.files(settingPages.collect { file("src/main/java/io/legado/app/${it.file}") })
+    outputs.file(generatedCatalog)
+    def projectDirPath = project.projectDir.absolutePath
+
+    doLast {
+        def generatedPages = settingPages.collect { page ->
+            File screen = new File(projectDirPath, "src/main/java/io/legado/app/${page.file}")
+            String source = screen.getText('UTF-8')
+            def variables = [:]
+            (source =~ /val\s+([A-Za-z][A-Za-z0-9_]*)\s*=\s*stringResource\(R\.string\.([A-Za-z0-9_]+)\)/).each {
+                variables[it[1]] = it[2]
+            }
+
+            int lazyColumnStart = source.indexOf('LazyColumn(')
+            def itemPositions = []
+            if (lazyColumnStart >= 0) {
+                def itemMatcher = (source =~ /\bitem\s*\{/)
+                while (itemMatcher.find()) {
+                    if (itemMatcher.start() > lazyColumnStart) itemPositions << itemMatcher.start()
+                }
+            }
+            def items = new LinkedHashMap<String, Map>()
+            def hardcoded = []
+            def unresolved = []
+            extractCalls(source).each { call ->
+                String arguments = call.arguments
+                def hardcodedTitle = arguments =~ /\btitle\s*=\s*"([^"]+)"/
+                if (hardcodedTitle.find()) {
+                    hardcoded << hardcodedTitle.group(1)
+                    return
+                }
+                def titleMatch = arguments =~ /\btitle\s*=\s*stringResource\(R\.string\.([A-Za-z0-9_]+)\)/
+                String titleRes = titleMatch.find() ? titleMatch.group(1) : null
+                if (titleRes == null) {
+                    def titleVariable = arguments =~ /\btitle\s*=\s*([A-Za-z][A-Za-z0-9_]*)\b/
+                    if (titleVariable.find()) titleRes = variables[titleVariable.group(1)]
+                }
+                if (titleRes == null) {
+                    def expressionMatch = arguments =~ /\btitle\s*=\s*([^,\n]+)/
+                    String expression = expressionMatch.find() ? expressionMatch.group(1).trim() : ''
+                    // Runtime list entries and reusable helper parameters are not fixed settings.
+                    if (expression == 'title' || expression.contains('.')) return
+                    if (!expression.isEmpty()) unresolved << expression
+                    return
+                }
+
+                def descriptionMatch = arguments =~ /\bdescription\s*=\s*stringResource\(R\.string\.([A-Za-z0-9_]+)\)/
+                String descriptionRes = descriptionMatch.find() ? descriptionMatch.group(1) : null
+                if (descriptionRes == null) {
+                    def descriptionVariable = arguments =~ /\bdescription\s*=\s*([A-Za-z][A-Za-z0-9_]*)\b/
+                    if (descriptionVariable.find()) descriptionRes = variables[descriptionVariable.group(1)]
+                }
+                int groupIndex = lazyColumnStart < 0 ? 0 : Math.max(0, itemPositions.count { it <= call.position } - 1)
+                items.putIfAbsent(titleRes, [key: titleRes, title: titleRes, description: descriptionRes, group: groupIndex])
+            }
+
+            if (!hardcoded.isEmpty()) {
+                throw new GradleException("${page.file} contains hardcoded setting titles: ${hardcoded}. Move them to strings.xml so search can index them.")
+            }
+            if (!unresolved.isEmpty()) {
+                throw new GradleException("${page.file} contains setting titles that cannot be indexed: ${unresolved}. Use stringResource(R.string.xxx) or a val directly assigned from it.")
+            }
+            [page: page, items: items.values().toList()]
+        }
+
+        def output = new StringBuilder()
+        output << '// Generated by app/setting-search.gradle. Do not edit manually.\n'
+        output << 'package io.legado.app.enhance.settingssearch\n\n'
+        output << 'import io.legado.app.R\n\n'
+        output << 'object GeneratedSettingCatalog {\n'
+        output << '    val pages: List<GeneratedSettingPage> = listOf(\n'
+        generatedPages.each { entry ->
+            def page = entry.page
+            output << "        GeneratedSettingPage(\"${page.key}\", R.string.${page.title}, SettingDestination.${page.destination}, listOf(\n"
+            entry.items.each { item ->
+                def description = item.description ? "R.string.${item.description}" : 'null'
+                output << "            GeneratedSettingSpec(\"${item.key}\", R.string.${item.title}, ${description}, ${item.group}),\n"
+            }
+            output << '        )),\n'
+        }
+        output << '    )\n'
+        output << '}\n'
+
+        generatedCatalog.parentFile.mkdirs()
+        generatedCatalog.setText(output.toString(), 'UTF-8')
+    }
+}
+
+tasks.named('preBuild').configure { dependsOn('generateSettingSearchCatalog') }

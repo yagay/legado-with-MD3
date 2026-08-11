@@ -10,7 +10,10 @@ import io.legado.app.help.source.SourceHelp
 import io.legado.app.help.source.ExploreSourceParser
 import io.legado.app.help.source.exploreKinds
 import io.legado.app.model.webBook.WebBook
-import io.legado.app.ui.main.explore.*
+import io.legado.app.enhance.explore.model.ExploreTree
+import io.legado.app.enhance.explore.model.ExploreMode
+import io.legado.app.enhance.explore.builder.ExploreTreeBuilder
+import io.legado.app.enhance.explore.builder.ExploreFilterBuilder
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map

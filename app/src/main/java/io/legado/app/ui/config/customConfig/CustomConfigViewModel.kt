@@ -7,6 +7,7 @@ import io.legado.app.domain.gateway.CustomSettingsGateway
 import io.legado.app.domain.model.settings.BackupSettings
 import io.legado.app.domain.model.settings.CustomSettings
 import io.legado.app.help.storage.Backup
+import io.legado.app.data.repository.BookGroupRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
@@ -16,6 +17,7 @@ import kotlinx.coroutines.launch
 class CustomConfigViewModel(
     private val settingsGateway: CustomSettingsGateway,
     private val backupSettingsGateway: BackupSettingsGateway,
+    private val bookGroupRepository: BookGroupRepository,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(
         CustomConfigUiState(
@@ -29,9 +31,14 @@ class CustomConfigViewModel(
         viewModelScope.launch {
             combine(
                 settingsGateway.settings,
-                backupSettingsGateway.settings
-            ) { custom, backup ->
-                CustomConfigUiState(custom, backup)
+                backupSettingsGateway.settings,
+                bookGroupRepository.flowAll()
+            ) { custom, backup, groups ->
+                CustomConfigUiState(
+                    custom, 
+                    backup, 
+                    listOf("全部" to -1L) + groups.map { it.groupName to it.groupId }
+                )
             }.collect { newState ->
                 _uiState.value = newState
             }
@@ -52,9 +59,16 @@ class CustomConfigViewModel(
             is CustomConfigIntent.SetAutoImportBooksOnRestore -> {
                 update { it.copy(autoImportBooksOnRestore = intent.value) }
             }
+            is CustomConfigIntent.SetExportGroupMask -> {
+                update { it.copy(exportGroupMask = intent.value) }
+            }
             CustomConfigIntent.ExportAllToWebDav -> {
                 io.legado.app.utils.LogUtils.d("CustomConfig", "触发一键导出书籍到 WebDAV")
-                Backup.exportAllCachedBooks(splitties.init.appCtx, force = true)
+                Backup.exportAllCachedBooks(
+                    splitties.init.appCtx, 
+                    force = true,
+                    groupMask = _uiState.value.settings.exportGroupMask
+                )
             }
             CustomConfigIntent.ImportAllFromWebDav -> {
                 viewModelScope.launch {

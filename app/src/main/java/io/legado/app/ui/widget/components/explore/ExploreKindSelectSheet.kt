@@ -26,6 +26,8 @@ import androidx.compose.ui.unit.dp
 import io.legado.app.R
 import io.legado.app.data.entities.rule.ExploreKind
 import io.legado.app.data.repository.ExploreRepository
+import io.legado.app.enhance.explore.model.ExploreTree
+import io.legado.app.enhance.explore.model.ExploreNode
 import io.legado.app.domain.usecase.ExploreKindUiUseCase
 import io.legado.app.ui.theme.LegadoTheme
 import io.legado.app.ui.theme.ThemeResolver

@@ -12,5 +12,6 @@ data class CustomSettings(
     val discoveryAutoCollapse: Boolean = true,
     val loginShowEarthIcon: Boolean = true,
     val autoExportBooksOnBackup: Boolean = false,
-    val autoImportBooksOnRestore: Boolean = false
+    val autoImportBooksOnRestore: Boolean = false,
+    val exportGroupMask: Long = -1L // -1 means all groups
 )

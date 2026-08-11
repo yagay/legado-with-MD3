@@ -3,4 +3,17 @@
     <string name="auto_backup_on_background">Auto Backup on Background</string>
     <string name="auto_backup_on_background_summary">Trigger a backup after the app is in the background for a set duration, bypassing the daily limit.</string>
     <string name="auto_backup_on_background_interval">Backup Delay (minutes)</string>
+    <string name="custom_config_title">Custom Configuration</string>
+    <string name="enhanced_backup_restore">Backup and Restore (Enhanced)</string>
+    <string name="backup_export_books">Export books during backup</string>
+    <string name="restore_import_books">Import books during restore</string>
+    <string name="export_books_to_webdav">Export books to WebDAV</string>
+    <string name="import_books_from_webdav">Import books from WebDAV</string>
+    <string name="container_background_image">Container background image</string>
+    <string name="large_container_background_image">Large container background image</string>
+    <string name="large_container_background_opacity">Large container background opacity</string>
+    <string name="item_background_image">Item background image</string>
+    <string name="item_background_opacity">Item background opacity</string>
+    <string name="export_group_title">Export Group</string>
+    <string name="export_group_summary">Select the book group to export</string>
 </resources>

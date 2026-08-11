@@ -7,6 +7,8 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.foundation.background
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import io.legado.app.ui.theme.LegadoTheme
@@ -24,6 +26,7 @@ fun SwitchSettingItem(
     imageVector: ImageVector? = null,
     color: Color? = null,
     enabled: Boolean = true,
+    highlightKey: String? = null,
     onCheckedChange: (Boolean) -> Unit
 ) {
     val composeEngine = LegadoTheme.composeEngine
@@ -35,7 +38,9 @@ fun SwitchSettingItem(
             summary = description,
             checked = checked,
             onCheckedChange = onCheckedChange,
-            modifier = Modifier,
+            modifier = if (highlightKey != null && title.contains(highlightKey, ignoreCase = true)) {
+                Modifier.background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+            } else Modifier,
             enabled = enabled,
         )
     } else {
@@ -47,6 +52,7 @@ fun SwitchSettingItem(
             enabled = enabled,
             semanticRole = Role.Switch,
             semanticToggleState = checked,
+            highlightKey = highlightKey,
             onClick = { if (enabled) onCheckedChange(!checked) },
             trailingContent = {
                 AdaptiveSwitch(

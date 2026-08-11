@@ -336,7 +336,12 @@ object Backup {
         exportAllCachedBooks(context, isAuto = isAuto)
     }
 
-    fun exportAllCachedBooks(context: Context, force: Boolean = false, isAuto: Boolean = false) {
+    fun exportAllCachedBooks(
+        context: Context,
+        force: Boolean = false,
+        isAuto: Boolean = false,
+        groupMask: Long? = null
+    ) {
         val customSettingsGateway: CustomSettingsGateway = GlobalContext.get().get()
         if (!force && !customSettingsGateway.currentSettings.autoExportBooksOnBackup) return
 
@@ -345,8 +350,11 @@ object Backup {
             return
         }
 
+        val actualGroupMask = groupMask ?: customSettingsGateway.currentSettings.exportGroupMask
+
         val books = appDb.bookDao.all.filter {
-            it.isLocal || BookHelp.countCachedChapters(it) > 0
+            val inGroup = actualGroupMask == -1L || (it.group and actualGroupMask) != 0L
+            inGroup && (it.isLocal || BookHelp.countCachedChapters(it) > 0)
         }
 
         if (books.isEmpty()) {

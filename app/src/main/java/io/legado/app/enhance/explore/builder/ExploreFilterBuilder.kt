@@ -1,10 +1,12 @@
-﻿package io.legado.app.ui.main.explore
+package io.legado.app.enhance.explore.builder
 
 import io.legado.app.data.entities.rule.ExploreKind
+import io.legado.app.enhance.explore.model.ExploreNode
+import io.legado.app.enhance.explore.model.FilterGroup
 import kotlinx.collections.immutable.toImmutableList
 
 /**
- * 发现页筛选过滤器构建器
+ * 发现页筛选行构建器
  */
 object ExploreFilterBuilder {
 
@@ -37,7 +39,7 @@ object ExploreFilterBuilder {
                 if (currentHeader != null) {
                     currentNodes.add(node)
                 } else {
-                    currentHeader = "全部类目"
+                    currentHeader = "分类"
                     currentNodes.add(node)
                 }
             }

@@ -216,6 +216,7 @@ tasks.register<Delete>("clean") {
 val verifyConfigArchitecture = tasks.register<VerifyConfigArchitectureTask>(
     "verifyConfigArchitecture"
 ) {
+    dependsOn(":app:generateSettingSearchCatalog")
     group = "verification"
     description = "禁止配置架构回退、UI 层(ViewModel 及其它)新增 DAO 直连和新增旧偏好调用"
     sourceRoot.set(layout.projectDirectory.dir("app/src/main/java"))

@@ -53,28 +53,28 @@ data class MainRouteRssSourceDebug(val sourceUrl: String? = null) : MainRoute
 data object MainRouteSettings : MainRoute
 
 @Serializable
-data object MainRouteSettingsOther : MainRoute
+data class MainRouteSettingsOther(val searchKey: String? = null) : MainRoute
 
 @Serializable
-data object MainRouteSettingsRead : MainRoute
+data class MainRouteSettingsRead(val searchKey: String? = null) : MainRoute
 
 @Serializable
-data object MainRouteSettingsCover : MainRoute
+data class MainRouteSettingsCover(val searchKey: String? = null) : MainRoute
 
 @Serializable
 data object MainRouteSettingsCoverAlbums : MainRoute
 
 @Serializable
-data object MainRouteSettingsTheme : MainRoute
+data class MainRouteSettingsTheme(val searchKey: String? = null) : MainRoute
 
 @Serializable
-data object MainRouteSettingsBackup : MainRoute
+data class MainRouteSettingsBackup(val searchKey: String? = null) : MainRoute
 
 @Serializable
-data object MainRouteSettingsCustomConfig : MainRoute
+data class MainRouteSettingsCustomConfig(val searchKey: String? = null) : MainRoute
 
 @Serializable
-data object MainRouteSettingsAi : MainRoute
+data class MainRouteSettingsAi(val searchKey: String? = null) : MainRoute
 
 @Serializable
 data object MainRouteAiChat : MainRoute
@@ -100,16 +100,16 @@ data object MainRouteSettingsAiPrompt : MainRoute
 data object MainRouteSettingsCustomTheme : MainRoute
 
 @Serializable
-data object MainRouteSettingsThemeManage : MainRoute
+data class MainRouteSettingsThemeManage(val searchKey: String? = null) : MainRoute
 
 @Serializable
-data object MainRouteSettingsLabConfig : MainRoute
+data class MainRouteSettingsLabConfig(val searchKey: String? = null) : MainRoute
 
 @Serializable
-data object MainRouteSettingsDownloadCache : MainRoute
+data class MainRouteSettingsDownloadCache(val searchKey: String? = null) : MainRoute
 
 @Serializable
-data object MainRouteSettingsTranslation : MainRoute
+data class MainRouteSettingsTranslation(val searchKey: String? = null) : MainRoute
 
 @Serializable
 data object MainRouteImportLocal : MainRoute

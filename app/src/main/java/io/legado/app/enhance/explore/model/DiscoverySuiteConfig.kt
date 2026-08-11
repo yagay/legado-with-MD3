@@ -1,4 +1,4 @@
-package io.legado.app.ui.main.explore
+package io.legado.app.enhance.explore.model
 
 import androidx.annotation.Keep
 import com.google.gson.annotations.SerializedName

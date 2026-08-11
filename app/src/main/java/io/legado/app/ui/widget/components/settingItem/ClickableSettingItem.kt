@@ -1,5 +1,6 @@
 package io.legado.app.ui.widget.components.settingItem
 
+import androidx.compose.foundation.background
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.Icon
@@ -22,6 +23,7 @@ fun ClickableSettingItem(
     imageVector: ImageVector? = null,
     onLongClick: (() -> Unit)? = null,
     trailingContent: (@Composable () -> Unit)? = null,
+    highlightKey: String? = null,
     onClick: () -> Unit
 ) {
     val composeEngine = LegadoTheme.composeEngine
@@ -31,6 +33,9 @@ fun ClickableSettingItem(
         ArrowPreference(
             title = title,
             summary = description,
+            modifier = if (highlightKey != null && title.contains(highlightKey, ignoreCase = true)) {
+                Modifier.background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+            } else Modifier,
             insideMargin = BasicComponentDefaults.InsideMargin,
             onClick = onClick
         )
@@ -41,6 +46,7 @@ fun ClickableSettingItem(
             description = description,
             option = option,
             imageVector = imageVector,
+            highlightKey = highlightKey,
             trailingContent = trailingContent ?: {
                 Icon(
                     imageVector = Icons.Default.ChevronRight,

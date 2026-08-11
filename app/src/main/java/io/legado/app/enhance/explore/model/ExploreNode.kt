@@ -1,9 +1,9 @@
-锘縫ackage io.legado.app.ui.main.explore
+package io.legado.app.enhance.explore.model
 
 import io.legado.app.data.entities.rule.ExploreKind
 
 /**
- * 鍙戠幇椤电粺涓�绫荤洰鑺傜偣
+ * 发现页统一类目节点
  */
 data class ExploreNode(
     val title: String,

@@ -98,6 +98,7 @@ import io.legado.app.ui.config.ai.summary.AiSummaryConfigRouteScreen
 import io.legado.app.ui.config.backupConfig.BackupConfigRouteScreen
 import io.legado.app.ui.config.customConfig.CustomConfigScreen
 import io.legado.app.ui.config.coverConfig.CoverAlbumManageRouteScreen
+import io.legado.app.ui.widget.components.settingItem.ProvideSettingSearchTarget
 import io.legado.app.ui.config.coverConfig.CoverConfigRouteScreen
 import io.legado.app.ui.config.customTheme.CustomThemeRouteScreen
 import io.legado.app.ui.config.downloadCacheConfig.DownloadCacheConfigRouteScreen
@@ -316,7 +317,7 @@ fun MainActivity.mainEntryProvider(
                 }
             },
             onNavigateToBackupSettings = {
-                onNavigateToRoute(MainRouteSettingsBackup)
+                onNavigateToRoute(MainRouteSettingsBackup())
             },
             onNavigateToBookInfo = { name, author, bookUrl, origin, coverPath, sharedCoverKey ->
                 onNavigateToRoute(
@@ -400,59 +401,75 @@ fun MainActivity.mainEntryProvider(
     entry<MainRouteSettings> {
         ConfigNavScreen(
             onBackClick = { onNavigateBack() },
-            onNavigateToOther = { backStack.add(MainRouteSettingsOther) },
-            onNavigateToRead = { backStack.add(MainRouteSettingsRead) },
-            onNavigateToCover = { backStack.add(MainRouteSettingsCover) },
-            onNavigateToTheme = { backStack.add(MainRouteSettingsTheme) },
-            onNavigateToBackup = { backStack.add(MainRouteSettingsBackup) },
-            onNavigateToCustomConfig = { backStack.add(MainRouteSettingsCustomConfig) },
-            onNavigateToAi = { backStack.add(MainRouteSettingsAi) },
-            onNavigateToDownloadCache = { backStack.add(MainRouteSettingsDownloadCache) },
-            onNavigateToTranslation = { backStack.add(MainRouteSettingsTranslation) },
-            onNavigateToLab = { backStack.add(MainRouteSettingsLabConfig) }
+            onNavigateToOther = { backStack.add(MainRouteSettingsOther()) },
+            onNavigateToRead = { backStack.add(MainRouteSettingsRead()) },
+            onNavigateToCover = { backStack.add(MainRouteSettingsCover()) },
+            onNavigateToTheme = { backStack.add(MainRouteSettingsTheme()) },
+            onNavigateToBackup = { backStack.add(MainRouteSettingsBackup()) },
+            onNavigateToCustomConfig = { backStack.add(MainRouteSettingsCustomConfig()) },
+            onNavigateToAi = { backStack.add(MainRouteSettingsAi()) },
+            onNavigateToDownloadCache = { backStack.add(MainRouteSettingsDownloadCache()) },
+            onNavigateToTranslation = { backStack.add(MainRouteSettingsTranslation()) },
+            onNavigateToLab = { backStack.add(MainRouteSettingsLabConfig()) }
         )
     }
 
-    entry<MainRouteSettingsOther> {
-        OtherConfigRouteScreen(onBackClick = { onNavigateBack() })
+    entry<MainRouteSettingsOther> { route ->
+        ProvideSettingSearchTarget(route.searchKey) {
+            OtherConfigRouteScreen(onBackClick = { onNavigateBack() }, searchKey = route.searchKey)
+        }
     }
 
-    entry<MainRouteSettingsRead> {
-        ReadConfigRouteScreen(onBackClick = { onNavigateBack() })
+    entry<MainRouteSettingsRead> { route ->
+        ProvideSettingSearchTarget(route.searchKey) {
+            ReadConfigRouteScreen(onBackClick = { onNavigateBack() }, searchKey = route.searchKey)
+        }
     }
 
-    entry<MainRouteSettingsCover> {
-        CoverConfigRouteScreen(
-            onBackClick = { onNavigateBack() },
-            onNavigateToCoverAlbums = {
-                backStack.add(MainRouteSettingsCoverAlbums)
-            },
-        )
+    entry<MainRouteSettingsCover> { route ->
+        ProvideSettingSearchTarget(route.searchKey) {
+            CoverConfigRouteScreen(
+                onBackClick = { onNavigateBack() },
+                searchKey = route.searchKey,
+                onNavigateToCoverAlbums = {
+                    backStack.add(MainRouteSettingsCoverAlbums)
+                },
+            )
+        }
     }
 
     entry<MainRouteSettingsCoverAlbums> {
         CoverAlbumManageRouteScreen(onBackClick = { onNavigateBack() })
     }
 
-    entry<MainRouteSettingsTheme> {
-        ThemeConfigRouteScreen(
+    entry<MainRouteSettingsTheme> { route ->
+        ProvideSettingSearchTarget(route.searchKey) {
+            ThemeConfigRouteScreen(
+                onBackClick = { onNavigateBack() },
+                searchKey = route.searchKey,
+                onNavigateToCustomTheme = { backStack.add(MainRouteSettingsCustomTheme) },
+                onNavigateToThemeManage = { backStack.add(MainRouteSettingsThemeManage()) }
+            )
+        }
+    }
+
+    entry<MainRouteSettingsBackup> { route ->
+        ProvideSettingSearchTarget(route.searchKey) {
+            BackupConfigRouteScreen(onBackClick = { onNavigateBack() }, searchKey = route.searchKey)
+        }
+    }
+
+    entry<MainRouteSettingsCustomConfig> { route ->
+        ProvideSettingSearchTarget(route.searchKey) {
+            CustomConfigScreen(onBackClick = { onNavigateBack() }, searchKey = route.searchKey)
+        }
+    }
+
+    entry<MainRouteSettingsAi> { route ->
+        ProvideSettingSearchTarget(route.searchKey) {
+            AiConfigRouteScreen(
             onBackClick = { onNavigateBack() },
-            onNavigateToCustomTheme = { backStack.add(MainRouteSettingsCustomTheme) },
-            onNavigateToThemeManage = { backStack.add(MainRouteSettingsThemeManage) }
-        )
-    }
-
-    entry<MainRouteSettingsBackup> {
-        BackupConfigRouteScreen(onBackClick = { onNavigateBack() })
-    }
-
-    entry<MainRouteSettingsCustomConfig> {
-        CustomConfigScreen(onBackClick = { onNavigateBack() })
-    }
-
-    entry<MainRouteSettingsAi> {
-        AiConfigRouteScreen(
-            onBackClick = { onNavigateBack() },
+            searchKey = route.searchKey,
             onNavigateToProviderEdit = { providerId ->
                 backStack.add(MainRouteSettingsAiProviderEdit(providerId = providerId))
             },
@@ -464,10 +481,11 @@ fun MainActivity.mainEntryProvider(
                     )
                 )
             },
-            onNavigateToTranslation = { backStack.add(MainRouteSettingsTranslation) },
+            onNavigateToTranslation = { backStack.add(MainRouteSettingsTranslation()) },
             onNavigateToAiSummary = { backStack.add(MainRouteSettingsAiSummary) },
             onNavigateToAiPrompt = { backStack.add(MainRouteSettingsAiPrompt) }
-        )
+            )
+        }
     }
 
     entry<MainRouteSettingsAiSummary> {
@@ -510,19 +528,26 @@ fun MainActivity.mainEntryProvider(
         )
     }
 
-    entry<MainRouteSettingsDownloadCache> {
-        DownloadCacheConfigRouteScreen(onBackClick = { onNavigateBack() })
+    entry<MainRouteSettingsDownloadCache> { route ->
+        ProvideSettingSearchTarget(route.searchKey) {
+            DownloadCacheConfigRouteScreen(onBackClick = { onNavigateBack() }, searchKey = route.searchKey)
+        }
     }
 
-    entry<MainRouteSettingsTranslation> {
-        TranslationConfigRouteScreen(
+    entry<MainRouteSettingsTranslation> { route ->
+        ProvideSettingSearchTarget(route.searchKey) {
+            TranslationConfigRouteScreen(
             onBackClick = { onNavigateBack() },
-            onNavigateToAi = { backStack.add(MainRouteSettingsAi) }
-        )
+            searchKey = route.searchKey,
+            onNavigateToAi = { backStack.add(MainRouteSettingsAi()) }
+            )
+        }
     }
 
-    entry<MainRouteSettingsLabConfig> {
-        LabConfigRouteScreen(onBackClick = { onNavigateBack() })
+    entry<MainRouteSettingsLabConfig> { route ->
+        ProvideSettingSearchTarget(route.searchKey) {
+            LabConfigRouteScreen(onBackClick = { onNavigateBack() }, searchKey = route.searchKey)
+        }
     }
 
     entry<MainRouteSettingsCustomTheme> {
@@ -531,8 +556,8 @@ fun MainActivity.mainEntryProvider(
         )
     }
 
-    entry<MainRouteSettingsThemeManage> {
-        ThemeManageRouteScreen(onBackClick = { onNavigateBack() })
+    entry<MainRouteSettingsThemeManage> { route ->
+        ThemeManageRouteScreen(onBackClick = { onNavigateBack() }, searchKey = route.searchKey)
     }
 
     entry<MainRouteImportLocal> {

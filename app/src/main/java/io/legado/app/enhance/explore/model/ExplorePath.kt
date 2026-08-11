@@ -1,4 +1,4 @@
-ï»¿package io.legado.app.ui.main.explore
+package io.legado.app.enhance.explore.model
 
 import androidx.compose.runtime.Immutable
 import kotlinx.collections.immutable.ImmutableList
@@ -6,7 +6,7 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 
 /**
- * å‘ç°é¡µè·¯å¾„è¿½è¸ª
+ * ·¢ÏÖÒ³Â·¾¶×·×Ù
  */
 @Immutable
 data class ExplorePath(
@@ -14,10 +14,10 @@ data class ExplorePath(
 ) {
     val lastUrl: String? get() = selectedNodes.lastOrNull()?.url
 
-    val displayPath: String get() = selectedNodes.joinToString(" Â· ") { it.title }
+    val displayPath: String get() = selectedNodes.joinToString(" ¡¤ ") { it.title }
 
     fun append(node: ExploreNode): ExplorePath {
-        // å¦‚æœç‚¹å‡»çš„æ˜¯å·²æœ‰å±‚çº§ï¼Œåˆ™è£å‰ªåç»­å±‚çº§å¹¶æ›¿æ¢
+        // Èç¹ûµã»÷µÄÊÇÒÑÓĞ²ã¼¶£¬Ôò²Ã¼ôºóĞø²ã¼¶²¢Ìæ»»
         val index = selectedNodes.indexOfFirst { it.level == node.level }
         val newList = if (index != -1) {
             selectedNodes.subList(0, index).toMutableList()

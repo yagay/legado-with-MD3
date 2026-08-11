@@ -1,4 +1,4 @@
-package io.legado.app.ui.main.explore
+package io.legado.app.enhance.explore.ui
 
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults

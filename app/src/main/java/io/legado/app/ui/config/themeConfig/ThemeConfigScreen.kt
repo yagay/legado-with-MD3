@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -43,6 +44,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -60,6 +62,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.constraintlayout.compose.ConstraintLayout
 import io.legado.app.R
+import io.legado.app.enhance.settingssearch.SettingDestination
+import io.legado.app.enhance.settingssearch.getSettingScrollInfo
+import io.legado.app.enhance.ui.LaunchSettingScrollEffect
 import io.legado.app.domain.model.settings.ThemeSettings
 import io.legado.app.domain.model.settings.isEyeProtectionConfigured
 import io.legado.app.ui.theme.LegadoTheme
@@ -94,11 +99,18 @@ fun ThemeConfigScreen(
     onBackClick: () -> Unit,
     onNavigateToCustomTheme: () -> Unit,
     onNavigateToThemeManage: () -> Unit,
+    searchKey: String? = null,
 ) {
     val appShell = state.appShell
     val theme = state.theme
     val scrollBehavior = GlassTopAppBarDefaults.defaultScrollBehavior()
+    val listState = rememberLazyListState()
     val context = LocalContext.current
+
+    val scrollInfo = remember(searchKey) {
+        getSettingScrollInfo(context, SettingDestination.Theme, searchKey)
+    }
+    LaunchSettingScrollEffect(scrollInfo, listState)
     fun updateTheme(transform: (ThemeSettings) -> ThemeSettings) =
         onIntent(ThemeConfigIntent.UpdateTheme(transform))
     val fontFolderState = remember(state.fontFolder) {
@@ -118,6 +130,7 @@ fun ThemeConfigScreen(
         }
     ) { paddingValues ->
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = adaptiveContentPadding(
                 top = paddingValues.calculateTopPadding(),
@@ -189,6 +202,7 @@ fun ThemeConfigScreen(
                             selectedValue = appShell.themeMode,
                             displayEntries = stringArrayResource(R.array.theme_mode),
                             entryValues = stringArrayResource(R.array.theme_mode_v),
+                            highlightKey = searchKey,
                             onValueChange = { mode ->
                                 onIntent(
                                     ThemeConfigIntent.SetThemeMode(mode)
@@ -200,6 +214,7 @@ fun ThemeConfigScreen(
                             title = stringResource(R.string.miuix_monet),
                             description = stringResource(R.string.miuix_monet_summary),
                             checked = theme.useMiuixMonet,
+                            highlightKey = searchKey,
                             onCheckedChange = {
                                 onIntent(ThemeConfigIntent.SetMiuixMonet(it))
                             }
@@ -214,6 +229,7 @@ fun ThemeConfigScreen(
                                 selectedValue = theme.appTheme,
                                 displayEntries = visibleThemes.map { it.first }.toTypedArray(),
                                 entryValues = visibleThemes.map { it.second }.toTypedArray(),
+                                highlightKey = searchKey,
                                 onValueChange = { value ->
                                     onIntent(ThemeConfigIntent.SelectTheme(value))
                                 }
@@ -255,6 +271,7 @@ fun ThemeConfigScreen(
                         SwitchSettingItem(
                             title = stringResource(R.string.pure_black),
                             checked = theme.isPureBlack,
+                            highlightKey = searchKey,
                             onCheckedChange = { value ->
                                 updateTheme { it.copy(isPureBlack = value) }
                             }
@@ -262,11 +279,13 @@ fun ThemeConfigScreen(
                     }
                     ClickableSettingItem(
                         title = stringResource(R.string.font_setting),
+                        highlightKey = searchKey,
                         onClick = { onIntent(ThemeConfigIntent.ShowSheet(ThemeConfigSheet.Font)) }
                     )
                     if (theme.appTheme == "12" && (!isMiuixEngine || theme.useMiuixMonet)) {
                         ClickableSettingItem(
                             title = stringResource(R.string.custom_theme_colors),
+                            highlightKey = searchKey,
                             onClick = onNavigateToCustomTheme
                         )
                     }
@@ -275,6 +294,7 @@ fun ThemeConfigScreen(
                         selectedValue = appShell.composeEngine,
                         displayEntries = stringArrayResource(R.array.composeEngine),
                         entryValues = stringArrayResource(R.array.composeEngine_value),
+                        highlightKey = searchKey,
                         onValueChange = {
                             onIntent(
                                 ThemeConfigIntent.SetComposeEngine(it)
@@ -284,6 +304,7 @@ fun ThemeConfigScreen(
                     ClickableSettingItem(
                         title = stringResource(R.string.change_icon),
                         description = stringResource(R.string.change_icon_summary),
+                        highlightKey = searchKey,
                         onClick = {
                             onIntent(ThemeConfigIntent.ShowSheet(ThemeConfigSheet.LauncherIcon))
                         }
@@ -292,6 +313,7 @@ fun ThemeConfigScreen(
                         title = stringResource(R.string.predictive_back),
                         description = stringResource(R.string.predictive_back_summary),
                         checked = appShell.predictiveBackEnabled,
+                        highlightKey = searchKey,
                         onCheckedChange = {
                             onIntent(
                                 ThemeConfigIntent.SetPredictiveBackEnabled(it)
@@ -307,6 +329,7 @@ fun ThemeConfigScreen(
                         defaultValue = 10f,
                         valueRange = 8f..16f,
                         steps = 7,
+                        highlightKey = searchKey,
                         onValueChange = { value ->
                             onIntent(
                                 ThemeConfigIntent.SetFontScale(value.toInt())
@@ -316,11 +339,13 @@ fun ThemeConfigScreen(
                     ClickableSettingItem(
                         title = stringResource(R.string.theme_pack),
                         description = stringResource(R.string.theme_pack_s),
+                        highlightKey = searchKey,
                         onClick = onNavigateToThemeManage
                     )
                     ClickableSettingItem(
                         title = stringResource(R.string.background_image),
                         description = "日间/夜间背景图与背景虚化",
+                        highlightKey = searchKey,
                         onClick = {
                             onIntent(
                                 ThemeConfigIntent.ShowSheet(
@@ -337,6 +362,7 @@ fun ThemeConfigScreen(
                     ClickableSettingItem(
                         title = stringResource(R.string.main_navigation_settings),
                         description = stringResource(R.string.main_navigation_settings_summary),
+                        highlightKey = searchKey,
                         onClick = {
                             onIntent(ThemeConfigIntent.ShowSheet(ThemeConfigSheet.MainNavigation))
                         },
@@ -344,6 +370,7 @@ fun ThemeConfigScreen(
                     SwitchSettingItem(
                         title = stringResource(R.string.show_status),
                         checked = appShell.showStatusBar,
+                        highlightKey = searchKey,
                         onCheckedChange = {
                             onIntent(
                                 ThemeConfigIntent.SetShowStatusBar(it)
@@ -354,6 +381,7 @@ fun ThemeConfigScreen(
                     SwitchSettingItem(
                         title = stringResource(R.string.show_swipe_animation),
                         checked = appShell.swipeAnimation,
+                        highlightKey = searchKey,
                         onCheckedChange = {
                             onIntent(
                                 ThemeConfigIntent.SetSwipeAnimation(it)
@@ -363,6 +391,7 @@ fun ThemeConfigScreen(
                     ClickableSettingItem(
                         title = stringResource(R.string.top_bottom_bar_settings),
                         description = stringResource(R.string.top_bottom_bar_settings_summary),
+                        highlightKey = searchKey,
                         onClick = {
                             onIntent(ThemeConfigIntent.ShowSheet(ThemeConfigSheet.TopBottomBar))
                         },
@@ -372,6 +401,7 @@ fun ThemeConfigScreen(
                         selectedValue = appShell.tabletInterface,
                         displayEntries = stringArrayResource(R.array.tabletInterface),
                         entryValues = stringArrayResource(R.array.tabletInterface_value),
+                        highlightKey = searchKey,
                         onValueChange = {
                             onIntent(
                                 ThemeConfigIntent.SetTabletInterface(it)
@@ -385,6 +415,7 @@ fun ThemeConfigScreen(
                         title = stringResource(R.string.book_info_follow_cover_color),
                         description = stringResource(R.string.book_info_follow_cover_color_summary),
                         checked = theme.bookInfoFollowCoverColor,
+                        highlightKey = searchKey,
                         onCheckedChange = { value ->
                             updateTheme { it.copy(bookInfoFollowCoverColor = value) }
                         }
@@ -394,6 +425,7 @@ fun ThemeConfigScreen(
                         selectedValue = theme.bookInfoNetworkCoverBackground,
                         displayEntries = stringArrayResource(R.array.book_info_background_blur_entries),
                         entryValues = stringArrayResource(R.array.book_info_background_blur_values),
+                        highlightKey = searchKey,
                         onValueChange = { value ->
                             updateTheme { it.copy(bookInfoNetworkCoverBackground = value) }
                         }
@@ -403,6 +435,7 @@ fun ThemeConfigScreen(
                         selectedValue = theme.bookInfoDefaultCoverBackground,
                         displayEntries = stringArrayResource(R.array.book_info_background_blur_entries),
                         entryValues = stringArrayResource(R.array.book_info_background_blur_values),
+                        highlightKey = searchKey,
                         onValueChange = { value ->
                             updateTheme { it.copy(bookInfoDefaultCoverBackground = value) }
                         }
@@ -414,6 +447,7 @@ fun ThemeConfigScreen(
                         title = stringResource(R.string.eye_protection_enabled),
                         description = stringResource(R.string.eye_protection_enabled_summary),
                         checked = theme.eyeProtectionEnabled,
+                        highlightKey = searchKey,
                         onCheckedChange = { value ->
                             updateTheme { it.copy(eyeProtectionEnabled = value) }
                         }
@@ -423,6 +457,7 @@ fun ThemeConfigScreen(
                         title = stringResource(R.string.eye_protection_auto_night),
                         description = stringResource(R.string.eye_protection_auto_night_summary),
                         checked = theme.eyeProtectionAutoNight,
+                        highlightKey = searchKey,
                         onCheckedChange = { value ->
                             updateTheme { it.copy(eyeProtectionAutoNight = value) }
                         }
@@ -439,6 +474,7 @@ fun ThemeConfigScreen(
                                 value = theme.colorTemperature.toFloat(),
                                 defaultValue = 50f,
                                 valueRange = 0f..100f,
+                                highlightKey = searchKey,
                                 onValueChange = { value ->
                                     updateTheme { it.copy(colorTemperature = value.toInt()) }
                                 }
@@ -448,6 +484,7 @@ fun ThemeConfigScreen(
                                 title = stringResource(R.string.eye_protection_schedule),
                                 description = stringResource(R.string.eye_protection_schedule_summary),
                                 checked = theme.eyeProtectionSchedule,
+                                highlightKey = searchKey,
                                 onCheckedChange = { value ->
                                     updateTheme { it.copy(eyeProtectionSchedule = value) }
                                 }
@@ -489,12 +526,14 @@ fun ThemeConfigScreen(
                     SwitchSettingItem(
                         title = stringResource(R.string.is_blur_enable),
                         checked = theme.enableBlur,
+                        highlightKey = searchKey,
                         onCheckedChange = { onIntent(ThemeConfigIntent.SetBlurEnabled(it)) }
                     )
                     AnimatedVisibility(visible = theme.enableBlur) {
                         SwitchSettingItem(
                             title = stringResource(R.string.is_blur_progressive_enable),
                             checked = theme.enableProgressiveBlur,
+                            highlightKey = searchKey,
                             onCheckedChange = { value ->
                                 updateTheme { it.copy(enableProgressiveBlur = value) }
                             }
@@ -508,9 +547,10 @@ fun ThemeConfigScreen(
             item {
                 SplicedColumnGroup(title = stringResource(R.string.theme_manage_section_container)) {
                     SwitchSettingItem(
-                        title = "容器背景图",
+                        title = stringResource(R.string.container_background_image),
                         description = "大容器和项目分别使用独立的日间/夜间图片",
                         checked = theme.enableContainerBackgroundImage,
+                        highlightKey = searchKey,
                         onCheckedChange = { value ->
                             updateTheme { it.copy(enableContainerBackgroundImage = value) }
                         }
@@ -520,7 +560,7 @@ fun ThemeConfigScreen(
                             verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
                             ClickableSettingItem(
-                                title = "大容器背景图片",
+                                title = stringResource(R.string.large_container_background_image),
                                 description = if (theme.largeContainerBackgroundImageLight.isNullOrBlank() &&
                                     theme.largeContainerBackgroundImageDark.isNullOrBlank()
                                 ) {
@@ -528,6 +568,7 @@ fun ThemeConfigScreen(
                                 } else {
                                     "已选择"
                                 },
+                                highlightKey = searchKey,
                                 onClick = {
                                     onIntent(
                                         ThemeConfigIntent.ShowSheet(
@@ -539,7 +580,7 @@ fun ThemeConfigScreen(
                                 }
                             )
                             ClickableSettingItem(
-                                title = "项目背景图片",
+                                title = stringResource(R.string.item_background_image),
                                 description = if (theme.itemBackgroundImageLight.isNullOrBlank() &&
                                     theme.itemBackgroundImageDark.isNullOrBlank()
                                 ) {
@@ -547,6 +588,7 @@ fun ThemeConfigScreen(
                                 } else {
                                     "已选择"
                                 },
+                                highlightKey = searchKey,
                                 onClick = {
                                     onIntent(
                                         ThemeConfigIntent.ShowSheet(
@@ -568,6 +610,7 @@ fun ThemeConfigScreen(
                             value = theme.containerOpacity.toFloat(),
                             defaultValue = 100f,
                             valueRange = 0f..100f,
+                            highlightKey = searchKey,
                             onValueChange = { value ->
                                 updateTheme { it.copy(containerOpacity = value.toInt()) }
                             }
@@ -576,6 +619,7 @@ fun ThemeConfigScreen(
                         title = stringResource(R.string.disable_spliced_group_corner_radius),
                         description = stringResource(R.string.disable_spliced_group_corner_radius_summary),
                         checked = theme.disableSplicedColumnGroupCornerRadius,
+                        highlightKey = searchKey,
                         onCheckedChange = { value ->
                             updateTheme {
                                 it.copy(disableSplicedColumnGroupCornerRadius = value)
@@ -586,6 +630,7 @@ fun ThemeConfigScreen(
                         title = stringResource(R.string.base_card_corner_radius_override),
                         description = stringResource(R.string.base_card_override_summary),
                         checked = theme.overrideBaseCardCornerRadius,
+                        highlightKey = searchKey,
                         onCheckedChange = { value ->
                             updateTheme { it.copy(overrideBaseCardCornerRadius = value) }
                         }
@@ -599,6 +644,7 @@ fun ThemeConfigScreen(
                             valueRange = 0f..40f,
                             steps = 79,
                             decimal = true,
+                            highlightKey = searchKey,
                             onValueChange = { value ->
                                 updateTheme { it.copy(baseCardCornerRadius = value) }
                             }
@@ -608,6 +654,7 @@ fun ThemeConfigScreen(
                         title = stringResource(R.string.base_card_border_override),
                         description = stringResource(R.string.base_card_override_summary),
                         checked = theme.overrideBaseCardBorder,
+                        highlightKey = searchKey,
                         onCheckedChange = { value ->
                             updateTheme { it.copy(overrideBaseCardBorder = value) }
                         }
@@ -622,6 +669,7 @@ fun ThemeConfigScreen(
                                 valueRange = 0f..5f,
                                 steps = 49,
                                 decimal = true,
+                                highlightKey = searchKey,
                                 onValueChange = { value ->
                                     updateTheme { it.copy(baseCardBorderWidth = value) }
                                 }
@@ -653,6 +701,7 @@ fun ThemeConfigScreen(
                     SwitchSettingItem(
                         title = stringResource(R.string.show_divider_line),
                         checked = theme.enableItemDivider,
+                        highlightKey = searchKey,
                         onCheckedChange = { value ->
                             updateTheme { it.copy(enableItemDivider = value) }
                         }
@@ -684,6 +733,7 @@ fun ThemeConfigScreen(
                         ClickableSettingItem(
                             title = stringResource(R.string.tip_divider_color),
                             option = if (theme.itemDividerColor != 0) "#${Integer.toHexString(theme.itemDividerColor).uppercase()}" else stringResource(R.string.click_to_select),
+                            highlightKey = searchKey,
                             onClick = {
                                 onIntent(
                                     ThemeConfigIntent.ShowSheet(ThemeConfigSheet.DividerColor)

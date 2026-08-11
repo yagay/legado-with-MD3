@@ -39,6 +39,7 @@ import kotlinx.coroutines.flow.collectLatest
 fun CoverConfigRouteScreen(
     onBackClick: () -> Unit,
     onNavigateToCoverAlbums: () -> Unit,
+    searchKey: String? = null,
     viewModel: CoverConfigViewModel = koinViewModel(),
 ) {
     val context = LocalContext.current
@@ -55,6 +56,7 @@ fun CoverConfigRouteScreen(
         onIntent = viewModel::onIntent,
         onBackClick = onBackClick,
         onNavigateToCoverAlbums = onNavigateToCoverAlbums,
+        searchKey = searchKey,
     )
 }
 
@@ -65,6 +67,7 @@ fun CoverConfigScreen(
     onIntent: (CoverConfigIntent) -> Unit,
     onBackClick: () -> Unit,
     onNavigateToCoverAlbums: () -> Unit,
+    searchKey: String? = null,
 ) {
     val scrollBehavior = GlassTopAppBarDefaults.defaultScrollBehavior()
     val settings = state.settings

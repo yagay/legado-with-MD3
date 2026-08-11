@@ -1,4 +1,4 @@
-﻿package io.legado.app.ui.main.explore
+package io.legado.app.enhance.explore.ui
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import io.legado.app.enhance.explore.model.ExploreNode
+import io.legado.app.enhance.explore.model.FilterGroup
 
 @Composable
 fun FilterPanel(

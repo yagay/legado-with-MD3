@@ -1,10 +1,10 @@
-ï»¿package io.legado.app.ui.main.explore
+package io.legado.app.enhance.explore.model
 
 import androidx.compose.runtime.Immutable
 import kotlinx.collections.immutable.ImmutableList
 
 /**
- * å‘ç°é¡µç»Ÿä¸€ç­›é€‰åˆ†ç»„æ¨¡å‹
+ * ·¢ÏÖÒ³Í³Ò»É¸Ñ¡·Ö×éÄ£ĞÍ
  */
 @Immutable
 data class FilterGroup(

@@ -122,6 +122,7 @@ class ExportBookService : BaseService(), KoinComponent {
     private val waitExportBooks = linkedMapOf<String, ExportConfig>()
     private var exportJob: Job? = null
     private var currentExportSettings = BookExportSettings()
+    private var processedCount = 0
     private var currentTargetLanguage = "zh"
     private var currentDefaultReplaceEnabled = true
     private var currentChineseConverterType = 0
@@ -223,7 +224,8 @@ class ExportBookService : BaseService(), KoinComponent {
         exportJob = lifecycleScope.launch(IO) {
             while (isActive) {
                 val (bookUrl, exportConfig) = waitExportBooks.entries.firstOrNull() ?: let {
-                    notificationContentText = "导出完成"
+                    notificationContentText = "导出完成 (共 $processedCount 本)"
+                    processedCount = 0
                     upExportNotification(true)
                     stopSelf()
                     return@launch
@@ -266,6 +268,7 @@ class ExportBookService : BaseService(), KoinComponent {
                         }
                     }
                     exportMsg[book.bookUrl] = getString(R.string.export_success)
+                    processedCount++
                 } catch (e: Throwable) {
                     ensureActive()
                     exportMsg[bookUrl] = e.localizedMessage ?: "ERROR"

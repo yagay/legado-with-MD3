@@ -1,13 +1,7 @@
-package io.legado.app.ui.main.explore
+package io.legado.app.enhance.explore.screen
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -20,12 +14,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.legado.app.data.entities.SearchBook
 import io.legado.app.domain.model.BookShelfState
+import io.legado.app.enhance.explore.model.DiscoverySuite
+import io.legado.app.enhance.explore.model.DiscoverySuiteWidget
+import io.legado.app.enhance.explore.model.DiscoverySuiteWidgetTarget
+import io.legado.app.enhance.explore.model.DiscoverySuiteWidgetType
+import io.legado.app.ui.main.explore.ExploreIntent
+import io.legado.app.ui.main.explore.ExploreViewModel
 import io.legado.app.ui.widget.components.EmptyMessage
 import io.legado.app.ui.widget.components.LoadMoreFooter
-import io.legado.app.ui.widget.components.explore.DiscoverySuiteHeader
-import io.legado.app.ui.widget.components.explore.DiscoverySuiteHorizontalBooksWidget
-import io.legado.app.ui.widget.components.explore.DiscoverySuiteRankButtonsWidget
-import io.legado.app.ui.widget.components.explore.DiscoverySuiteTagBarWidget
+import io.legado.app.ui.widget.components.explore.*
 import io.legado.app.ui.widget.components.progressIndicator.AppContainedLoadingIndicator
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.launch
@@ -39,11 +36,10 @@ fun DiscoverySuiteScreen(
     onBookClick: (SearchBook, String?) -> Unit,
     paddingValues: PaddingValues
 ) {
-    val suite = state.selectedSuite
+    val suite = state.enhance.selectedSuite
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
-    // Detect when to load more for the main book list
     val mainBookWidget = remember(suite) {
         suite?.widgets?.find {
             it.type == DiscoverySuiteWidgetType.WaterfallBooks.type ||
@@ -75,11 +71,7 @@ fun DiscoverySuiteScreen(
                 bottom = paddingValues.calculateBottomPadding() + 80.dp
             )
         ) {
-            // Dynamic selectors.
-            // 不再把“频道/分类/状态/榜单”写死：书源实际解析出几级，就渲染几行。
-            // 选择上一级后，ViewModel 会重建 dynamicSelectors，因此下一层自动增加，
-            // 没有下一层时则自动减少。
-            state.dynamicSelectors.forEach { selector ->
+            state.enhance.dynamicSelectors.forEach { selector ->
                 item(key = selector.id) {
                     DiscoverySuiteTagBarWidget(
                         title = selector.title,
@@ -97,16 +89,12 @@ fun DiscoverySuiteScreen(
                 }
             }
 
-            // Suite Widgets
             suite.widgets.sortedBy { it.order }.forEach { widget ->
                 val isMainBookWidget = widget.id == mainBookWidget?.id
-                // 瀑布流顶部搜索只替换主书籍区域的数据：
-                // - 有 searchUrl 时这里显示网站搜索结果；
-                // - 无 searchUrl 时这里显示对当前已加载书籍的本地过滤结果。
-                val books = if (isMainBookWidget && state.suiteSearchBooks != null) {
-                    state.suiteSearchBooks
+                val books = if (isMainBookWidget && state.enhance.suiteSearchBooks != null) {
+                    state.enhance.suiteSearchBooks!!
                 } else {
-                    state.widgetBooks[widget.id] ?: persistentListOf()
+                    state.enhance.widgetBooks[widget.id] ?: persistentListOf()
                 }
 
                 when (DiscoverySuiteWidgetType.from(widget.type)) {
@@ -114,8 +102,8 @@ fun DiscoverySuiteScreen(
                         item(key = widget.id) {
                             DiscoverySuiteTagBarWidget(
                                 title = widget.title,
-                                targets = if (widget.isDynamic) (state.dynamicCategoryTargets.takeIf { it.isNotEmpty() } ?: widget.targets) else widget.targets,
-                                selectedTargetTitle = state.selectedWidgetTargets[widget.id],
+                                targets = if (widget.isDynamic) (state.enhance.dynamicCategoryTargets.takeIf { it.isNotEmpty() } ?: widget.targets) else widget.targets,
+                                selectedTargetTitle = state.enhance.selectedWidgetTargets[widget.id],
                                 onTargetClick = { target ->
                                     onIntent(ExploreIntent.SelectWidgetTarget(widget.id, target))
                                 }
@@ -124,14 +112,14 @@ fun DiscoverySuiteScreen(
                     }
                     DiscoverySuiteWidgetType.RankButtons -> {
                         item(key = widget.id) {
-                            val rankTargets = state.dynamicRankTargets
+                            val rankTargets = state.enhance.dynamicRankTargets
                             val groupIndex = if (widget.title == "榜单") 1 else 0
                             val group = rankTargets.getOrNull(groupIndex) ?: widget.targets
 
                             DiscoverySuiteRankButtonsWidget(
                                 title = widget.title,
                                 targets = group,
-                                selectedTargetTitle = state.selectedWidgetTargets[widget.id],
+                                selectedTargetTitle = state.enhance.selectedWidgetTargets[widget.id],
                                 onTargetClick = { target ->
                                     onIntent(ExploreIntent.SelectWidgetTarget(widget.id, target))
                                 }
@@ -141,7 +129,6 @@ fun DiscoverySuiteScreen(
                     DiscoverySuiteWidgetType.HorizontalBooks,
                     DiscoverySuiteWidgetType.WaterfallBooks,
                     DiscoverySuiteWidgetType.BookList -> {
-                        // Render Unified Header with Settings and Scroll to Top Button
                         if (widget.title.isNotEmpty()) {
                             stickyHeader(key = "${widget.id}_header") {
                                 Surface(
@@ -149,15 +136,15 @@ fun DiscoverySuiteScreen(
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     DiscoverySuiteHeader(
-                                        title = if (isMainBookWidget && state.suiteSearchBooks != null) {
-                                            if (state.suiteSearchRemote) {
+                                        title = if (isMainBookWidget && state.enhance.suiteSearchBooks != null) {
+                                            if (state.enhance.suiteSearchRemote) {
                                                 "搜索：${state.searchKey.trim()}"
                                             } else {
                                                 "当前页面：${state.searchKey.trim()}"
                                             }
                                         } else {
                                             buildExplorePathTitle(
-                                                selectors = state.dynamicSelectors,
+                                                selectors = state.enhance.dynamicSelectors,
                                                 fallback = widget.title
                                             )
                                         },
@@ -235,24 +222,24 @@ fun DiscoverySuiteScreen(
 
                         if (widget.id == mainBookWidget?.id) {
                             item(key = "${widget.id}_footer") {
-                                if (state.suiteSearchBooks != null) {
+                                if (state.enhance.suiteSearchBooks != null) {
                                     LoadMoreFooter(
-                                        isLoading = state.suiteSearchLoading,
+                                        isLoading = state.enhance.suiteSearchLoading,
                                         errorMsg = null,
                                         onRetry = {
-                                            if (state.suiteSearchRemote) {
+                                            if (state.enhance.suiteSearchRemote) {
                                                 onIntent(ExploreIntent.LoadMoreSuiteSearch)
                                             }
                                         },
-                                        isEnd = state.suiteSearchIsEnd,
-                                        autoLoad = state.suiteSearchRemote
+                                        isEnd = state.enhance.suiteSearchIsEnd,
+                                        autoLoad = state.enhance.suiteSearchRemote
                                     )
                                 } else {
                                     LoadMoreFooter(
-                                        isLoading = state.widgetLoading[widget.id] ?: false,
+                                        isLoading = state.enhance.widgetLoading[widget.id] ?: false,
                                         errorMsg = null,
                                         onRetry = { onIntent(ExploreIntent.LoadMoreWidgetData(widget.id)) },
-                                        isEnd = state.widgetIsEnd[widget.id] ?: false,
+                                        isEnd = state.enhance.widgetIsEnd[widget.id] ?: false,
                                         autoLoad = true
                                     )
                                 }
@@ -266,19 +253,6 @@ fun DiscoverySuiteScreen(
     }
 }
 
-/**
- * 发现页书籍区域标题：优先显示当前动态分类的完整层级路径。
- *
- * 例如：
- *   ༺ˇ»`ʚ 男生频道 ɞ´«ˇ༻ -> 男生频道
- *   [玄幻] -> 玄幻
- *   [推荐] -> 推荐
- *   完结 -> 完结
- *
- * 最终标题：男生频道 > 玄幻 > 推荐 > 完结
- *
- * 这里只处理显示文本，不修改 selector 的原始 title，避免影响选中状态匹配。
- */
 private fun buildExplorePathTitle(
     selectors: List<ExploreViewModel.DynamicSelectorUi>,
     fallback: String
@@ -296,7 +270,7 @@ private fun buildExplorePathTitle(
 
 private fun cleanExplorePathPart(title: String): String {
     return title
-        .replace(Regex("[\\[\\]【】()（）<>《》]"), "")
+        .replace(Regex("[\\[\\]【】?（）<>《》]"), "")
         .replace(Regex("[\\p{So}\\p{Sk}]+"), "")
         .replace(Regex("[༺༻ˇ»«`´ʚɞ]+"), "")
         .trim()

@@ -2,15 +2,10 @@ package io.legado.app.ui.config.backupConfig
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -18,17 +13,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
@@ -40,6 +26,9 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.legado.app.R
+import io.legado.app.enhance.settingssearch.SettingDestination
+import io.legado.app.enhance.settingssearch.getSettingScrollInfo
+import io.legado.app.enhance.ui.LaunchSettingScrollEffect
 import io.legado.app.help.storage.ImportOldData
 import io.legado.app.lib.permission.Permissions
 import io.legado.app.lib.permission.PermissionsCompat
@@ -71,6 +60,7 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun BackupConfigRouteScreen(
     onBackClick: () -> Unit,
+    searchKey: String? = null,
     viewModel: BackupConfigViewModel = koinViewModel(),
 ) {
     val context = LocalContext.current
@@ -134,6 +124,7 @@ fun BackupConfigRouteScreen(
         onIntent = viewModel::onIntent,
         onBackClick = onBackClick,
         snackbarHostState = snackbarHostState,
+        searchKey = searchKey,
     )
 }
 
@@ -144,9 +135,18 @@ fun BackupConfigScreen(
     onIntent: (BackupConfigIntent) -> Unit,
     onBackClick: () -> Unit,
     snackbarHostState: SnackbarHostState,
+    searchKey: String? = null,
 ) {
     val settings = state.settings
     val scrollBehavior = GlassTopAppBarDefaults.defaultScrollBehavior()
+    val listState = rememberLazyListState()
+    val context = LocalContext.current
+
+    val scrollInfo = remember(searchKey) {
+        getSettingScrollInfo(context, SettingDestination.Backup, searchKey)
+    }
+    LaunchSettingScrollEffect(scrollInfo, listState)
+
     AppScaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
@@ -159,6 +159,7 @@ fun BackupConfigScreen(
         },
     ) { paddingValues ->
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = adaptiveContentPadding(
                 top = paddingValues.calculateTopPadding(),
@@ -171,35 +172,38 @@ fun BackupConfigScreen(
                         title = stringResource(R.string.web_dav_url),
                         description = stringResource(R.string.web_dav_url_s),
                         value = settings.webDavUrl,
-                        defaultValue = "",
+                        highlightKey = searchKey,
                         onConfirm = { onIntent(BackupConfigIntent.SetWebDavUrl(it)) },
                     )
                     ClickableSettingItem(
                         title = stringResource(R.string.web_dav_account),
                         description = stringResource(R.string.web_dav_account_d),
+                        highlightKey = searchKey,
                         onClick = { onIntent(BackupConfigIntent.OpenWebDavAuth) },
                     )
                     InputSettingItem(
                         title = stringResource(R.string.sub_dir),
                         value = settings.webDavDir,
-                        defaultValue = "legado",
+                        highlightKey = searchKey,
                         onConfirm = { onIntent(BackupConfigIntent.SetWebDavDir(it)) },
                     )
                     InputSettingItem(
                         title = stringResource(R.string.webdav_device_name),
                         value = settings.webDavDeviceName,
-                        defaultValue = "",
+                        highlightKey = searchKey,
                         onConfirm = { onIntent(BackupConfigIntent.SetWebDavDeviceName(it)) },
                     )
                     ClickableSettingItem(
                         title = stringResource(R.string.test_sync_t),
                         description = stringResource(R.string.test_sync_d),
+                        highlightKey = searchKey,
                         onClick = { onIntent(BackupConfigIntent.TestWebDav) },
                     )
                     SwitchSettingItem(
                         title = stringResource(R.string.sync_book_progress_t),
                         description = stringResource(R.string.sync_book_progress_s),
                         checked = settings.syncBookProgress,
+                        highlightKey = searchKey,
                         onCheckedChange = { onIntent(BackupConfigIntent.SetSyncBookProgress(it)) },
                     )
                     if (settings.syncBookProgress) {
@@ -207,6 +211,7 @@ fun BackupConfigScreen(
                             title = stringResource(R.string.sync_book_progress_plus_t),
                             description = stringResource(R.string.sync_book_progress_plus_s),
                             checked = settings.syncBookProgressPlus,
+                            highlightKey = searchKey,
                             onCheckedChange = {
                                 onIntent(BackupConfigIntent.SetSyncBookProgressPlus(it))
                             },
@@ -216,6 +221,7 @@ fun BackupConfigScreen(
                         title = stringResource(R.string.auto_check_new_backup_t),
                         description = stringResource(R.string.auto_check_new_backup_s),
                         checked = settings.autoCheckNewBackup,
+                        highlightKey = searchKey,
                         onCheckedChange = {
                             onIntent(BackupConfigIntent.SetAutoCheckNewBackup(it))
                         },
@@ -226,13 +232,17 @@ fun BackupConfigScreen(
                         selectedValue = settings.backupSyncMode,
                         displayEntries = stringArrayResource(R.array.backup_sync_mode),
                         entryValues = stringArrayResource(R.array.backup_sync_mode_value),
+                        highlightKey = searchKey,
                         onValueChange = { onIntent(BackupConfigIntent.SetBackupSyncMode(it)) },
                     )
                 }
+            }
+            item {
                 SplicedColumnGroup(title = stringResource(R.string.backup_restore)) {
                     ClickableSettingItem(
                         title = stringResource(R.string.backup_path),
                         description = settings.backupPath ?: stringResource(R.string.select_backup_path),
+                        highlightKey = searchKey,
                         onClick = {
                             onIntent(BackupConfigIntent.OpenSheet(BackupConfigSheet.ChooseBackupPath))
                         },
@@ -240,6 +250,7 @@ fun BackupConfigScreen(
                     ClickableSettingItem(
                         title = stringResource(R.string.backup),
                         description = stringResource(R.string.backup_summary),
+                        highlightKey = searchKey,
                         onClick = {
                             onIntent(BackupConfigIntent.OpenSheet(BackupConfigSheet.BackupOptions))
                         },
@@ -247,6 +258,7 @@ fun BackupConfigScreen(
                     ClickableSettingItem(
                         title = stringResource(R.string.restore),
                         description = stringResource(R.string.restore_summary),
+                        highlightKey = searchKey,
                         onClick = {
                             onIntent(BackupConfigIntent.OpenSheet(BackupConfigSheet.RestoreOptions))
                         },
@@ -254,22 +266,26 @@ fun BackupConfigScreen(
                     ClickableSettingItem(
                         title = stringResource(R.string.restore_ignore),
                         description = stringResource(R.string.restore_ignore_summary),
+                        highlightKey = searchKey,
                         onClick = { onIntent(BackupConfigIntent.OpenIgnoreDialog) },
                     )
                     ClickableSettingItem(
                         title = stringResource(R.string.backup_ignore),
                         description = stringResource(R.string.backup_ignore_summary),
+                        highlightKey = searchKey,
                         onClick = { onIntent(BackupConfigIntent.OpenBackupIgnoreDialog) },
                     )
                     ClickableSettingItem(
                         title = stringResource(R.string.menu_import_old_version),
                         description = stringResource(R.string.import_old_summary),
+                        highlightKey = searchKey,
                         onClick = { onIntent(BackupConfigIntent.RequestImportOldData) },
                     )
                     SwitchSettingItem(
                         title = stringResource(R.string.only_latest_backup_t),
                         description = stringResource(R.string.only_latest_backup_s),
                         checked = settings.onlyLatestBackup,
+                        highlightKey = searchKey,
                         onCheckedChange = { onIntent(BackupConfigIntent.SetOnlyLatestBackup(it)) },
                     )
                 }

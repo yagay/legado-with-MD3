@@ -109,7 +109,7 @@ class App : Application(), SingletonImageLoader.Factory {
         } else null
         startKoin {
             androidContext(this@App)
-            modules(appDatabaseModule, appModule)
+            modules(appDatabaseModule, appModule, io.legado.app.enhance.enhanceModule)
         }
         AppConfig.initialize(
             shellGateway = get(),

@@ -1,9 +1,9 @@
-锘縫ackage io.legado.app.ui.main.explore
+package io.legado.app.enhance.explore.model
 
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * 鍙戠幇椤电被鐩爲鍐呭瓨缂撳瓨
+ * 发现页类目树内存缓存
  */
 object ExploreCache {
     private val cache = ConcurrentHashMap<String, ExploreTree>()

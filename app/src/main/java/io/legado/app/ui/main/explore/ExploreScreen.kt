@@ -94,6 +94,8 @@ import io.legado.app.ui.widget.components.modalBottomSheet.AppModalBottomSheet
 import io.legado.app.ui.widget.components.progressIndicator.AppContainedLoadingIndicator
 import io.legado.app.ui.widget.components.text.AppText
 import io.legado.app.ui.widget.components.topbar.TopBarActionButton
+import io.legado.app.enhance.explore.screen.ExploreConfigEnhance
+import io.legado.app.enhance.explore.screen.ExploreScreenEnhance
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -224,9 +226,9 @@ fun ExploreScreen(
     }
     val sourceMenuListState = rememberLazyListState()
     var sourceMenuExpanded by rememberSaveable { mutableStateOf(false) }
-    val defaultSourceIndex = remember(sourceMenuItems, state.selectedSuite?.defaultSourceUrl) {
+    val defaultSourceIndex = remember(sourceMenuItems, state.enhance.selectedSuite?.defaultSourceUrl) {
         sourceMenuItems.indexOfFirst {
-            it.bookSourceUrl == state.selectedSuite?.defaultSourceUrl
+            it.bookSourceUrl == state.enhance.selectedSuite?.defaultSourceUrl
         }
     }
     LaunchedEffect(sourceMenuExpanded, defaultSourceIndex, sourceActionMenuSource) {
@@ -278,7 +280,7 @@ fun ExploreScreen(
     ListScaffold(
         title = stringResource(R.string.discovery),
         state = state,
-        subtitle = if (state.layoutMode == 0) state.selectedGroup.ifEmpty { stringResource(R.string.all) } else state.selectedSourceName ?: state.selectedSuite?.displayName,
+        subtitle = if (state.layoutMode == 0) state.selectedGroup.ifEmpty { stringResource(R.string.all) } else state.enhance.selectedSourceName ?: state.enhance.selectedSuite?.displayName,
         subtitleDropdownMenuWidth = sourcePopupWidth,
         subtitleDropdownMenuHeight = sourceMenuHeight,
         subtitleDropdownMenuState = sourceMenuListState,
@@ -303,7 +305,7 @@ fun ExploreScreen(
                     ) { source ->
                         RoundDropdownMenuItem(
                             text = source.bookSourceName,
-                            isSelected = source.bookSourceUrl == state.selectedSuite?.defaultSourceUrl,
+                            isSelected = source.bookSourceUrl == state.enhance.selectedSuite?.defaultSourceUrl,
                             onClick = {
                                 sourceActionMenuUrl = null
                                 onIntent(ExploreIntent.SetSuiteDefaultSource(source.bookSourceUrl))
@@ -456,7 +458,7 @@ fun ExploreScreen(
         contentWindowInsets = WindowInsets(0)
     ) { paddingValues ->
         if (state.layoutMode == 1) {
-            DiscoverySuiteScreen(
+            ExploreScreenEnhance(
                 state = state,
                 onIntent = onIntent,
                 onOpenExploreShow = onOpenExploreShow,
@@ -603,12 +605,7 @@ fun ExploreScreen(
         onDismiss = { sourceToDeleteUrl = null },
     )
 
-    DiscoveryConfigSheet(
-        show = state.showDiscoveryConfig,
-        state = state,
-        onIntent = onIntent,
-        onDismissRequest = { onIntent(ExploreIntent.ShowDiscoveryConfig(false)) }
-    )
+    ExploreConfigEnhance(state, onIntent)
 }
 
 sealed interface ExploreListItem {

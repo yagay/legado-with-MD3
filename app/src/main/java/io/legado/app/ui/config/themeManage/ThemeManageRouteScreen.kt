@@ -20,6 +20,7 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun ThemeManageRouteScreen(
     onBackClick: () -> Unit,
+    searchKey: String? = null,
     viewModel: ThemeManageViewModel = koinViewModel(),
 ) {
     val context = LocalContext.current
@@ -97,5 +98,6 @@ fun ThemeManageRouteScreen(
         state = state,
         onIntent = viewModel::onIntent,
         onBackClick = onBackClick,
+        searchKey = searchKey,
     )
 }

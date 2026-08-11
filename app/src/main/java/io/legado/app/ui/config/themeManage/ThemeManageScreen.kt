@@ -52,6 +52,7 @@ fun ThemeManageScreen(
     state: ThemeManageUiState,
     onIntent: (ThemeManageIntent) -> Unit,
     onBackClick: () -> Unit,
+    searchKey: String? = null,
 ) {
     val scrollBehavior = GlassTopAppBarDefaults.defaultScrollBehavior()
     val savedThemes = state.savedThemes

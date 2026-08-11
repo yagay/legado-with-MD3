@@ -13,6 +13,7 @@ plugins {
 }
 
 apply(from = "download.gradle")
+apply(from = "setting-search.gradle")
 
 
 val versionPropsFile = file("version.properties")

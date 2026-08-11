@@ -2,24 +2,24 @@ package io.legado.app.ui.widget.components.settingItem
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LinearScale
 import androidx.compose.material.icons.filled.RestartAlt
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -38,10 +38,6 @@ import io.legado.app.ui.theme.LegadoTheme.composeEngine
 import io.legado.app.ui.theme.ThemeResolver
 import io.legado.app.ui.widget.components.button.ConfirmDismissButtonsRow
 import io.legado.app.ui.widget.components.SplicedColumnDivider
-import io.legado.app.ui.widget.components.sliderAccessibility
-import io.legado.app.ui.widget.components.text.AppText
-import top.yukonga.miuix.kmp.basic.BasicComponent
-import top.yukonga.miuix.kmp.basic.Slider as MiuixSlider
 import top.yukonga.miuix.kmp.basic.TextField as MiuixTextField
 
 @Composable
@@ -55,214 +51,87 @@ fun SliderSettingItem(
     description: String? = null,
     valueLabel: ((Float) -> String)? = null,
     decimal: Boolean = false,
+    highlightKey: String? = null,
     onValueChange: (Float) -> Unit
 ) {
 
     var expanded by remember { mutableStateOf(false) }
     var isInputMode by remember { mutableStateOf(false) }
     var sliderValue by remember(value) { mutableFloatStateOf(value) }
-    val textFieldState = rememberTextFieldState()
-
-    // 默认整数模式：滑动吸附到整数；decimal = true 时保留 0.1 精度
-    fun snap(v: Float): Float =
-        if (decimal) (v * 10).roundToInt() / 10f else v.roundToInt().toFloat()
-
-    fun format(v: Float): String =
-        if (v % 1f == 0f) v.toInt().toString() else v.toString()
-
-    LaunchedEffect(value) {
-        sliderValue = value
-    }
-
-    // 拖动过程中让标题下的数值实时跟随滑块，松手后才真正应用
-    val displayDescription = when {
-        valueLabel != null -> valueLabel(sliderValue)
-        sliderValue != value -> format(sliderValue)
-        else -> description
-    }
-
-    val sliderAccessibilityValue = displayDescription ?: sliderValue.toString()
-
-    LaunchedEffect(isInputMode) {
-        if (isInputMode) {
-            textFieldState.edit {
-                replace(0, length, format(value))
-            }
-        }
-    }
-
-    fun commitValue() {
-        if (isInputMode) {
-            textFieldState.text.toString().toFloatOrNull()?.let { num ->
-                onValueChange(snap(num).coerceIn(valueRange))
-            }
-        } else if (sliderValue != value) {
-            onValueChange(sliderValue)
-        }
-    }
 
     SplicedColumnDivider()
 
-    if (ThemeResolver.isMiuixEngine(composeEngine)) {
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-        ) {
-            BasicComponent(
-                title = title,
-                summary = displayDescription,
-                onClick = {
-                    if (expanded) {
-                        commitValue()
-                    }
-                    expanded = !expanded
-                }
-            )
-
-            AnimatedVisibility(visible = expanded) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    AnimatedContent(
-                        targetState = isInputMode,
-                        label = "input_slider_switch"
-                    ) { targetInputMode ->
-                        if (targetInputMode) {
-                            MiuixTextField(
-                                state = textFieldState,
-                                lineLimits = TextFieldLineLimits.SingleLine,
-                                label = stringResource(
-                                    R.string.input_value_range,
-                                    valueRange.start.toInt(),
-                                    valueRange.endInclusive.toInt()
-                                ),
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        } else {
-                            MiuixSlider(
-                                value = sliderValue,
-                                onValueChange = {
-                                    sliderValue = snap(it)
-                                },
-                                onValueChangeFinished = {
-                                    onValueChange(sliderValue.coerceIn(valueRange))
-                                },
-                                valueRange = valueRange,
-                                steps = steps,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .sliderAccessibility(
-                                        label = title,
-                                        value = sliderAccessibilityValue,
-                                    )
-                            )
-                        }
-                    }
-
-                    ConfirmDismissButtonsRow(
-                        modifier = Modifier.padding(top = 16.dp),
-                        onDismiss = { isInputMode = !isInputMode },
-                        onConfirm = {
-                            onValueChange(defaultValue)
-                            textFieldState.edit {
-                                replace(0, length, format(defaultValue))
+    SettingItem(
+        title = title,
+        description = description,
+        imageVector = Icons.Default.LinearScale,
+        highlightKey = highlightKey,
+        option = valueLabel?.invoke(value) ?: if (decimal) value.toString() else value.roundToInt().toString(),
+        expanded = expanded,
+        onExpandChange = { expanded = it },
+        color = if (highlightKey != null && title.contains(highlightKey, ignoreCase = true)) {
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+        } else color,
+        expandContent = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                if (isInputMode) {
+                    MiuixTextField(
+                        value = sliderValue.toString(),
+                        onValueChange = {
+                            it.toFloatOrNull()?.let { v ->
+                                sliderValue = v.coerceIn(valueRange)
                             }
                         },
-                        dismissText = if (isInputMode) {
-                            stringResource(R.string.slider)
-                        } else {
-                            stringResource(R.string.edit)
+                        label = stringResource(R.string.edit),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                } else {
+                    Slider(
+                        value = sliderValue,
+                        onValueChange = { sliderValue = it },
+                        valueRange = valueRange,
+                        steps = steps,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = { isInputMode = !isInputMode }) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = stringResource(R.string.edit),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    IconButton(onClick = { sliderValue = defaultValue }) {
+                        Icon(
+                            imageVector = Icons.Default.RestartAlt,
+                            contentDescription = stringResource(R.string.restore_default),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    ConfirmDismissButtonsRow(
+                        onConfirm = {
+                            onValueChange(sliderValue)
+                            expanded = false
                         },
-                        confirmText = stringResource(R.string.text_default)
+                        onDismiss = {
+                            sliderValue = value
+                            expanded = false
+                        },
+                        confirmText = stringResource(R.string.ok),
+                        dismissText = stringResource(R.string.cancel)
                     )
                 }
             }
         }
-
-    } else {
-        SettingItem(
-            title = title,
-            option = displayDescription,
-            expanded = expanded,
-            onExpandChange = {
-                if (expanded) {
-                    commitValue()
-                }
-                expanded = it
-            },
-            expandContent = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    AnimatedContent(
-                        targetState = isInputMode,
-                        label = "input_slider_switch"
-                    ) { targetInputMode ->
-                        if (targetInputMode) {
-                            TextField(
-                                state = textFieldState,
-                                lineLimits = TextFieldLineLimits.SingleLine,
-                                label = {
-                                    AppText(
-                                        stringResource(
-                                            R.string.input_value_range,
-                                            valueRange.start.toInt(),
-                                            valueRange.endInclusive.toInt()
-                                        )
-                                    )
-                                },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(min = 48.dp),
-                                contentPadding = PaddingValues(
-                                    top = 4.dp,
-                                    bottom = 4.dp,
-                                    start = 12.dp,
-                                    end = 12.dp
-                                )
-                            )
-                        } else {
-                            Slider(
-                                value = sliderValue,
-                                onValueChange = {
-                                    sliderValue = snap(it)
-                                },
-                                onValueChangeFinished = {
-                                    onValueChange(sliderValue.coerceIn(valueRange))
-                                },
-                                valueRange = valueRange,
-                                steps = steps,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .sliderAccessibility(
-                                        label = title,
-                                        value = sliderAccessibilityValue,
-                                    )
-                            )
-                        }
-                    }
-                }
-
-                ConfirmDismissButtonsRow(
-                    modifier = Modifier.padding(top = 16.dp),
-                    onDismiss = { isInputMode = !isInputMode },
-                    onConfirm = {
-                        onValueChange(defaultValue)
-                        textFieldState.edit {
-                            replace(0, length, format(defaultValue))
-                        }
-                    },
-                    dismissText = if (isInputMode) {
-                        stringResource(R.string.slider)
-                    } else {
-                        stringResource(R.string.edit)
-                    },
-                    confirmText = stringResource(R.string.text_default)
-                )
-            }
-        )
-    }
+    )
 }

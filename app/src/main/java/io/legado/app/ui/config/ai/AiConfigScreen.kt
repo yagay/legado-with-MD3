@@ -1,21 +1,22 @@
 package io.legado.app.ui.config.ai
 
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.legado.app.R
+import io.legado.app.enhance.settingssearch.SettingDestination
+import io.legado.app.enhance.settingssearch.getSettingScrollInfo
+import io.legado.app.enhance.ui.LaunchSettingScrollEffect
+import io.legado.app.ui.theme.LegadoTheme
 import io.legado.app.ui.theme.adaptiveContentPadding
 import io.legado.app.ui.widget.components.AppScaffold
 import io.legado.app.ui.widget.components.SplicedColumnGroup
@@ -37,6 +38,7 @@ fun AiConfigRouteScreen(
     onNavigateToTranslation: () -> Unit,
     onNavigateToAiSummary: () -> Unit,
     onNavigateToAiPrompt: () -> Unit,
+    searchKey: String? = null,
     viewModel: AiConfigViewModel = koinViewModel()
 ) {
     AiConfigScreen(
@@ -48,7 +50,8 @@ fun AiConfigRouteScreen(
         onNavigateToModelEdit = onNavigateToModelEdit,
         onNavigateToTranslation = onNavigateToTranslation,
         onNavigateToAiSummary = onNavigateToAiSummary,
-        onNavigateToAiPrompt = onNavigateToAiPrompt
+        onNavigateToAiPrompt = onNavigateToAiPrompt,
+        searchKey = searchKey
     )
 }
 
@@ -63,11 +66,19 @@ fun AiConfigScreen(
     onNavigateToModelEdit: (providerId: String?, modelProfileId: String?) -> Unit,
     onNavigateToTranslation: () -> Unit,
     onNavigateToAiSummary: () -> Unit,
-    onNavigateToAiPrompt: () -> Unit
+    onNavigateToAiPrompt: () -> Unit,
+    searchKey: String? = null,
 ) {
     val scrollBehavior = GlassTopAppBarDefaults.defaultScrollBehavior()
     val snackbarHostState = remember { SnackbarHostState() }
     var showModelSheet by remember { mutableStateOf(false) }
+    val listState = rememberLazyListState()
+    val context = LocalContext.current
+
+    val scrollInfo = remember(searchKey) {
+        getSettingScrollInfo(context, SettingDestination.Ai, searchKey)
+    }
+    LaunchSettingScrollEffect(scrollInfo, listState)
 
     LaunchedEffect(Unit) {
         effects.collectLatest { effect ->
@@ -91,6 +102,7 @@ fun AiConfigScreen(
         }
     ) { paddingValues ->
         LazyColumn(
+            state = listState,
             contentPadding = adaptiveContentPadding(
                 top = paddingValues.calculateTopPadding(),
                 bottom = 120.dp
@@ -103,11 +115,13 @@ fun AiConfigScreen(
                             title = provider.providerName,
                             description = provider.baseUrl,
                             option = "${provider.protocol} / ${provider.modelCount}",
+                            highlightKey = searchKey,
                             onClick = { onNavigateToProviderEdit(provider.providerId) }
                         )
                     }
                     ClickableSettingItem(
                         title = stringResource(R.string.ai_new_provider),
+                        highlightKey = searchKey,
                         onClick = { onNavigateToProviderEdit(null) }
                     )
                 }
@@ -118,6 +132,7 @@ fun AiConfigScreen(
                     ClickableSettingItem(
                         title = stringResource(R.string.ai_current_model),
                         description = state.currentModelName.ifBlank { stringResource(R.string.ai_model_not_configured) },
+                        highlightKey = searchKey,
                         onClick = {
                             if (state.models.isEmpty()) {
                                 onNavigateToProviderEdit(null)
@@ -133,15 +148,18 @@ fun AiConfigScreen(
                 SplicedColumnGroup(title = stringResource(R.string.ai_tasks)) {
                     ClickableSettingItem(
                         title = stringResource(R.string.translation_config),
+                        highlightKey = searchKey,
                         onClick = onNavigateToTranslation
                     )
                     ClickableSettingItem(
                         title = stringResource(R.string.ai_chapter_summary),
+                        highlightKey = searchKey,
                         onClick = onNavigateToAiSummary
                     )
                     ClickableSettingItem(
                         title = stringResource(R.string.ai_prompt_config),
                         description = stringResource(R.string.ai_prompt_config_desc),
+                        highlightKey = searchKey,
                         onClick = onNavigateToAiPrompt
                     )
                 }
@@ -151,6 +169,7 @@ fun AiConfigScreen(
                 SplicedColumnGroup(title = stringResource(R.string.ai_skills)) {
                     ClickableSettingItem(
                         title = stringResource(R.string.ai_new_skill),
+                        highlightKey = searchKey,
                         onClick = {}
                     )
                 }

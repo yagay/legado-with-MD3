@@ -8,6 +8,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -17,6 +18,7 @@ import io.legado.app.R
 import io.legado.app.ui.widget.components.AppScaffold
 import io.legado.app.ui.widget.components.topbar.DynamicTopAppBar
 import io.legado.app.ui.widget.components.topbar.GlassTopAppBarDefaults
+import io.legado.app.ui.widget.components.settingItem.DropdownListSettingItem
 import io.legado.app.ui.widget.components.settingItem.SwitchSettingItem
 import io.legado.app.ui.widget.components.settingItem.InputSettingItem
 import io.legado.app.ui.widget.components.settingItem.ClickableSettingItem
@@ -28,14 +30,16 @@ import org.koin.androidx.compose.koinViewModel
 fun CustomConfigScreen(
     viewModel: CustomConfigViewModel = koinViewModel(),
     onBackClick: () -> Unit,
+    searchKey: String? = null,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollBehavior = GlassTopAppBarDefaults.defaultScrollBehavior()
+    val scrollState = rememberScrollState()
 
     AppScaffold(
         topBar = {
             DynamicTopAppBar(
-                title = "自定义配置",
+                title = stringResource(R.string.custom_config_title),
                 onBackClick = onBackClick,
                 scrollBehavior = scrollBehavior,
                 state = object : io.legado.app.ui.widget.components.list.ListUiState<Nothing> {
@@ -57,22 +61,28 @@ fun CustomConfigScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
         ) {
-            PillHeaderDivider(title = "备份与恢复 (增强)")
+            PillHeaderDivider(title = stringResource(R.string.enhanced_backup_restore))
 
             SwitchSettingItem(
                 title = stringResource(R.string.auto_backup_on_background),
                 description = stringResource(R.string.auto_backup_on_background_summary),
                 checked = uiState.backupSettings.autoBackupOnBackground,
+                highlightKey = searchKey,
                 onCheckedChange = { viewModel.onIntent(CustomConfigIntent.SetAutoBackupOnBackground(it)) },
             )
 
-            if (uiState.backupSettings.autoBackupOnBackground) {
+            val backupIntervalTitle = stringResource(R.string.auto_backup_on_background_interval)
+            if (
+                uiState.backupSettings.autoBackupOnBackground ||
+                searchKey.equals(backupIntervalTitle, ignoreCase = true)
+            ) {
                 InputSettingItem(
-                    title = stringResource(R.string.auto_backup_on_background_interval),
+                    title = backupIntervalTitle,
                     value = uiState.backupSettings.autoBackupOnBackgroundInterval.toString(),
                     defaultValue = "1",
+                    highlightKey = searchKey,
                     onConfirm = {
                         viewModel.onIntent(
                             CustomConfigIntent.SetAutoBackupOnBackgroundInterval(
@@ -84,28 +94,42 @@ fun CustomConfigScreen(
             }
 
             SwitchSettingItem(
-                title = "备份时导出书籍",
+                title = stringResource(R.string.backup_export_books),
                 description = "执行备份时同步导出所有已缓存书籍到 WebDAV",
                 checked = uiState.settings.autoExportBooksOnBackup,
+                highlightKey = searchKey,
                 onCheckedChange = { viewModel.onIntent(CustomConfigIntent.SetAutoExportBooksOnBackup(it)) }
             )
 
             SwitchSettingItem(
-                title = "恢复时导入书籍",
+                title = stringResource(R.string.restore_import_books),
                 description = "扫描 WebDav 中的缓存书籍文件并导入所有书籍",
                 checked = uiState.settings.autoImportBooksOnRestore,
+                highlightKey = searchKey,
                 onCheckedChange = { viewModel.onIntent(CustomConfigIntent.SetAutoImportBooksOnRestore(it)) }
             )
 
+            DropdownListSettingItem(
+                title = stringResource(R.string.export_group_title),
+                description = stringResource(R.string.export_group_summary),
+                selectedValue = uiState.settings.exportGroupMask.toString(),
+                displayEntries = uiState.bookGroups.map { it.first }.toTypedArray(),
+                entryValues = uiState.bookGroups.map { it.second.toString() }.toTypedArray(),
+                highlightKey = searchKey,
+                onValueChange = { viewModel.onIntent(CustomConfigIntent.SetExportGroupMask(it.toLong())) }
+            )
+
             ClickableSettingItem(
-                title = "一键导出书籍到 WebDAV",
+                title = stringResource(R.string.export_books_to_webdav),
                 description = "将书架中所有已缓存章节的书籍上传至默认 WebDAV",
+                highlightKey = searchKey,
                 onClick = { viewModel.onIntent(CustomConfigIntent.ExportAllToWebDav) }
             )
 
             ClickableSettingItem(
-                title = "一键从 WebDAV 导入书籍",
+                title = stringResource(R.string.import_books_from_webdav),
                 description = "扫描 WebDav 中的书籍文件并导入所有书籍",
+                highlightKey = searchKey,
                 onClick = { viewModel.onIntent(CustomConfigIntent.ImportAllFromWebDav) }
             )
         }

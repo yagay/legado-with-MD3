@@ -1,13 +1,11 @@
 package io.legado.app.ui.widget.components.settingItem
 
-import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.foundation.background
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.unit.dp
 import io.legado.app.ui.theme.LegadoTheme
 import io.legado.app.ui.theme.ThemeResolver
 import io.legado.app.ui.widget.components.SplicedColumnDivider
@@ -23,6 +21,7 @@ fun DropdownListSettingItem(
     entryValues: Array<String>,
     description: String? = null,
     imageVector: ImageVector? = null,
+    highlightKey: String? = null,
     onValueChange: (String) -> Unit
 ) {
     val composeEngine = LegadoTheme.composeEngine
@@ -39,6 +38,9 @@ fun DropdownListSettingItem(
             summary = description,
             items = spinnerItems,
             selectedIndex = selectedIndex,
+            modifier = if (highlightKey != null && title.contains(highlightKey, ignoreCase = true)) {
+                Modifier.background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+            } else Modifier,
             startAction = imageVector?.let { icon ->
                 {
                     Icon(
@@ -52,33 +54,21 @@ fun DropdownListSettingItem(
             }
         )
     } else {
-
-        val currentEntry =
-            displayEntries.getOrNull(entryValues.indexOf(selectedValue)) ?: selectedValue
-
         SettingItem(
             title = title,
             description = description,
-            option = currentEntry,
             imageVector = imageVector,
-            onClick = { },
+            highlightKey = highlightKey,
+            option = displayEntries.getOrNull(entryValues.indexOf(selectedValue)),
             dropdownMenu = { onDismiss ->
                 displayEntries.forEachIndexed { index, display ->
                     RoundDropdownMenuItem(
                         text = display,
+                        isSelected = entryValues[index] == selectedValue,
                         onClick = {
                             onValueChange(entryValues[index])
                             onDismiss()
-                        },
-                        trailingIcon = if (selectedValue == entryValues[index]) {
-                            {
-                                Icon(
-                                    Icons.Default.Check,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        } else null
+                        }
                     )
                 }
             }

@@ -65,27 +65,27 @@ object MainNavigator {
                     backStack.clear()
                     backStack.add(MainRouteHome)
                     backStack.add(MainRouteSettings)
-                    backStack.add(MainRouteSettingsAi)
+                    backStack.add(MainRouteSettingsAi())
                     backStack.add(route)
                 }
             }
 
-            MainRouteSettingsOther,
-            MainRouteSettingsRead,
-            MainRouteSettingsCover,
-            MainRouteSettingsTheme,
-            MainRouteSettingsBackup,
-            MainRouteSettingsAi,
+            is MainRouteSettingsOther,
+            is MainRouteSettingsRead,
+            is MainRouteSettingsCover,
+            is MainRouteSettingsTheme,
+            is MainRouteSettingsBackup,
+            is MainRouteSettingsAi,
             is MainRouteSettingsAiProviderEdit,
             is MainRouteSettingsAiModelEdit,
             MainRouteSettingsAiSummary,
             MainRouteSettingsAiPrompt,
             MainRouteSettingsCustomTheme,
             MainRouteSettingsThemeManage,
-            MainRouteSettingsDownloadCache,
-            MainRouteSettingsTranslation,
-            MainRouteSettingsCustomConfig,
-            MainRouteSettingsLabConfig -> {
+            is MainRouteSettingsDownloadCache,
+            is MainRouteSettingsTranslation,
+            is MainRouteSettingsCustomConfig,
+            is MainRouteSettingsLabConfig -> {
                 if (currentRoute == MainRouteHome) {
                     // “我的”页的搜索结果直接打开目标设置页。保留 Home 在
                     // 返回栈中，返回时搜索关键字、结果和搜索模式都不会丢失。
@@ -384,18 +384,18 @@ object MainNavigator {
                 intent?.getStringExtra(MainIntent.EXTRA_SOURCE_URL)
             )
             MainRouteConst.ROUTE_SETTINGS -> MainRouteSettings
-            MainRouteConst.ROUTE_SETTINGS_OTHER -> MainRouteSettingsOther
-            MainRouteConst.ROUTE_SETTINGS_READ -> MainRouteSettingsRead
-            MainRouteConst.ROUTE_SETTINGS_COVER -> MainRouteSettingsCover
-            MainRouteConst.ROUTE_SETTINGS_THEME -> MainRouteSettingsTheme
-            MainRouteConst.ROUTE_SETTINGS_BACKUP -> MainRouteSettingsBackup
-            MainRouteConst.ROUTE_SETTINGS_CUSTOM_CONFIG -> MainRouteSettingsCustomConfig
-            MainRouteConst.ROUTE_SETTINGS_AI -> MainRouteSettingsAi
+            MainRouteConst.ROUTE_SETTINGS_OTHER -> MainRouteSettingsOther()
+            MainRouteConst.ROUTE_SETTINGS_READ -> MainRouteSettingsRead()
+            MainRouteConst.ROUTE_SETTINGS_COVER -> MainRouteSettingsCover()
+            MainRouteConst.ROUTE_SETTINGS_THEME -> MainRouteSettingsTheme()
+            MainRouteConst.ROUTE_SETTINGS_BACKUP -> MainRouteSettingsBackup()
+            MainRouteConst.ROUTE_SETTINGS_CUSTOM_CONFIG -> MainRouteSettingsCustomConfig()
+            MainRouteConst.ROUTE_SETTINGS_AI -> MainRouteSettingsAi()
             MainRouteConst.ROUTE_AI_CHAT -> MainRouteAiChat
             MainRouteConst.ROUTE_SETTINGS_CUSTOM_THEME -> MainRouteSettingsCustomTheme
-            MainRouteConst.ROUTE_SETTINGS_LAB_CONFIG -> MainRouteSettingsLabConfig
-            MainRouteConst.ROUTE_SETTINGS_DOWNLOAD_CACHE -> MainRouteSettingsDownloadCache
-            MainRouteConst.ROUTE_SETTINGS_TRANSLATION -> MainRouteSettingsTranslation
+            MainRouteConst.ROUTE_SETTINGS_LAB_CONFIG -> MainRouteSettingsLabConfig()
+            MainRouteConst.ROUTE_SETTINGS_DOWNLOAD_CACHE -> MainRouteSettingsDownloadCache()
+            MainRouteConst.ROUTE_SETTINGS_TRANSLATION -> MainRouteSettingsTranslation()
             MainRouteConst.ROUTE_IMPORT_LOCAL -> MainRouteImportLocal
             MainRouteConst.ROUTE_IMPORT_REMOTE -> MainRouteImportRemote
             MainRouteConst.ROUTE_CACHE -> MainRouteCache(

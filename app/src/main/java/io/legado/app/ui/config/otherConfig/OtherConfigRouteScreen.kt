@@ -33,6 +33,7 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun OtherConfigRouteScreen(
     onBackClick: () -> Unit,
+    searchKey: String? = null,
     viewModel: OtherConfigViewModel = koinViewModel(),
 ) {
     val context = LocalContext.current
@@ -94,6 +95,7 @@ fun OtherConfigRouteScreen(
         state = state,
         onIntent = viewModel::onIntent,
         onBackClick = onBackClick,
+        searchKey = searchKey,
     )
 
     FilePickerSheet(

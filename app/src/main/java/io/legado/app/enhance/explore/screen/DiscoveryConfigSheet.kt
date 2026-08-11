@@ -1,12 +1,19 @@
-﻿package io.legado.app.ui.main.explore
+package io.legado.app.enhance.explore.screen
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import io.legado.app.enhance.explore.model.DiscoverySuiteConfig
+import io.legado.app.enhance.explore.model.DiscoverySuiteWidgetType
+import io.legado.app.ui.main.explore.ExploreIntent
+import io.legado.app.ui.main.explore.ExploreViewModel
 import io.legado.app.ui.widget.components.modalBottomSheet.AppModalBottomSheet
 import io.legado.app.ui.widget.components.settingItem.DropdownListSettingItem
 import io.legado.app.ui.widget.components.settingItem.SliderSettingItem
@@ -22,7 +29,7 @@ fun DiscoveryConfigSheet(
     if (!show) return
 
     AppModalBottomSheet(
-        title = "瀑布流布局配置",
+        title = "瀑布流布局设置",
         show = true,
         onDismissRequest = onDismissRequest
     ) {
@@ -33,7 +40,7 @@ fun DiscoveryConfigSheet(
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 32.dp)
         ) {
-            val suite = state.selectedSuite
+            val suite = state.enhance.selectedSuite
             if (suite != null) {
                 // 1. Book List Display Style
                 val bookWidget = suite.widgets.find {
@@ -43,10 +50,10 @@ fun DiscoveryConfigSheet(
                 }
                 if (bookWidget != null) {
                     DropdownListSettingItem(
-                        title = "书籍展示样式",
-                        description = "主推书籍的列表排列形态",
+                        title = "书籍展示方式",
+                        description = "主推书籍列表的呈现形态",
                         selectedValue = bookWidget.displayStyle.toString(),
-                        displayEntries = arrayOf("横向滚动", "纵向列表", "多列网格"),
+                        displayEntries = arrayOf("横向滚动", "垂直列表", "网格瀑布"),
                         entryValues = arrayOf("0", "1", "2"),
                         onValueChange = { value ->
                             onIntent(ExploreIntent.UpdateDiscoverySettings { config ->
@@ -133,7 +140,7 @@ fun DiscoveryConfigSheet(
                 }
 
                 Text(
-                    text = "更多高级配置请前往 [设置 -> 发现页配置] 修改",
+                    text = "高级逻辑请在前台 [设置 -> 发现页套件] 修改",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 16.dp)

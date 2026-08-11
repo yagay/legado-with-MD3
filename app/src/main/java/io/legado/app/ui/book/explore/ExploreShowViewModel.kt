@@ -10,6 +10,8 @@ import io.legado.app.domain.usecase.BookShelfKey
 import io.legado.app.domain.usecase.ExploreBooksUseCase
 import io.legado.app.domain.usecase.ResolveBookShelfStateUseCase
 import io.legado.app.domain.usecase.SaveSearchBooksUseCase
+import io.legado.app.enhance.explore.model.ExploreTree
+import io.legado.app.enhance.explore.model.ExploreNode
 import io.legado.app.domain.gateway.CoverSettingsGateway
 import android.content.res.Configuration
 import io.legado.app.data.local.preferences.LocalPreferencesKeys

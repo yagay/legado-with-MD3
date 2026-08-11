@@ -1,6 +1,7 @@
 package io.legado.app.ui.widget.components.settingItem
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -52,6 +53,7 @@ fun CompactDropdownSettingItem(
     imageVector: ImageVector? = null,
     color: Color? = LegadoTheme.colorScheme.onSheetContent,
     cornerRadius: androidx.compose.ui.unit.Dp = 8.dp,
+    highlightKey: String? = null,
     onValueChange: (String) -> Unit
 ) {
     if (ThemeResolver.isMiuixEngine(composeEngine)) {
@@ -71,6 +73,9 @@ fun CompactDropdownSettingItem(
                     )
                 }
             },
+            modifier = if (highlightKey != null && title.contains(highlightKey, ignoreCase = true)) {
+                Modifier.background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+            } else Modifier,
             onSelectedIndexChange = { index ->
                 onValueChange(entryValues[index])
             }
@@ -83,7 +88,10 @@ fun CompactDropdownSettingItem(
             title = title,
             description = description,
             imageVector = imageVector,
-            color = color,
+            color = if (highlightKey != null && title.contains(highlightKey, ignoreCase = true)) {
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+            } else color,
+            highlightKey = highlightKey,
             cornerRadius = cornerRadius,
             trailingContent = {
                 TextCard(
@@ -130,6 +138,7 @@ fun CompactSliderSettingItem(
     imageVector: ImageVector? = null,
     color: Color? = LegadoTheme.colorScheme.onSheetContent,
     cornerRadius: androidx.compose.ui.unit.Dp = 8.dp,
+    highlightKey: String? = null,
     onValueChange: (Float) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -144,6 +153,9 @@ fun CompactSliderSettingItem(
                 title = title,
                 summary = description,
                 onClick = { expanded = !expanded },
+                modifier = if (highlightKey != null && title.contains(highlightKey, ignoreCase = true)) {
+                    Modifier.background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+                } else Modifier,
                 endActions = {
                     ValueStepper(
                         value = value,
@@ -186,7 +198,10 @@ fun CompactSliderSettingItem(
             title = title,
             description = description,
             imageVector = imageVector,
-            color = color,
+            color = if (highlightKey != null && title.contains(highlightKey, ignoreCase = true)) {
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+            } else color,
+            highlightKey = highlightKey,
             cornerRadius = cornerRadius,
             expanded = expanded,
             onExpandChange = { expanded = it },
@@ -238,6 +253,7 @@ fun CompactSwitchSettingItem(
     color: Color? = LegadoTheme.colorScheme.onSheetContent,
     cornerRadius: androidx.compose.ui.unit.Dp = 8.dp,
     enabled: Boolean = true,
+    highlightKey: String? = null,
     onCheckedChange: (Boolean) -> Unit
 ) {
     if (ThemeResolver.isMiuixEngine(composeEngine)) {
@@ -246,7 +262,9 @@ fun CompactSwitchSettingItem(
             summary = description,
             checked = checked,
             onCheckedChange = onCheckedChange,
-            modifier = Modifier,
+            modifier = if (highlightKey != null && title.contains(highlightKey, ignoreCase = true)) {
+                Modifier.background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+            } else Modifier,
             enabled = enabled,
         )
     } else {
@@ -254,7 +272,10 @@ fun CompactSwitchSettingItem(
             title = title,
             description = description,
             imageVector = imageVector,
-            color = color,
+            color = if (highlightKey != null && title.contains(highlightKey, ignoreCase = true)) {
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+            } else color,
+            highlightKey = highlightKey,
             cornerRadius = cornerRadius,
             enabled = enabled,
             semanticRole = Role.Switch,
@@ -282,6 +303,7 @@ fun CompactClickableSettingItem(
     color: Color? = LegadoTheme.colorScheme.onSheetContent,
     cornerRadius: androidx.compose.ui.unit.Dp = 8.dp,
     trailingContent: (@Composable () -> Unit)? = null,
+    highlightKey: String? = null,
     onClick: () -> Unit
 ) {
     if (ThemeResolver.isMiuixEngine(composeEngine)) {
@@ -289,6 +311,9 @@ fun CompactClickableSettingItem(
             title = title,
             summary = description,
             insideMargin = BasicComponentDefaults.InsideMargin,
+            modifier = if (highlightKey != null && title.contains(highlightKey, ignoreCase = true)) {
+                Modifier.background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+            } else Modifier,
             onClick = onClick
         )
     } else {
@@ -296,7 +321,10 @@ fun CompactClickableSettingItem(
             title = title,
             description = description,
             imageVector = imageVector,
-            color = color,
+            color = if (highlightKey != null && title.contains(highlightKey, ignoreCase = true)) {
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+            } else color,
+            highlightKey = highlightKey,
             cornerRadius = cornerRadius,
             trailingContent = trailingContent ?: {
                 Icon(

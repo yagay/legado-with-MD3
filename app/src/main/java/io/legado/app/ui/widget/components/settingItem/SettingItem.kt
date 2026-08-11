@@ -64,18 +64,30 @@ fun SettingItem(
     semanticToggleState: Boolean? = null,
     expanded: Boolean = false,
     onExpandChange: ((Boolean) -> Unit)? = null,
-    expandContent: (@Composable ColumnScope.() -> Unit)? = null
+    expandContent: (@Composable ColumnScope.() -> Unit)? = null,
+    highlightKey: String? = null
 ) {
+    val effectiveHighlightKey = currentSettingSearchTarget(highlightKey)
+    val isHighlighted = remember(title, effectiveHighlightKey) {
+        effectiveHighlightKey != null && title.equals(effectiveHighlightKey, ignoreCase = true)
+    }
 
     var showMenu by remember { mutableStateOf(false) }
     val isExpandable = expandContent != null && onExpandChange != null
 
+    val containerColor = when {
+        isHighlighted -> MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+        color != null -> color
+        else -> MaterialTheme.colorScheme.surfaceContainerLow
+    }
+
     SettingCard(
         modifier = modifier
+            .locateSettingSearchTarget(title, effectiveHighlightKey)
             .fillMaxWidth(),
         cornerRadius = cornerRadius,
         colors = CardDefaults.cardColors(
-            containerColor = color ?: MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = containerColor
         ),
     ) {
         Column {
