@@ -1,3 +1,4 @@
 [submodule "modules/legado-enhance"]
 	path = modules/legado-enhance
 	url = https://github.com/yagay/legado-enhance.git
+	branch = MD3
