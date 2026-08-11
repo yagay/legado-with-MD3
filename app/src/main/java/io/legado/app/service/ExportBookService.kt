@@ -124,6 +124,7 @@ class ExportBookService : BaseService(), KoinComponent {
     private var exportJob: Job? = null
     private var currentExportSettings = BookExportSettings()
     private var successCount = 0
+    private var skippedCount = 0
     private var failedCount = 0
     private var currentTargetLanguage = "zh"
     private var currentDefaultReplaceEnabled = true
@@ -231,9 +232,10 @@ class ExportBookService : BaseService(), KoinComponent {
         exportJob = lifecycleScope.launch(IO) {
             while (isActive) {
                 val (bookUrl, exportConfig) = waitExportBooks.entries.firstOrNull() ?: let {
-                    val finishMsg = "导出完成 (成功: $successCount, 失败: $failedCount)"
+                    val finishMsg = "导出完成 (成功: $successCount, 跳过: $skippedCount, 失败: $failedCount)"
                     notificationContentText = finishMsg
                     successCount = 0
+                    skippedCount = 0
                     failedCount = 0
                     upExportNotification(true)
                     toastOnUi(finishMsg)
@@ -247,6 +249,14 @@ class ExportBookService : BaseService(), KoinComponent {
                 currentDefaultReplaceEnabled = exportConfig.defaultReplaceEnabled
                 currentChineseConverterType = exportConfig.chineseConverterType
                 currentExportToWebDav = exportConfig.exportToWebDav
+                
+                // Ensure remote books directory exists once
+                if (currentExportToWebDav) {
+                    AppWebDav.authorization?.let {
+                        WebDav(AppWebDav.exportsWebDavUrl, it).makeAsDir()
+                    }
+                }
+
                 val book = appDb.bookDao.getBook(bookUrl)
                 try {
                     book ?: throw NoStackTraceException("获取${bookUrl}书籍出错")
@@ -279,7 +289,6 @@ class ExportBookService : BaseService(), KoinComponent {
                         }
                     }
                     exportMsg[book.bookUrl] = getString(R.string.export_success)
-                    successCount++
                 } catch (e: Throwable) {
                     ensureActive()
                     failedCount++
@@ -362,9 +371,14 @@ class ExportBookService : BaseService(), KoinComponent {
                     WebDav(AppWebDav.exportsWebDavUrl + filename, auth).getWebDavFile()
                 }.getOrNull()
                 if (remoteFile != null && remoteFile.size == bookDoc.freshSize) {
-                    AppLog.put("WebDAV: $filename 已是最新，跳过上传")
+                    AppLog.put("WebDAV: $filename 已是最新 (大小: ${remoteFile.size})，跳过上传")
+                    skippedCount++
                 } else {
+                    if (remoteFile != null) {
+                        AppLog.put("WebDAV: $filename 大小不一致 (本地: ${bookDoc.freshSize}, 远程: ${remoteFile.size})，重新上传")
+                    }
                     AppWebDav.exportWebDav(bookDoc.uri, filename)
+                    successCount++
                 }
             }
         }
@@ -528,9 +542,14 @@ class ExportBookService : BaseService(), KoinComponent {
                     WebDav(AppWebDav.exportsWebDavUrl + filename, auth).getWebDavFile()
                 }.getOrNull()
                 if (remoteFile != null && remoteFile.size == bookDoc.freshSize) {
-                    AppLog.put("WebDAV: $filename 已是最新，跳过上传")
+                    AppLog.put("WebDAV: $filename 已是最新 (大小: ${remoteFile.size})，跳过上传")
+                    skippedCount++
                 } else {
+                    if (remoteFile != null) {
+                        AppLog.put("WebDAV: $filename 大小不一致 (本地: ${bookDoc.freshSize}, 远程: ${remoteFile.size})，重新上传")
+                    }
                     AppWebDav.exportWebDav(bookDoc.uri, filename)
+                    successCount++
                 }
             }
         }
