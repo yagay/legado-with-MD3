@@ -123,7 +123,8 @@ class ExportBookService : BaseService(), KoinComponent {
     private val waitExportBooks = linkedMapOf<String, ExportConfig>()
     private var exportJob: Job? = null
     private var currentExportSettings = BookExportSettings()
-    private var processedCount = 0
+    private var successCount = 0
+    private var failedCount = 0
     private var currentTargetLanguage = "zh"
     private var currentDefaultReplaceEnabled = true
     private var currentChineseConverterType = 0
@@ -211,7 +212,7 @@ class ExportBookService : BaseService(), KoinComponent {
             .setContentText(notificationContentText)
             .setDeleteIntent(servicePendingIntent<ExportBookService>(IntentAction.stop))
             .setGroup(groupKey)
-            .setOnlyAlertOnce(true)
+            .setOnlyAlertOnce(!finish)
         if (!finish) {
             notification.setOngoing(true)
             notification.addAction(
@@ -230,9 +231,12 @@ class ExportBookService : BaseService(), KoinComponent {
         exportJob = lifecycleScope.launch(IO) {
             while (isActive) {
                 val (bookUrl, exportConfig) = waitExportBooks.entries.firstOrNull() ?: let {
-                    notificationContentText = "导出完成 (共 $processedCount 本)"
-                    processedCount = 0
+                    val finishMsg = "导出完成 (成功: $successCount, 失败: $failedCount)"
+                    notificationContentText = finishMsg
+                    successCount = 0
+                    failedCount = 0
                     upExportNotification(true)
+                    toastOnUi(finishMsg)
                     stopSelf()
                     return@launch
                 }
@@ -275,9 +279,10 @@ class ExportBookService : BaseService(), KoinComponent {
                         }
                     }
                     exportMsg[book.bookUrl] = getString(R.string.export_success)
-                    processedCount++
+                    successCount++
                 } catch (e: Throwable) {
                     ensureActive()
+                    failedCount++
                     exportMsg[bookUrl] = e.localizedMessage ?: "ERROR"
                     AppLog.put("导出书籍<${book?.name ?: bookUrl}>出错", e)
                 } finally {
