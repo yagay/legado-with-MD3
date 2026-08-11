@@ -102,6 +102,7 @@ class ExportBookService : BaseService(), KoinComponent {
         val targetLanguage: String,
         val defaultReplaceEnabled: Boolean,
         val chineseConverterType: Int,
+        val exportToWebDav: Boolean,
     )
 
     /**
@@ -126,6 +127,7 @@ class ExportBookService : BaseService(), KoinComponent {
     private var currentTargetLanguage = "zh"
     private var currentDefaultReplaceEnabled = true
     private var currentChineseConverterType = 0
+    private var currentExportToWebDav = false
     private var notificationContentText = appCtx.getString(R.string.service_starting)
 
 
@@ -145,6 +147,10 @@ class ExportBookService : BaseService(), KoinComponent {
                             otherSettingsGateway.currentSettings.replaceEnableDefault,
                         chineseConverterType =
                             readSettingsGateway.currentSettings.chineseConverterType,
+                        exportToWebDav = intent.getBooleanExtra(
+                            "exportToWebDav",
+                            bookExportSettingsGateway.currentSettings.exportToWebDav
+                        )
                     )
                     waitExportBooks[bookUrl] = exportConfig
                     exportMsg[bookUrl] = getString(R.string.export_wait)
@@ -236,6 +242,7 @@ class ExportBookService : BaseService(), KoinComponent {
                 currentTargetLanguage = exportConfig.targetLanguage
                 currentDefaultReplaceEnabled = exportConfig.defaultReplaceEnabled
                 currentChineseConverterType = exportConfig.chineseConverterType
+                currentExportToWebDav = exportConfig.exportToWebDav
                 val book = appDb.bookDao.getBook(bookUrl)
                 try {
                     book ?: throw NoStackTraceException("获取${bookUrl}书籍出错")
@@ -342,11 +349,13 @@ class ExportBookService : BaseService(), KoinComponent {
                 }
             }
         }
-        if (currentExportSettings.exportToWebDav) {
+        if (currentExportToWebDav) {
             // 导出到webdav
             val auth = AppWebDav.authorization
             if (auth != null) {
-                val remoteFile = WebDav(AppWebDav.exportsWebDavUrl + filename, auth).getWebDavFile()
+                val remoteFile = runCatching {
+                    WebDav(AppWebDav.exportsWebDavUrl + filename, auth).getWebDavFile()
+                }.getOrNull()
                 if (remoteFile != null && remoteFile.size == bookDoc.freshSize) {
                     AppLog.put("WebDAV: $filename 已是最新，跳过上传")
                 } else {
@@ -506,11 +515,13 @@ class ExportBookService : BaseService(), KoinComponent {
             EpubWriter().write(epubBook, bookOs)
         }
 
-        if (currentExportSettings.exportToWebDav) {
+        if (currentExportToWebDav) {
             // 导出到webdav
             val auth = AppWebDav.authorization
             if (auth != null) {
-                val remoteFile = WebDav(AppWebDav.exportsWebDavUrl + filename, auth).getWebDavFile()
+                val remoteFile = runCatching {
+                    WebDav(AppWebDav.exportsWebDavUrl + filename, auth).getWebDavFile()
+                }.getOrNull()
                 if (remoteFile != null && remoteFile.size == bookDoc.freshSize) {
                     AppLog.put("WebDAV: $filename 已是最新，跳过上传")
                 } else {
@@ -985,11 +996,13 @@ class ExportBookService : BaseService(), KoinComponent {
                     .write(epubBook, bookOs)
             }
 
-            if (currentExportSettings.exportToWebDav) {
+            if (currentExportToWebDav) {
                 // 导出到webdav
                 val auth = AppWebDav.authorization
                 if (auth != null) {
-                    val remoteFile = WebDav(AppWebDav.exportsWebDavUrl + filename, auth).getWebDavFile()
+                    val remoteFile = runCatching {
+                        WebDav(AppWebDav.exportsWebDavUrl + filename, auth).getWebDavFile()
+                    }.getOrNull()
                     if (remoteFile != null && remoteFile.size == bookDoc.freshSize) {
                         AppLog.put("WebDAV: $filename 已是最新，跳过上传")
                     } else {
