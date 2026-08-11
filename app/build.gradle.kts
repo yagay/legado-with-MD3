@@ -13,7 +13,7 @@ plugins {
 }
 
 apply(from = "download.gradle")
-apply(from = "setting-search.gradle")
+apply(from = "../modules/legado-enhance/setting-search.gradle")
 
 
 val versionPropsFile = file("version.properties")
@@ -148,6 +148,14 @@ android {
     }
 
     sourceSets {
+        getByName("main") {
+            java.srcDir("src/main/java")
+            java.srcDir("../modules/legado-enhance/java")
+            kotlin.srcDir("src/main/java")
+            kotlin.srcDir("../modules/legado-enhance/java")
+            res.srcDir("src/main/res")
+            res.srcDir("../modules/legado-enhance/res")
+        }
         getByName("androidTest").assets.directories.add("$projectDir/schemas")
     }
 
