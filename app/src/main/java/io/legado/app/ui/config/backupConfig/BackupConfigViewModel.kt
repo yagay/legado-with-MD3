@@ -57,10 +57,6 @@ class BackupConfigViewModel(
                 update { it.copy(syncBookProgressPlus = intent.value) }
             is BackupConfigIntent.SetAutoCheckNewBackup ->
                 update { it.copy(autoCheckNewBackup = intent.value) }
-            is BackupConfigIntent.SetAutoBackupOnBackground ->
-                update { it.copy(autoBackupOnBackground = intent.value) }
-            is BackupConfigIntent.SetAutoBackupOnBackgroundInterval ->
-                update { it.copy(autoBackupOnBackgroundInterval = intent.value) }
             is BackupConfigIntent.SetOnlyLatestBackup ->
                 update { it.copy(onlyLatestBackup = intent.value) }
             is BackupConfigIntent.SetBackupSyncMode ->

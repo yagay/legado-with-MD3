@@ -47,12 +47,6 @@ class CustomConfigViewModel(
 
     fun onIntent(intent: CustomConfigIntent) {
         when (intent) {
-            is CustomConfigIntent.SetAutoBackupOnBackground -> {
-                updateBackup { it.copy(autoBackupOnBackground = intent.value) }
-            }
-            is CustomConfigIntent.SetAutoBackupOnBackgroundInterval -> {
-                updateBackup { it.copy(autoBackupOnBackgroundInterval = intent.value) }
-            }
             is CustomConfigIntent.SetAutoExportBooksOnBackup -> {
                 update { it.copy(autoExportBooksOnBackup = intent.value) }
             }
@@ -80,9 +74,5 @@ class CustomConfigViewModel(
 
     private fun update(transform: (CustomSettings) -> CustomSettings) {
         viewModelScope.launch { settingsGateway.update(transform) }
-    }
-
-    private fun updateBackup(transform: (BackupSettings) -> BackupSettings) {
-        viewModelScope.launch { backupSettingsGateway.update(transform) }
     }
 }

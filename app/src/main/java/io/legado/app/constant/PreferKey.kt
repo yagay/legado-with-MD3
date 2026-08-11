@@ -295,8 +295,6 @@ object PreferKey {
     const val ignoreBatteryPermission = "ignoreBatteryPermission"
     const val paddingDisplayCutouts = "paddingDisplayCutouts"
     const val autoCheckNewBackup = "autoCheckNewBackup"
-    const val autoBackupOnBackground = "autoBackupOnBackground"
-    const val autoBackupOnBackgroundInterval = "autoBackupOnBackgroundInterval"
     const val backupSyncMode = "backupSyncMode"
     const val bookshelfLayoutGridLandscape = "bookshelfLayoutGridLandscape"
     const val bookshelfLayoutGridPortrait = "bookshelfLayoutGridPortrait"

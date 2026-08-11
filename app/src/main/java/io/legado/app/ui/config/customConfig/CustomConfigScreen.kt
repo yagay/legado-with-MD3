@@ -66,34 +66,6 @@ fun CustomConfigScreen(
             PillHeaderDivider(title = stringResource(R.string.enhanced_backup_restore))
 
             SwitchSettingItem(
-                title = stringResource(R.string.auto_backup_on_background),
-                description = stringResource(R.string.auto_backup_on_background_summary),
-                checked = uiState.backupSettings.autoBackupOnBackground,
-                highlightKey = searchKey,
-                onCheckedChange = { viewModel.onIntent(CustomConfigIntent.SetAutoBackupOnBackground(it)) },
-            )
-
-            val backupIntervalTitle = stringResource(R.string.auto_backup_on_background_interval)
-            if (
-                uiState.backupSettings.autoBackupOnBackground ||
-                searchKey.equals(backupIntervalTitle, ignoreCase = true)
-            ) {
-                InputSettingItem(
-                    title = backupIntervalTitle,
-                    value = uiState.backupSettings.autoBackupOnBackgroundInterval.toString(),
-                    defaultValue = "1",
-                    highlightKey = searchKey,
-                    onConfirm = {
-                        viewModel.onIntent(
-                            CustomConfigIntent.SetAutoBackupOnBackgroundInterval(
-                                it.toIntOrNull() ?: 1
-                            )
-                        )
-                    },
-                )
-            }
-
-            SwitchSettingItem(
                 title = stringResource(R.string.backup_export_books),
                 description = "执行备份时同步导出所有已缓存书籍到 WebDAV",
                 checked = uiState.settings.autoExportBooksOnBackup,

@@ -261,8 +261,6 @@ internal fun Preferences.toBackupSettings(): BackupSettings = BackupSettings(
     onlyLatestBackup = compatDsBoolean(PreferKey.onlyLatestBackup) ?: true,
     backupSyncMode = compatDsString(PreferKey.backupSyncMode) ?: "both",
     backupPath = compatDsString(PreferKey.backupPath),
-    autoBackupOnBackground = compatDsBoolean(PreferKey.autoBackupOnBackground) ?: false,
-    autoBackupOnBackgroundInterval = compatDsInt(PreferKey.autoBackupOnBackgroundInterval) ?: 1,
 )
 
 internal fun BackupSettings.toPrefMap(): Map<String, Any?> = mapOf(
@@ -277,8 +275,6 @@ internal fun BackupSettings.toPrefMap(): Map<String, Any?> = mapOf(
     PreferKey.onlyLatestBackup to onlyLatestBackup,
     PreferKey.backupSyncMode to backupSyncMode,
     PreferKey.backupPath to backupPath,
-    PreferKey.autoBackupOnBackground to autoBackupOnBackground,
-    PreferKey.autoBackupOnBackgroundInterval to autoBackupOnBackgroundInterval,
 )
 
 internal fun Preferences.toAppShellSettings(): AppShellSettings = AppShellSettings(

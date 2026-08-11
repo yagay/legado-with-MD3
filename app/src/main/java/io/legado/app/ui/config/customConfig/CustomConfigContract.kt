@@ -12,8 +12,6 @@ data class CustomConfigUiState(
 )
 
 sealed interface CustomConfigIntent {
-    data class SetAutoBackupOnBackground(val value: Boolean) : CustomConfigIntent
-    data class SetAutoBackupOnBackgroundInterval(val value: Int) : CustomConfigIntent
     data class SetAutoExportBooksOnBackup(val value: Boolean) : CustomConfigIntent
     data class SetAutoImportBooksOnRestore(val value: Boolean) : CustomConfigIntent
     data class SetExportGroupMask(val value: Long) : CustomConfigIntent
