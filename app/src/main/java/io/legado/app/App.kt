@@ -62,7 +62,6 @@ import io.legado.app.help.http.okHttpClient
 import io.legado.app.help.rhino.NativeBaseSource
 import io.legado.app.help.source.SourceHelp
 import io.legado.app.help.storage.Backup
-import io.legado.app.help.storage.BackupLifecycleObserver
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.model.BookCover
 import io.legado.app.ui.book.read.page.entities.TextLine
