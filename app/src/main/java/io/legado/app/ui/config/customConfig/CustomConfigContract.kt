@@ -2,7 +2,7 @@ package io.legado.app.ui.config.customConfig
 
 import androidx.compose.runtime.Immutable
 import io.legado.app.domain.model.settings.BackupSettings
-import io.legado.app.domain.model.settings.CustomSettings
+import io.legado.app.enhance.model.CustomSettings
 
 @Immutable
 data class CustomConfigUiState(

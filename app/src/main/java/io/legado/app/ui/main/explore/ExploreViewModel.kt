@@ -13,6 +13,7 @@ import io.legado.app.help.source.clearExploreKindsCache
 import io.legado.app.help.source.exploreKinds
 import io.legado.app.help.source.getExploreInfoMap
 import io.legado.app.ui.widget.components.explore.calculateExploreKindRows
+import io.legado.app.enhance.model.CustomSettingsGateway
 import io.legado.app.ui.widget.components.list.ListUiState
 import io.legado.app.enhance.explore.model.DiscoverySuite
 import io.legado.app.enhance.explore.model.DiscoverySuiteConfig
@@ -52,7 +53,7 @@ class ExploreViewModel(
     private val exploreKindUseCase: ExploreKindUiUseCase,
     private val shellSettingsGateway: io.legado.app.domain.gateway.AppShellSettingsGateway,
     internal val exploreBooksUseCase: io.legado.app.domain.usecase.ExploreBooksUseCase,
-    private val customSettingsGateway: io.legado.app.domain.gateway.CustomSettingsGateway
+    private val customSettingsGateway: CustomSettingsGateway
 ) : BaseViewModel(application) {
 
     private val _uiState = MutableStateFlow(ExploreUiState())
@@ -67,11 +68,7 @@ class ExploreViewModel(
 
     init {
         val customSettings = customSettingsGateway.currentSettings
-        val initialMode = if (customSettings.masterSwitch) {
-            customSettings.discoveryLayoutMode
-        } else {
-            shellSettingsGateway.currentSettings.exploreLayoutMode
-        }
+        val initialMode = shellSettingsGateway.currentSettings.exploreLayoutMode
         _uiState.update {
             it.copy(
                 layoutMode = initialMode,
@@ -86,7 +83,6 @@ class ExploreViewModel(
                 _uiState.update {
                     it.copy(
                         layoutSwitcherEnabled = if (settings.masterSwitch) settings.discoveryLayoutSwitcherEnabled else true,
-                        layoutMode = if (settings.masterSwitch) settings.discoveryLayoutMode else it.layoutMode
                     )
                 }
             }
@@ -182,11 +178,8 @@ class ExploreViewModel(
             )
         }
         observeExplore()
-        // 将用户最后一次选择的布局同时写入两套持久化设置。
-        // 这样无论“自定义设置总开关”当前是否开启，或者之后是否切换，
-        // 下次进入 App / 发现页都会继续使用用户最后选择的布局。
+        // 直接复用上游字段 exploreLayoutMode
         viewModelScope.launch {
-            customSettingsGateway.update { it.copy(discoveryLayoutMode = newMode) }
             shellSettingsGateway.update { it.copy(exploreLayoutMode = newMode) }
         }
         if (newMode == 1) {

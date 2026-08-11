@@ -184,9 +184,6 @@ fun ExploreScreen(
     onShowSourceMenu: () -> Unit = {},
     onBookClick: (SearchBook, String?) -> Unit = { _, _ -> }
 ) {
-    val listItems by remember(state.items, state.expandedId, state.exploreKinds) {
-        derivedStateOf { buildExploreListItems(state) }
-    }
     var sourceToDeleteUrl by rememberSaveable { mutableStateOf<String?>(null) }
     val sourceToDelete = remember(sourceToDeleteUrl, state.items) {
         state.items.firstOrNull { it.bookSourceUrl == sourceToDeleteUrl }
@@ -199,20 +196,7 @@ fun ExploreScreen(
     val sourceActionMenuSource = remember(sourceActionMenuUrl, state.items) {
         state.items.firstOrNull { it.bookSourceUrl == sourceActionMenuUrl }
     }
-    val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
-
-    val stickyHeaderSource by remember(listItems, state.items) {
-        derivedStateOf {
-            val firstIndex = listState.firstVisibleItemIndex
-            val item = listItems.getOrNull(firstIndex)
-            if (item is ExploreListItem.KindRow) {
-                state.items.find { it.bookSourceUrl == item.sourceUrl }
-            } else {
-                null
-            }
-        }
-    }
 
     val composeEngine = ThemeResolver.isMiuixEngine(composeEngine)
 
@@ -466,128 +450,14 @@ fun ExploreScreen(
                 paddingValues = paddingValues
             )
         } else {
-            Box(modifier = Modifier.fillMaxSize()) {
-                if (state.items.isEmpty()) {
-                    EmptyMessage(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(
-                                top = paddingValues.calculateTopPadding(),
-                                bottom = paddingValues.calculateBottomPadding()
-                            ),
-                        messageResId = R.string.explore_empty
-                    )
-                    return@Box
-                }
-
-                FastScrollLazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = adaptiveContentPadding(
-                        top = paddingValues.calculateTopPadding(),
-                        bottom = 120.dp
-                    )
-                ) {
-                    items(
-                        items = listItems,
-                        key = { it.key }
-                    ) { listItem ->
-                        when (listItem) {
-                            is ExploreListItem.Header -> {
-                                val item = listItem.source
-                                val isExpanded = state.expandedId == item.bookSourceUrl
-                                ExploreSourceHeader(
-                                    modifier = Modifier.animateItem(),
-                                    item = item,
-                                    isExpanded = isExpanded,
-                                    loadingKinds = if (isExpanded) state.loadingKinds else false,
-                                    onClick = { onIntent(ExploreIntent.ToggleExpand(item)) },
-                                    onTop = { onIntent(ExploreIntent.TopSource(item)) },
-                                    onEdit = { onIntent(ExploreIntent.OpenEdit(item)) },
-                                    onSearch = { onIntent(ExploreIntent.OpenSearch(item)) },
-                                    onLogin = { onIntent(ExploreIntent.OpenLogin(item)) },
-                                    onSetHomeSource = { onIntent(ExploreIntent.SetSuiteDefaultSource(item.bookSourceUrl)) },
-                                    onRefresh = { onIntent(ExploreIntent.RefreshKinds(item)) },
-                                    onDelete = { sourceToDeleteUrl = item.bookSourceUrl },
-                                    isMiuix = composeEngine
-                                )
-                            }
-
-                            is ExploreListItem.KindRow -> {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .animateItem()
-                                        .padding(vertical = 4.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    listItem.rowItems.forEach { (kind, span) ->
-                                        ExploreKindMultiTypeItem(
-                                            kind = kind,
-                                            sourceUrl = listItem.sourceUrl,
-                                            onOpenUrl = { url ->
-                                                onOpenExploreShow(kind.title, listItem.sourceUrl, url)
-                                            },
-                                            modifier = Modifier.weight(span.toFloat()),
-                                            isMiuix = composeEngine,
-                                            displayNameOverride = state.kindDisplayNames[kind.title],
-                                            valueOverride = state.kindValues[kind.title],
-                                            onValueChange = { value ->
-                                                onIntent(
-                                                    ExploreIntent.UpdateKindValue(
-                                                        listItem.sourceUrl,
-                                                        kind,
-                                                        value,
-                                                    )
-                                                )
-                                            },
-                                            onRunAction = {
-                                                onIntent(
-                                                    ExploreIntent.RunKindAction(listItem.sourceUrl, kind)
-                                                )
-                                            }
-                                        )
-                                    }
-
-                                    val totalSpan = listItem.rowItems.sumOf { it.second }
-                                    if (totalSpan < 6) {
-                                        Spacer(
-                                            modifier = Modifier.weight((6 - totalSpan).toFloat())
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                TopFloatingStickyItem(
-                    item = stickyHeaderSource,
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(top = paddingValues.calculateTopPadding() + 4.dp, start = 8.dp)
-                ) { item ->
-                    TextCard(
-                        text = item.bookSourceName,
-                        textStyle = LegadoTheme.typography.labelMediumEmphasized,
-                        cornerRadius = 12.dp,
-                        horizontalPadding = 12.dp,
-                        verticalPadding = 8.dp,
-                        modifier = Modifier.semantics {
-                            contentDescription = item.bookSourceName
-                            role = Role.Button
-                        },
-                        onClick = {
-                            scope.launch {
-                                val index = listItems.indexOfFirst {
-                                    it is ExploreListItem.Header && it.source.bookSourceUrl == item.bookSourceUrl
-                                }
-                                if (index >= 0) listState.animateScrollToItem(index)
-                            }
-                        }
-                    )
-                }
-            }
+            ExploreListContent(
+                state = state,
+                onIntent = onIntent,
+                onOpenExploreShow = onOpenExploreShow,
+                onDeleteSource = { sourceToDeleteUrl = it.bookSourceUrl },
+                paddingValues = paddingValues,
+                isMiuix = composeEngine
+            )
         }
     }
 
@@ -606,6 +476,161 @@ fun ExploreScreen(
     )
 
     ExploreConfigEnhance(state, onIntent)
+}
+
+/**
+ * 抽取上游原始列表内容，方便后续同步上游 UI 修改
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun ExploreListContent(
+    state: ExploreViewModel.ExploreUiState,
+    onIntent: (ExploreIntent) -> Unit,
+    onOpenExploreShow: (title: String?, sourceUrl: String, exploreUrl: String?) -> Unit,
+    onDeleteSource: (BookSourcePart) -> Unit,
+    paddingValues: androidx.compose.foundation.layout.PaddingValues,
+    isMiuix: Boolean
+) {
+    val listItems by remember(state.items, state.expandedId, state.exploreKinds) {
+        derivedStateOf { buildExploreListItems(state) }
+    }
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+
+    val stickyHeaderSource by remember(listItems, state.items) {
+        derivedStateOf {
+            val firstIndex = listState.firstVisibleItemIndex
+            val item = listItems.getOrNull(firstIndex)
+            if (item is ExploreListItem.KindRow) {
+                state.items.find { it.bookSourceUrl == item.sourceUrl }
+            } else {
+                null
+            }
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (state.items.isEmpty()) {
+            EmptyMessage(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(
+                        top = paddingValues.calculateTopPadding(),
+                        bottom = paddingValues.calculateBottomPadding()
+                    ),
+                messageResId = R.string.explore_empty
+            )
+            return@Box
+        }
+
+        FastScrollLazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = adaptiveContentPadding(
+                top = paddingValues.calculateTopPadding(),
+                bottom = 120.dp
+            )
+        ) {
+            items(
+                items = listItems,
+                key = { it.key }
+            ) { listItem ->
+                when (listItem) {
+                    is ExploreListItem.Header -> {
+                        val item = listItem.source
+                        val isExpanded = state.expandedId == item.bookSourceUrl
+                        ExploreSourceHeader(
+                            modifier = Modifier.animateItem(),
+                            item = item,
+                            isExpanded = isExpanded,
+                            loadingKinds = if (isExpanded) state.loadingKinds else false,
+                            onClick = { onIntent(ExploreIntent.ToggleExpand(item)) },
+                            onTop = { onIntent(ExploreIntent.TopSource(item)) },
+                            onEdit = { onIntent(ExploreIntent.OpenEdit(item)) },
+                            onSearch = { onIntent(ExploreIntent.OpenSearch(item)) },
+                            onLogin = { onIntent(ExploreIntent.OpenLogin(item)) },
+                            onSetHomeSource = { onIntent(ExploreIntent.SetSuiteDefaultSource(item.bookSourceUrl)) },
+                            onRefresh = { onIntent(ExploreIntent.RefreshKinds(item)) },
+                            onDelete = { onDeleteSource(item) },
+                            isMiuix = isMiuix
+                        )
+                    }
+
+                    is ExploreListItem.KindRow -> {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .animateItem()
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            listItem.rowItems.forEach { (kind, span) ->
+                                ExploreKindMultiTypeItem(
+                                    kind = kind,
+                                    sourceUrl = listItem.sourceUrl,
+                                    onOpenUrl = { url ->
+                                        onOpenExploreShow(kind.title, listItem.sourceUrl, url)
+                                    },
+                                    modifier = Modifier.weight(span.toFloat()),
+                                    isMiuix = isMiuix,
+                                    displayNameOverride = state.kindDisplayNames[kind.title],
+                                    valueOverride = state.kindValues[kind.title],
+                                    onValueChange = { value ->
+                                        onIntent(
+                                            ExploreIntent.UpdateKindValue(
+                                                listItem.sourceUrl,
+                                                kind,
+                                                value,
+                                            )
+                                        )
+                                    },
+                                    onRunAction = {
+                                        onIntent(
+                                            ExploreIntent.RunKindAction(listItem.sourceUrl, kind)
+                                        )
+                                    }
+                                )
+                            }
+
+                            val totalSpan = listItem.rowItems.sumOf { it.second }
+                            if (totalSpan < 6) {
+                                Spacer(
+                                    modifier = Modifier.weight((6 - totalSpan).toFloat())
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        TopFloatingStickyItem(
+            item = stickyHeaderSource,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(top = paddingValues.calculateTopPadding() + 4.dp, start = 8.dp)
+        ) { item ->
+            TextCard(
+                text = item.bookSourceName,
+                textStyle = LegadoTheme.typography.labelMediumEmphasized,
+                cornerRadius = 12.dp,
+                horizontalPadding = 12.dp,
+                verticalPadding = 8.dp,
+                modifier = Modifier.semantics {
+                    contentDescription = item.bookSourceName
+                    role = Role.Button
+                },
+                onClick = {
+                    scope.launch {
+                        val index = listItems.indexOfFirst {
+                            it is ExploreListItem.Header && it.source.bookSourceUrl == item.bookSourceUrl
+                        }
+                        if (index >= 0) listState.animateScrollToItem(index)
+                    }
+                }
+            )
+        }
+    }
 }
 
 sealed interface ExploreListItem {

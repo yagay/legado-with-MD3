@@ -6,6 +6,9 @@ import io.legado.app.data.entities.Cookie
 @Dao
 interface CookieDao {
 
+    @Query("select * from cookies")
+    fun getAll(): List<Cookie>
+
     @Query("SELECT * FROM cookies Where url = :url")
     fun get(url: String): Cookie?
 

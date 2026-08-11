@@ -9,7 +9,7 @@ import io.legado.app.constant.AppLog
 import io.legado.app.constant.IntentAction
 import io.legado.app.constant.PreferKey
 import io.legado.app.data.appDb
-import io.legado.app.domain.gateway.CustomSettingsGateway
+import io.legado.app.enhance.model.CustomSettingsGateway
 import io.legado.app.domain.gateway.ReadStyleGateway
 import io.legado.app.service.ExportBookService
 import io.legado.app.exception.NoStackTraceException
@@ -91,6 +91,20 @@ object Backup {
             "highlightTagRule.json",
             "tagGroupRule.json",
             "servers.json",
+            "aiProvider.json",
+            "aiModel.json",
+            "aiTask.json",
+            "aiPrompt.json",
+            "cloudTts.json",
+            "readAloudVoice.json",
+            "bookCharacterProfile.json",
+            "bookCharacterEvent.json",
+            "bookCharacterRelation.json",
+            "bookKnowledge.json",
+            "bookOutlineNode.json",
+            "bookContentProcess.json",
+            "bookMarking.json",
+            "cookie.json",
             DirectLinkUpload.ruleFileName,
             ReadBookConfig.configFileName,
             ReadBookConfig.shareConfigFileName,
@@ -116,22 +130,14 @@ object Backup {
         return lastBackup + TimeUnit.DAYS.toMillis(1) < System.currentTimeMillis()
     }
 
-    fun autoBack(context: Context, force: Boolean = false) {
-        if (force || shouldBackup()) {
+    fun autoBack(context: Context) {
+        if (shouldBackup()) {
             Coroutine.async {
-                if (!BackupLifecycleObserver.isAppInBackground) {
-                    LogUtils.d("Backup", "App在前台，取消自动备份")
-                    return@async
-                }
                 BackupRestoreLock.withLock {
-                    if (force || shouldBackup()) {
-                        if (!BackupLifecycleObserver.isAppInBackground) {
-                            LogUtils.d("Backup", "App在前台，中止自动备份")
-                            return@withLock
-                        }
+                    if (shouldBackup()) {
                         val backupZipFileName = getNowZipFileName()
-                        if (force || !AppWebDav.hasBackUp(backupZipFileName)) {
-                            backup(context, AppConfig.backupPath, isAuto = true)
+                        if (!AppWebDav.hasBackUp(backupZipFileName)) {
+                            backup(context, AppConfig.backupPath)
                         } else {
                             LocalConfig.lastBackup = System.currentTimeMillis()
                         }
@@ -146,13 +152,12 @@ object Backup {
     suspend fun backupLocked(context: Context, path: String?, mode: String = "both") {
         BackupRestoreLock.withLock {
             withContext(IO) {
-                backup(context, path, mode, isAuto = false)
+                backup(context, path, mode)
             }
         }
     }
 
-    private suspend fun backup(context: Context, path: String?, mode: String = "both", isAuto: Boolean) {
-        if (isAuto && !BackupLifecycleObserver.isAppInBackground) return
+    private suspend fun backup(context: Context, path: String?, mode: String = "both") {
         LogUtils.d(TAG, "开始备份 path:$path")
         LocalConfig.lastBackup = System.currentTimeMillis()
         val aes = BackupAES()
@@ -219,8 +224,39 @@ object Backup {
         if (BackupConfig.dbIsNotIgnored("highlightTagRule", true)) {
             writeListToJson(appDb.highlightTagRuleDao.getAll(), "highlightTagRule.json", backupPath)
         }
-        if (BackupConfig.dbIsNotIgnored("tagGroupRule", true)) {
-            writeListToJson(appDb.tagGroupRuleDao.getAll(), "tagGroupRule.json", backupPath)
+        if (BackupConfig.dbIsNotIgnored("aiProvider", true)) {
+            writeListToJson(appDb.aiProfileDao.getAllProviders(), "aiProvider.json", backupPath)
+        }
+        if (BackupConfig.dbIsNotIgnored("aiModel", true)) {
+            writeListToJson(appDb.aiProfileDao.getAllModels(), "aiModel.json", backupPath)
+        }
+        if (BackupConfig.dbIsNotIgnored("aiTask", true)) {
+            writeListToJson(appDb.aiProfileDao.getAllTasks(), "aiTask.json", backupPath)
+        }
+        if (BackupConfig.dbIsNotIgnored("aiPrompt", true)) {
+            writeListToJson(appDb.aiPromptPresetDao.getAll(), "aiPrompt.json", backupPath)
+        }
+        if (BackupConfig.dbIsNotIgnored("cloudTts", true)) {
+            writeListToJson(appDb.cloudTtsEngineDao.getAll(), "cloudTts.json", backupPath)
+        }
+        if (BackupConfig.dbIsNotIgnored("readAloudVoice", true)) {
+            writeListToJson(appDb.readAloudVoiceDao.getVoices(), "readAloudVoice.json", backupPath)
+        }
+        if (BackupConfig.dbIsNotIgnored("bookKnowledge", true)) {
+            writeListToJson(appDb.bookKnowledgeDao.getAllCharacterProfiles(), "bookCharacterProfile.json", backupPath)
+            writeListToJson(appDb.bookKnowledgeDao.getAllCharacterEvents(), "bookCharacterEvent.json", backupPath)
+            writeListToJson(appDb.bookKnowledgeDao.getAllCharacterRelations(), "bookCharacterRelation.json", backupPath)
+            writeListToJson(appDb.bookKnowledgeDao.getAllKnowledgeEntries(), "bookKnowledge.json", backupPath)
+            writeListToJson(appDb.bookKnowledgeDao.getAllOutlineNodes(), "bookOutlineNode.json", backupPath)
+        }
+        if (BackupConfig.dbIsNotIgnored("bookContentProcess", true)) {
+            writeListToJson(appDb.bookContentProcessDao.getAll(), "bookContentProcess.json", backupPath)
+        }
+        if (BackupConfig.dbIsNotIgnored("bookMarking", true)) {
+            writeListToJson(appDb.bookMarkingDao.getAll(), "bookMarking.json", backupPath)
+        }
+        if (BackupConfig.dbIsNotIgnored("cookie", true)) {
+            writeListToJson(appDb.cookieDao.getAll(), "cookie.json", backupPath)
         }
         if (BackupConfig.dbIsNotIgnored("server", true)) {
             GSON.toJson(appDb.serverDao.all).let { json ->
@@ -333,22 +369,16 @@ object Backup {
         }.let {
             AppWebDav.upBgs(it.toTypedArray())
         }
-        exportAllCachedBooks(context, isAuto = isAuto)
+        exportAllCachedBooks(context)
     }
 
     fun exportAllCachedBooks(
         context: Context,
         force: Boolean = false,
-        isAuto: Boolean = false,
         groupMask: Long? = null
     ) {
         val customSettingsGateway: CustomSettingsGateway = GlobalContext.get().get()
         if (!force && !customSettingsGateway.currentSettings.autoExportBooksOnBackup) return
-
-        if (isAuto && !BackupLifecycleObserver.isAppInBackground) {
-            LogUtils.d("Backup", "App在前台，取消自动导出书籍")
-            return
-        }
 
         val actualGroupMask = groupMask ?: customSettingsGateway.currentSettings.exportGroupMask
 
@@ -363,19 +393,15 @@ object Backup {
         }
 
         if (books.isEmpty()) {
-            if (!isAuto) context.toastOnUi("没有需要导出的书籍 (仅导出本地书籍或有缓存的书籍)")
+            context.toastOnUi("没有需要导出的书籍 (仅导出本地书籍或有缓存的书籍)")
             LogUtils.d("Backup", "没有需要导出的书籍")
             return
         }
 
-        if (!isAuto) context.toastOnUi("开始导出 ${books.size} 本书籍")
+        context.toastOnUi("开始导出 ${books.size} 本书籍")
         LogUtils.d("Backup", "开始导出 ${books.size} 本书籍")
 
         books.forEach { book ->
-            if (isAuto && !BackupLifecycleObserver.isAppInBackground) {
-                LogUtils.d("Backup", "App在前台，中止自动导出书籍")
-                return
-            }
             val intent = Intent(context, ExportBookService::class.java).apply {
                 action = IntentAction.start
                 putExtra("bookUrl", book.bookUrl)

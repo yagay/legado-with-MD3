@@ -10,6 +10,9 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface BookContentProcessDao {
 
+    @Query("select * from book_content_processes where status != ${BookContentProcess.STATUS_DELETED}")
+    suspend fun getAll(): List<BookContentProcess>
+
     @Query(
         """
         select * from book_content_processes

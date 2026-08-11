@@ -1,6 +1,6 @@
 package io.legado.app.domain.gateway
 
-import io.legado.app.domain.model.settings.CustomSettings
+import io.legado.app.enhance.model.CustomSettings
 import kotlinx.coroutines.flow.Flow
 
 interface CustomSettingsGateway {

@@ -1,6 +1,6 @@
 package io.legado.app.help
 
-import io.legado.app.domain.gateway.CustomSettingsGateway
+import io.legado.app.enhance.model.CustomSettingsGateway
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 

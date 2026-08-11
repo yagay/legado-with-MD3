@@ -12,9 +12,17 @@ import io.legado.app.constant.AppLog
 import io.legado.app.constant.PreferKey
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.Book
+import io.legado.app.data.entities.BookCharacterEvent
+import io.legado.app.data.entities.BookCharacterProfile
+import io.legado.app.data.entities.BookCharacterRelation
+import io.legado.app.data.entities.BookContentProcess
 import io.legado.app.data.entities.BookGroup
+import io.legado.app.data.entities.BookKnowledgeEntry
+import io.legado.app.data.entities.BookMarking
+import io.legado.app.data.entities.BookOutlineNode
 import io.legado.app.data.entities.BookSource
 import io.legado.app.data.entities.Bookmark
+import io.legado.app.data.entities.Cookie
 import io.legado.app.data.entities.DictRule
 import io.legado.app.data.entities.HighlightRule
 import io.legado.app.data.entities.HighlightTagRule
@@ -30,11 +38,17 @@ import io.legado.app.data.entities.SearchKeyword
 import io.legado.app.data.entities.Server
 import io.legado.app.data.entities.TagGroupRule
 import io.legado.app.data.entities.TxtTocRule
+import io.legado.app.data.entities.AiProviderProfile
+import io.legado.app.data.entities.AiModelProfile
+import io.legado.app.data.entities.AiTaskPreset
+import io.legado.app.data.entities.AiPromptPreset
+import io.legado.app.data.entities.CloudTtsEngineEntity
+import io.legado.app.data.entities.ReadAloudVoiceEntity
 import io.legado.app.data.entities.readRecord.ReadRecord
 import io.legado.app.data.entities.readRecord.ReadRecordDetail
 import io.legado.app.data.entities.readRecord.ReadRecordSession
 import io.legado.app.domain.gateway.AppLocaleGateway
-import io.legado.app.domain.gateway.CustomSettingsGateway
+import io.legado.app.enhance.model.CustomSettingsGateway
 import io.legado.app.domain.gateway.ReadStyleGateway
 import io.legado.app.ui.book.read.ConfigUpdateAction
 import io.legado.app.ui.book.read.ReadConfigUpdateBus
@@ -267,6 +281,68 @@ object Restore : KoinComponent {
         if (BackupConfig.dbIsNotIgnored("tagGroupRule")) {
             fileToListT<TagGroupRule>(path, "tagGroupRule.json")?.let {
                 appDb.tagGroupRuleDao.replaceAll(it)
+            }
+        }
+        if (BackupConfig.dbIsNotIgnored("aiProvider")) {
+            fileToListT<AiProviderProfile>(path, "aiProvider.json")?.let {
+                it.forEach { profile -> appDb.aiProfileDao.insertProvider(profile) }
+            }
+        }
+        if (BackupConfig.dbIsNotIgnored("aiModel")) {
+            fileToListT<AiModelProfile>(path, "aiModel.json")?.let {
+                it.forEach { profile -> appDb.aiProfileDao.insertModel(profile) }
+            }
+        }
+        if (BackupConfig.dbIsNotIgnored("aiTask")) {
+            fileToListT<AiTaskPreset>(path, "aiTask.json")?.let {
+                it.forEach { preset -> appDb.aiProfileDao.insertPreset(preset) }
+            }
+        }
+        if (BackupConfig.dbIsNotIgnored("aiPrompt")) {
+            fileToListT<AiPromptPreset>(path, "aiPrompt.json")?.let {
+                appDb.aiPromptPresetDao.upsertAllSync(it)
+            }
+        }
+        if (BackupConfig.dbIsNotIgnored("cloudTts")) {
+            fileToListT<CloudTtsEngineEntity>(path, "cloudTts.json")?.let {
+                it.forEach { entity -> appDb.cloudTtsEngineDao.upsert(entity) }
+            }
+        }
+        if (BackupConfig.dbIsNotIgnored("readAloudVoice")) {
+            fileToListT<ReadAloudVoiceEntity>(path, "readAloudVoice.json")?.let {
+                it.forEach { entity -> appDb.readAloudVoiceDao.upsertVoice(entity) }
+            }
+        }
+        if (BackupConfig.dbIsNotIgnored("bookKnowledge")) {
+            fileToListT<BookCharacterProfile>(path, "bookCharacterProfile.json")?.let {
+                it.forEach { profile -> appDb.bookKnowledgeDao.upsertCharacterProfile(profile) }
+            }
+            fileToListT<BookCharacterEvent>(path, "bookCharacterEvent.json")?.let {
+                it.forEach { event -> appDb.bookKnowledgeDao.upsertCharacterEvent(event) }
+            }
+            fileToListT<BookCharacterRelation>(path, "bookCharacterRelation.json")?.let {
+                it.forEach { relation -> appDb.bookKnowledgeDao.upsertCharacterRelation(relation) }
+            }
+            fileToListT<BookKnowledgeEntry>(path, "bookKnowledge.json")?.let {
+                it.forEach { entry -> appDb.bookKnowledgeDao.upsertKnowledgeEntry(entry) }
+            }
+            fileToListT<BookOutlineNode>(path, "bookOutlineNode.json")?.let {
+                it.forEach { node -> appDb.bookKnowledgeDao.upsertOutlineNode(node) }
+            }
+        }
+        if (BackupConfig.dbIsNotIgnored("bookContentProcess")) {
+            fileToListT<BookContentProcess>(path, "bookContentProcess.json")?.let {
+                it.forEach { process -> appDb.bookContentProcessDao.upsert(process) }
+            }
+        }
+        if (BackupConfig.dbIsNotIgnored("bookMarking")) {
+            fileToListT<BookMarking>(path, "bookMarking.json")?.let {
+                it.forEach { marking -> appDb.bookMarkingDao.upsert(marking) }
+            }
+        }
+        if (BackupConfig.dbIsNotIgnored("cookie")) {
+            fileToListT<Cookie>(path, "cookie.json")?.let {
+                appDb.cookieDao.insert(*it.toTypedArray())
             }
         }
         if (BackupConfig.dbIsNotIgnored("readRecord")) {

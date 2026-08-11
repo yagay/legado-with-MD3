@@ -9,7 +9,6 @@ import android.content.pm.ApplicationInfo
 import android.graphics.BitmapFactory
 import android.os.Build
 import androidx.core.graphics.scale
-import androidx.lifecycle.ProcessLifecycleOwner
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import io.legado.app.BuildConfig
@@ -171,7 +170,6 @@ class App : Application(), SingletonImageLoader.Factory {
             ThreadUtils.setThreadAssertsDisabledForTesting(true)
         }
         registerActivityLifecycleCallbacks(LifecycleHelp)
-        ProcessLifecycleOwner.get().lifecycle.addObserver(BackupLifecycleObserver)
         Coroutine.async {
             get<BackupSettingsGateway>().settings
                 .map {

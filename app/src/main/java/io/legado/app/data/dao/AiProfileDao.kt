@@ -23,6 +23,15 @@ interface AiProfileDao {
     @Query("select * from ai_task_presets order by taskType, sortNumber, createdAt")
     fun observePresets(): Flow<List<AiTaskPreset>>
 
+    @Query("select * from ai_provider_profiles order by createdAt")
+    suspend fun getAllProviders(): List<AiProviderProfile>
+
+    @Query("select * from ai_model_profiles order by sortNumber, createdAt")
+    suspend fun getAllModels(): List<AiModelProfile>
+
+    @Query("select * from ai_task_presets order by taskType, sortNumber, createdAt")
+    suspend fun getAllTasks(): List<AiTaskPreset>
+
     @Query("select * from ai_provider_profiles where id = :id")
     suspend fun getProvider(id: String): AiProviderProfile?
 

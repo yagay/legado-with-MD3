@@ -106,8 +106,6 @@ import io.legado.app.domain.gateway.AiTextGateway
 import io.legado.app.domain.gateway.AiToolGateway
 import io.legado.app.domain.gateway.AppLocaleGateway
 import io.legado.app.domain.gateway.AppShellSettingsGateway
-import io.legado.app.domain.gateway.CustomSettingsGateway
-import io.legado.app.data.repository.CustomSettingsRepository
 import io.legado.app.domain.gateway.AppStartupGateway
 import io.legado.app.domain.gateway.AppUiConfigurationGateway
 import io.legado.app.domain.gateway.BackupRestoreGateway
@@ -353,7 +351,6 @@ val appModule = module {
     singleOf(::SettingsRepository)
     single<AppLocaleGateway> { AppLocaleRepository() }
     single<AppShellSettingsGateway> { AppShellSettingsRepository() }
-    single<CustomSettingsGateway> { CustomSettingsRepository() }
     single<ThemeSettingsGateway> { ThemeSettingsRepository() }
     single<ThemePackageSettingsGateway> { ThemePackageSettingsRepository() }
     single<AppUiConfigurationGateway> {

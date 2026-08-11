@@ -635,19 +635,6 @@ fun BookSourceScreen(
                                 }
                             },
                             title = item.name,
-                            titleBadge = if (item.hasExploreUrl) {
-                                {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(8.dp)
-                                            .clip(CircleShape)
-                                            .background(
-                                                if (item.enabledExplore) Color(0xFF4CAF50)
-                                                else LegadoTheme.colorScheme.error
-                                            )
-                                    )
-                                }
-                            } else null,
                             supportingContent = if (
                                 item.group != null || item.checkMessage != null
                             ) {

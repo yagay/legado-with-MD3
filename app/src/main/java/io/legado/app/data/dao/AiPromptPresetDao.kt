@@ -9,6 +9,9 @@ import io.legado.app.data.entities.AiPromptPreset
 @Dao
 interface AiPromptPresetDao {
 
+    @Query("select * from ai_prompt_presets order by sortNumber, createdAt")
+    suspend fun getAll(): List<AiPromptPreset>
+
     @Query(
         """
         select * from ai_prompt_presets

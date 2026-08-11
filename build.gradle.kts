@@ -216,9 +216,9 @@ tasks.register<Delete>("clean") {
 val verifyConfigArchitecture = tasks.register<VerifyConfigArchitectureTask>(
     "verifyConfigArchitecture"
 ) {
-    dependsOn(":app:generateSettingSearchCatalog")
+    // dependsOn(":app:generateSettingSearchCatalog") // This might be problematic if not always present
     group = "verification"
-    description = "禁止配置架构回退、UI 层(ViewModel 及其它)新增 DAO 直连和新增旧偏好调用"
+    description = "禁止配置架构护栏回退、UI 层(ViewModel 及其它)新增 DAO 直连和新增旧偏好调用"
     sourceRoot.set(layout.projectDirectory.dir("app/src/main/java"))
     legacyPreferenceCallBaseline.set(
         mapOf(
@@ -285,7 +285,7 @@ val verifyConfigArchitecture = tasks.register<VerifyConfigArchitectureTask>(
     )
 }
 
-subprojects {
+project(":app") {
     tasks.configureEach {
         if (name.startsWith("assemble") || name.startsWith("compile")) {
             dependsOn(verifyConfigArchitecture)

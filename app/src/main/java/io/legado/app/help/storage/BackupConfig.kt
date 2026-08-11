@@ -83,13 +83,26 @@ object BackupConfig {
     private const val dbKeyHighlightTagRule = "highlightTagRule"
     private const val dbKeyTagGroupRule = "tagGroupRule"
     private const val dbKeyServer = "server"
+    private const val dbKeyAiProvider = "aiProvider"
+    private const val dbKeyAiModel = "aiModel"
+    private const val dbKeyAiTask = "aiTask"
+    private const val dbKeyAiPrompt = "aiPrompt"
+    private const val dbKeyCloudTts = "cloudTts"
+    private const val dbKeyReadAloudVoice = "readAloudVoice"
+    private const val dbKeyBookKnowledge = "bookKnowledge"
+    private const val dbKeyBookContentProcess = "bookContentProcess"
+    private const val dbKeyBookMarking = "bookMarking"
+    private const val dbKeyCookie = "cookie"
 
     val dbIgnoreKeys = arrayOf(
         dbKeyBookmark, dbKeyBookGroup, dbKeyBookSource, dbKeyRssSource,
         dbKeyRssStar, dbKeyReplaceRule, dbKeyReadRecord, dbKeySearchHistory,
         dbKeySourceSub, dbKeyTxtTocRule, dbKeyHttpTts, dbKeyKeyboardAssists,
         dbKeyDictRule, dbKeyHomepageModules, dbKeyHomepageCustomSets,
-        dbKeyHighlightRule, dbKeyHighlightTagRule, dbKeyTagGroupRule, dbKeyServer
+        dbKeyHighlightRule, dbKeyHighlightTagRule, dbKeyTagGroupRule, dbKeyServer,
+        dbKeyAiProvider, dbKeyAiModel, dbKeyAiTask, dbKeyAiPrompt,
+        dbKeyCloudTts, dbKeyReadAloudVoice, dbKeyBookKnowledge, dbKeyBookContentProcess,
+        dbKeyBookMarking, dbKeyCookie
     )
 
     val dbIgnoreTitle = arrayOf(
@@ -111,7 +124,17 @@ object BackupConfig {
         appCtx.getString(R.string.highlight_rule_config),
         appCtx.getString(R.string.highlight_tag_config),
         appCtx.getString(R.string.tag_group_rules),
-        appCtx.getString(R.string.server_config)
+        appCtx.getString(R.string.server_config),
+        "AI 供应商",
+        "AI 模型",
+        "AI 任务",
+        "AI 提示词",
+        "云端 TTS",
+        "朗读音色",
+        "书籍知识",
+        "正文处理",
+        "书籍标记",
+        "Cookie"
     )
 
     val backupDbIgnoreKeys = dbIgnoreKeys

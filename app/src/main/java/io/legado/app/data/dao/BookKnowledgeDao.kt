@@ -13,6 +13,21 @@ import io.legado.app.data.entities.BookOutlineNode
 @Dao
 interface BookKnowledgeDao {
 
+    @Query("select * from book_character_profiles where status != ${BookCharacterProfile.STATUS_DELETED}")
+    suspend fun getAllCharacterProfiles(): List<BookCharacterProfile>
+
+    @Query("select * from book_character_events")
+    suspend fun getAllCharacterEvents(): List<BookCharacterEvent>
+
+    @Query("select * from book_character_relations where status != ${BookCharacterProfile.STATUS_DELETED}")
+    suspend fun getAllCharacterRelations(): List<BookCharacterRelation>
+
+    @Query("select * from book_knowledge_entries")
+    suspend fun getAllKnowledgeEntries(): List<BookKnowledgeEntry>
+
+    @Query("select * from book_outline_nodes")
+    suspend fun getAllOutlineNodes(): List<BookOutlineNode>
+
     @Query(
         """
         select * from book_character_profiles

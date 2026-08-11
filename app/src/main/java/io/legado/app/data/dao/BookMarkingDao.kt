@@ -10,6 +10,9 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface BookMarkingDao {
 
+    @Query("select * from book_marks order by createdAt")
+    suspend fun getAll(): List<BookMarking>
+
     /**
      * 按创建时的源（bookUrl）查：渲染只画当前源能对上正文的标记。
      * 与 bookmarks 不同，book_marks 认「书名+作者」跨源关联，列表见 [flowByBook]。

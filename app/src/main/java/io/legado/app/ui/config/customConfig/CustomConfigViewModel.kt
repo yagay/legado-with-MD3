@@ -3,9 +3,9 @@ package io.legado.app.ui.config.customConfig
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.legado.app.domain.gateway.BackupSettingsGateway
-import io.legado.app.domain.gateway.CustomSettingsGateway
+import io.legado.app.enhance.model.CustomSettingsGateway
 import io.legado.app.domain.model.settings.BackupSettings
-import io.legado.app.domain.model.settings.CustomSettings
+import io.legado.app.enhance.model.CustomSettings
 import io.legado.app.help.storage.Backup
 import io.legado.app.data.repository.BookGroupRepository
 import kotlinx.coroutines.flow.MutableStateFlow
