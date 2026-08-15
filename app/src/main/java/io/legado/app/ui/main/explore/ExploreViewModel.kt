@@ -102,7 +102,7 @@ class ExploreViewModel(
     }
 
     fun onIntent(intent: ExploreIntent) {
-        if (enhance.onIntent(intent)) return
+        if (intent !is ExploreIntent.Search && enhance.onIntent(intent)) return
         when (intent) {
             is ExploreIntent.Search -> search(intent.query)
             is ExploreIntent.ToggleSearch -> toggleSearchVisible(intent.visible)
