@@ -1,0 +1,217 @@
+name: Patch Modern Select Runtime
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/patch-modern-select-runtime.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Patch select runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+
+          repo = Path('.')
+          vm = repo / 'modules/legado-enhance/java/io/legado/app/enhance/explore/vm/ExploreViewModelEnhance.kt'
+          text = vm.read_text()
+
+          # Imports.
+          needle = 'import io.legado.app.data.entities.rule.ExploreKind\n'
+          replacement = needle + 'import io.legado.app.enhance.explore.builder.ModernExploreControlExtractor\nimport io.legado.app.enhance.explore.builder.ModernExploreControlExtractor.SelectControl\nimport io.legado.app.help.source.clearExploreKindsCache\nimport io.legado.app.help.source.getExploreInfoMap\n'
+          if 'ModernExploreControlExtractor' not in text:
+              text = text.replace(needle, replacement, 1)
+
+          # Store extracted controls separately from classification nodes.
+          old = '    private var allSourceKinds: List<ExploreKind> = emptyList()\n    private var suiteSearchJob: Job? = null\n'
+          new = '    private var allSourceKinds: List<ExploreKind> = emptyList()\n    private var allSourceControls: List<SelectControl> = emptyList()\n    private var suiteSearchJob: Job? = null\n'
+          if old not in text:
+              raise SystemExit('allSourceKinds block not found')
+          text = text.replace(old, new, 1)
+
+          # Clear both caches on explicit refresh.
+          text = text.replace(
+              '                allSourceKinds = emptyList()\n                refreshSuite()\n',
+              '                allSourceKinds = emptyList()\n                allSourceControls = emptyList()\n                refreshSuite()\n',
+              1,
+          )
+
+          # Load classified kinds + original select controls independently.
+          old = '''            allSourceKinds = try {
+                vm.exploreRepository.getSourceExploreKinds(defaultSourceUrl)
+            } catch (e: Exception) {
+                emptyList()
+            }
+
+            rebuildSelectors(suite, defaultSourceUrl)
+'''
+          new = '''            allSourceKinds = try {
+                vm.exploreRepository.getSourceExploreKinds(defaultSourceUrl)
+            } catch (e: Exception) {
+                emptyList()
+            }
+            allSourceControls = try {
+                val source = vm.exploreRepository.getBookSource(defaultSourceUrl)
+                ModernExploreControlExtractor.fromFlatKinds(source?.exploreKinds().orEmpty())
+            } catch (e: Exception) {
+                emptyList()
+            }
+
+            rebuildSelectors(suite, defaultSourceUrl)
+'''
+          if old not in text:
+              raise SystemExit('refresh load block not found')
+          text = text.replace(old, new, 1)
+
+          # Route independent select rows before category-level handling.
+          old = '''        if (!widgetId.startsWith(DYNAMIC_LEVEL_PREFIX)) return
+
+        val level = widgetId.removePrefix(DYNAMIC_LEVEL_PREFIX).toIntOrNull() ?: return
+'''
+          new = '''        if (widgetId.startsWith(DYNAMIC_SELECT_PREFIX)) {
+            selectControlTarget(widgetId, target, suite, defaultSourceUrl)
+            return
+        }
+        if (!widgetId.startsWith(DYNAMIC_LEVEL_PREFIX)) return
+
+        val level = widgetId.removePrefix(DYNAMIC_LEVEL_PREFIX).toIntOrNull() ?: return
+'''
+          if old not in text:
+              raise SystemExit('selectWidgetTarget routing block not found')
+          text = text.replace(old, new, 1)
+
+          # Append select/chars rows after the active tree path, matching legado TREE behavior.
+          marker = '''        val finalSelections = selectors
+            .associateBy({ it.id }, { it.selectedTitle.orEmpty() })
+            .toMutableMap()
+'''
+          insertion = '''        allSourceControls.sortedBy { it.sourceIndex }.forEach { control ->
+            val widgetId = "$DYNAMIC_SELECT_PREFIX${control.sourceIndex}"
+            val targets = control.options.map { value ->
+                DiscoverySuiteWidgetTarget(
+                    sourceUrl = defaultSourceUrl,
+                    tagUrl = value,
+                    title = value
+                )
+            }
+            if (targets.isEmpty()) return@forEach
+            val savedTitle = config.lastSelectedTargets["${defaultSourceUrl}_$widgetId"]
+            val stateSelected = vm.uiState.value.enhance.selectedWidgetTargets[widgetId]
+            val selectedTitle = stateSelected
+                ?.takeIf { value -> targets.any { it.title == value } }
+                ?: savedTitle?.takeIf { value -> targets.any { it.title == value } }
+                ?: control.defaultValue?.takeIf { value -> targets.any { it.title == value } }
+                ?: targets.first().title
+
+            selectors += DynamicSelectorUi(
+                id = widgetId,
+                title = control.title,
+                targets = targets.toImmutableList(),
+                selectedTitle = selectedTitle,
+                type = DynamicSelectorUi.SelectorType.TagBar
+            )
+        }
+
+''' + marker
+          if marker not in text:
+              raise SystemExit('finalSelections marker not found')
+          text = text.replace(marker, insertion, 1)
+
+          # Add select runtime: save infoMap -> clear source classification cache -> reload selectors.
+          marker = '    private fun rebuildSelectors(suite: DiscoverySuite, defaultSourceUrl: String) {\n'
+          method = '''    private fun selectControlTarget(
+        widgetId: String,
+        target: DiscoverySuiteWidgetTarget,
+        suite: DiscoverySuite,
+        defaultSourceUrl: String
+    ) {
+        val sourceIndex = widgetId.removePrefix(DYNAMIC_SELECT_PREFIX).toIntOrNull() ?: return
+        val control = allSourceControls.firstOrNull { it.sourceIndex == sourceIndex } ?: return
+        val value = target.title
+        if (value !in control.options) return
+        if (vm.uiState.value.enhance.selectedWidgetTargets[widgetId] == value) return
+
+        saveSelection(widgetId, value)
+        vm.updateUiState { state ->
+            state.copy(
+                enhance = state.enhance.copy(
+                    selectedWidgetTargets = (state.enhance.selectedWidgetTargets + (widgetId to value)).toImmutableMap()
+                )
+            )
+        }
+
+        vm.viewModelScope.launch(IO) {
+            try {
+                val source = vm.exploreRepository.getBookSource(defaultSourceUrl) ?: return@launch
+                val key = control.kind.title
+                if (key.isNotBlank()) {
+                    getExploreInfoMap(defaultSourceUrl).apply {
+                        this[key] = value
+                        saveNow()
+                    }
+                }
+                // 与 legado 一致：select 改变后清除分类缓存并重新执行书源分类解析。
+                source.clearExploreKindsCache()
+                allSourceKinds = vm.exploreRepository.getSourceExploreKinds(defaultSourceUrl)
+                allSourceControls = ModernExploreControlExtractor.fromFlatKinds(source.exploreKinds())
+                rebuildSelectors(suite, defaultSourceUrl)
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+'''
+          if marker not in text:
+              raise SystemExit('rebuild marker not found')
+          text = text.replace(marker, method + marker, 1)
+
+          # Companion prefix.
+          old = '''    private companion object {
+        const val DYNAMIC_LEVEL_PREFIX = "dynamic_level_"
+'''
+          new = '''    private companion object {
+        const val DYNAMIC_LEVEL_PREFIX = "dynamic_level_"
+        const val DYNAMIC_SELECT_PREFIX = "dynamic_select_"
+'''
+          if old not in text:
+              # Some revisions keep the companion near file end; fail visibly rather than silently.
+              raise SystemExit('dynamic prefix companion block not found')
+          text = text.replace(old, new, 1)
+
+          vm.write_text(text)
+          PY
+
+      - name: Commit enhance and update submodule pointer
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Jie"
+          git config user.email "1614094+yagay@users.noreply.github.com"
+          cd modules/legado-enhance
+          git config user.name "Jie"
+          git config user.email "1614094+yagay@users.noreply.github.com"
+          git checkout MD3
+          git add java/io/legado/app/enhance/explore/vm/ExploreViewModelEnhance.kt
+          if ! git diff --cached --quiet; then
+            git commit -m "feat: apply modern select controls to waterfall filters"
+            git push origin HEAD:MD3
+          fi
+          cd ../..
+          git add modules/legado-enhance
+          if ! git diff --cached --quiet; then
+            git commit -m "feat: wire modern select controls into waterfall"
+            git push origin HEAD:main
+          fi
