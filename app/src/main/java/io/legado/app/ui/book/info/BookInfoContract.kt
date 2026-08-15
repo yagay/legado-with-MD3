@@ -51,6 +51,31 @@ data class BookInfoUiState(
     val defaultCover: String = "",
     val defaultCoverDark: String = "",
     val showMangaUi: Boolean = true,
+    val bookReview: BookReviewUiState = BookReviewUiState(),
+)
+
+@Stable
+data class BookReviewUiState(
+    val available: Boolean = false,
+    val totalCount: Int? = null,
+    val items: List<BookReviewItemUi> = emptyList(),
+    val loading: Boolean = false,
+    val loadingMore: Boolean = false,
+    val hasMore: Boolean = false,
+)
+
+@Stable
+data class BookReviewItemUi(
+    val key: String,
+    val name: String,
+    val badges: List<String>,
+    val content: String?,
+    val imageUrl: String?,
+    val audioUrl: String?,
+    val time: String?,
+    val likeCount: Int?,
+    val replyCount: Int?,
+    val replies: List<BookReviewItemUi> = emptyList(),
 )
 
 @Stable
@@ -116,6 +141,7 @@ sealed interface BookInfoSheet {
     data object GroupPicker : BookInfoSheet
     data class SourcePicker(val oldBook: Book) : BookInfoSheet
     data object ReadRecord : BookInfoSheet
+    data object BookReview : BookInfoSheet
     data class WebFiles(val openAfterImport: Boolean) : BookInfoSheet
     data class ArchiveEntries(
         val archiveUri: Uri,
@@ -168,6 +194,8 @@ sealed interface BookInfoIntent {
     data object GroupClick : BookInfoIntent
     data object ChangeSourceClick : BookInfoIntent
     data object ReadRecordClick : BookInfoIntent
+    data object BookReviewClick : BookInfoIntent
+    data object LoadMoreBookReviews : BookInfoIntent
     data object RemarkClick : BookInfoIntent
     data class SaveCover(val path: String) : BookInfoIntent
     data class ConfirmDelete(val deleteOriginal: Boolean) : BookInfoIntent

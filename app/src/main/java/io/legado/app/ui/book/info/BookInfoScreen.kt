@@ -324,6 +324,10 @@ private fun BookInfoScreenContent(
                                     onSourceClick = { onIntent(BookInfoIntent.ChangeSourceClick) },
                                     onReadRecordClick = { onIntent(BookInfoIntent.ReadRecordClick) },
                                 )
+                                BookReviewEntry(
+                                    state = state.bookReview,
+                                    onClick = { onIntent(BookInfoIntent.BookReviewClick) },
+                                )
                                 if (
                                     state.characters.isNotEmpty() ||
                                     state.knowledgeEntries.isNotEmpty() ||
@@ -432,6 +436,11 @@ private fun BookInfoScreenContent(
             totalReadTime = state.readRecordTotalTime,
             timelineDays = state.readRecordTimelineDays,
             onDismissRequest = { onIntent(BookInfoIntent.DismissSheet) },
+        )
+        BookInfoSheet.BookReview -> BookReviewSheet(
+            state = state.bookReview,
+            onDismiss = { onIntent(BookInfoIntent.DismissSheet) },
+            onLoadMore = { onIntent(BookInfoIntent.LoadMoreBookReviews) },
         )
         is BookInfoSheet.WebFiles -> WebFileSheet(
             show = currentSheet is BookInfoSheet.WebFiles,

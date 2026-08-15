@@ -19,6 +19,7 @@ import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookChapter
 import io.legado.app.data.entities.BookSource
 import io.legado.app.data.entities.SearchBook
+import io.legado.app.data.entities.rule.ReviewRule
 import io.legado.app.data.entities.readRecord.ReadRecordTimelineDay
 import io.legado.app.data.repository.BookGroupRepository
 import io.legado.app.data.repository.BookRepository
@@ -38,6 +39,11 @@ import io.legado.app.domain.usecase.ChangeBookSourceUseCase
 import io.legado.app.domain.usecase.ChangeSourceMigrationOptions
 import io.legado.app.domain.usecase.ClearBookCacheUseCase
 import io.legado.app.exception.NoBooksDirException
+import io.legado.app.enhance.review.BookReviewCountLoader
+import io.legado.app.enhance.review.ReviewCapabilityResolver
+import io.legado.app.enhance.review.ReviewContext
+import io.legado.app.enhance.review.ReviewLoader
+import io.legado.app.enhance.review.chapterForAnalyze
 import io.legado.app.exception.NoStackTraceException
 import io.legado.app.help.book.BookHelp
 import io.legado.app.help.book.addType
@@ -75,6 +81,7 @@ import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers.IO
+import kotlinx.coroutines.Dispatchers.Main
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -198,6 +205,12 @@ class BookInfoViewModel(
     private var readRecordObserveJob: Job? = null
     private var relatedBooksLoadJob: Job? = null
     private var characterLoadJob: Job? = null
+    private var bookReviewCountJob: Job? = null
+    private var bookReviewLoadJob: Job? = null
+    private var currentBookReviewRule: ReviewRule? = null
+    private var bookReviewPage = 0
+    private var bookReviewNextPageUrl: String? = null
+
 
     fun initData(intent: Intent) {
         initData(
@@ -291,6 +304,8 @@ class BookInfoViewModel(
             BookInfoIntent.ChangeSourceClick -> currentBook?.uiCopy()
                 ?.let { setSheet(BookInfoSheet.SourcePicker(it)) }
             BookInfoIntent.ReadRecordClick -> setSheet(BookInfoSheet.ReadRecord)
+            BookInfoIntent.BookReviewClick -> openBookReview()
+            BookInfoIntent.LoadMoreBookReviews -> loadBookReviews(loadMore = true)
             BookInfoIntent.RemarkClick -> showDialog(BookInfoDialog.EditRemark(currentBook?.remark))
             is BookInfoIntent.SaveCover -> {
                 saveCoverToGallery(intent.path)
@@ -874,6 +889,7 @@ class BookInfoViewModel(
         }.onSuccess {
             bookSource = source
             currentBook = it
+            refreshBookReviewCapability(it, source)
             if (shouldPersist) {
                 inBookshelf = true
             }
@@ -900,6 +916,7 @@ class BookInfoViewModel(
         currentGroupNames = null
         currentHasCustomGroup = false
         bookSource = source
+        refreshBookReviewCapability(book, source)
         syncUiState(isTocLoading = false)
         loadBookCharacters(book.bookUrl)
         loadBookKnowledge(book.bookUrl)
@@ -1414,6 +1431,112 @@ class BookInfoViewModel(
         observingReadRecordKey = null
         currentReadRecordTotalTime = 0L
         currentReadRecordTimelineDays = emptyList()
+    }
+
+    private fun refreshBookReviewCapability(book: Book, source: BookSource?) {
+        bookReviewCountJob?.cancel()
+        bookReviewLoadJob?.cancel()
+        bookReviewPage = 0
+        bookReviewNextPageUrl = null
+        val rule = ReviewCapabilityResolver.resolveBookReview(source, book)
+        currentBookReviewRule = rule
+        _screenState.update {
+            it.copy(bookReview = BookReviewUiState(available = source != null && rule != null))
+        }
+        if (source == null || rule == null) return
+        val targetSource = source.getKey()
+        val targetBook = book.bookUrl
+        val targetRule = rule.hashCode()
+        bookReviewCountJob = viewModelScope.launch(IO) {
+            val count = runCatching {
+                BookReviewCountLoader.loadExactCount(source, book, rule, coroutineContext)
+            }.getOrNull()
+            withContext(Main) {
+                if (bookSource?.getKey() != targetSource || currentBook?.bookUrl != targetBook || currentBookReviewRule?.hashCode() != targetRule) return@withContext
+                _screenState.update { state -> state.copy(bookReview = state.bookReview.copy(totalCount = count)) }
+            }
+        }
+    }
+
+    private fun openBookReview() {
+        if (currentBookReviewRule == null) return
+        setSheet(BookInfoSheet.BookReview)
+        if (_screenState.value.bookReview.items.isEmpty()) loadBookReviews(loadMore = false)
+    }
+
+    private fun loadBookReviews(loadMore: Boolean) {
+        if (bookReviewLoadJob?.isActive == true) return
+        val source = bookSource ?: return
+        val book = currentBook ?: return
+        val rule = currentBookReviewRule ?: return
+        val nextPage = if (loadMore) bookReviewNextPageUrl else null
+        if (loadMore && bookReviewPage > 0 && nextPage == null) return
+        val page = if (loadMore) bookReviewPage + 1 else 1
+        _screenState.update { state ->
+            state.copy(bookReview = state.bookReview.copy(
+                loading = !loadMore,
+                loadingMore = loadMore,
+                items = if (loadMore) state.bookReview.items else emptyList(),
+            ))
+        }
+        val context = ReviewContext.BookReview(source, book)
+        val chapter = context.chapterForAnalyze()
+        val targetSource = source.getKey()
+        val targetBook = book.bookUrl
+        val targetRule = rule.hashCode()
+        bookReviewLoadJob = viewModelScope.launch(IO) {
+            val result = runCatching {
+                ReviewLoader.loadDetail(
+                    ReviewLoader.DetailRequest(
+                        source = source,
+                        book = book,
+                        chapter = chapter,
+                        paragraphIndex = -1,
+                        paragraphData = "",
+                        page = page,
+                        ruleHash = targetRule,
+                        nextPageUrl = nextPage,
+                        ruleOverride = rule,
+                    ),
+                    coroutineContext,
+                )
+            }.getOrNull()
+            withContext(Main) {
+                if (bookSource?.getKey() != targetSource || currentBook?.bookUrl != targetBook || currentBookReviewRule?.hashCode() != targetRule) return@withContext
+                if (result == null) {
+                    _screenState.update { state -> state.copy(bookReview = state.bookReview.copy(loading = false, loadingMore = false, hasMore = false)) }
+                    return@withContext
+                }
+                bookReviewPage = page
+                bookReviewNextPageUrl = result.nextPageUrl?.takeIf { it.isNotBlank() }
+                val mapped = result.items.mapIndexed { index, item -> item.toBookReviewItemUi(page, index) }
+                _screenState.update { state ->
+                    val merged = if (loadMore) state.bookReview.items + mapped else mapped
+                    state.copy(bookReview = state.bookReview.copy(
+                        items = merged.distinctBy { it.key },
+                        loading = false,
+                        loadingMore = false,
+                        hasMore = bookReviewNextPageUrl != null,
+                    ))
+                }
+            }
+        }
+    }
+
+    private fun io.legado.app.model.analyzeRule.ReviewRuleParser.DetailItem.toBookReviewItemUi(page: Int, index: Int): BookReviewItemUi {
+        val fallback = "$page:$index:${name.orEmpty()}:${content.orEmpty().hashCode()}"
+        return BookReviewItemUi(
+            key = id?.takeIf { it.isNotBlank() } ?: fallback,
+            name = name.orEmpty(),
+            badges = badges,
+            content = content,
+            imageUrl = imageUrl,
+            audioUrl = audioUrl,
+            time = time,
+            likeCount = likeCount,
+            replyCount = replyCount,
+            replies = replies.mapIndexed { replyIndex, reply -> reply.toBookReviewItemUi(page, index * 1000 + replyIndex + 1) },
+        )
     }
 
     private fun dismissSheet() {
