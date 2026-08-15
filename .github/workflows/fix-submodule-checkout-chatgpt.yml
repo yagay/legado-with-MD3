@@ -1,0 +1,50 @@
+name: Fix submodule checkout (ChatGPT)
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/fix-submodule-checkout-chatgpt.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Enable submodule checkout in CI
+        shell: python
+        run: |
+          from pathlib import Path
+
+          verify = Path('.github/workflows/verify.yml')
+          text = verify.read_text()
+          old = "      - name: Checkout\n        uses: actions/checkout@v5\n"
+          new = "      - name: Checkout\n        uses: actions/checkout@v5\n        with:\n          submodules: recursive\n"
+          if old not in text:
+              raise SystemExit('verify checkout block not found')
+          verify.write_text(text.replace(old, new, 1))
+
+          auto = Path('.github/workflows/auto-release.yml')
+          text = auto.read_text()
+          old = "      - uses: actions/checkout@v5\n        with:\n          fetch-depth: 0\n      - name: Set up JDK 21\n"
+          new = "      - uses: actions/checkout@v5\n        with:\n          fetch-depth: 0\n          submodules: recursive\n      - name: Set up JDK 21\n"
+          if old not in text:
+              raise SystemExit('auto build checkout block not found')
+          auto.write_text(text.replace(old, new, 1))
+
+          Path('.github/workflows/fix-submodule-checkout-chatgpt.yml').unlink()
+
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/verify.yml .github/workflows/auto-release.yml .github/workflows/fix-submodule-checkout-chatgpt.yml
+          git commit -m "ci: checkout legado-enhance submodule"
+          git push origin HEAD:main
