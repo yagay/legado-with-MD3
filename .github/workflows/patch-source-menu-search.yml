@@ -1,0 +1,74 @@
+name: Patch Source Menu Search
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/patch-source-menu-search.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Patch ExploreScreen source picker search
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          path = Path('app/src/main/java/io/legado/app/ui/main/explore/ExploreScreen.kt')
+          text = path.read_text()
+
+          text = text.replace(
+              'import androidx.compose.material3.MaterialTheme\n',
+              'import androidx.compose.material3.MaterialTheme\nimport androidx.compose.material3.OutlinedTextField\nimport androidx.compose.material3.Text\n',
+              1,
+          )
+
+          old = '''    val sourceMenuItems = remember(state.items) {\n        state.items.distinctBy { it.bookSourceUrl }\n    }\n    val sourceMenuListState = rememberLazyListState()\n    var sourceMenuExpanded by rememberSaveable { mutableStateOf(false) }\n    val defaultSourceIndex = remember(sourceMenuItems, state.enhance.selectedSuite?.defaultSourceUrl) {\n        sourceMenuItems.indexOfFirst {\n            it.bookSourceUrl == state.enhance.selectedSuite?.defaultSourceUrl\n        }\n    }\n'''
+          new = '''    val sourceMenuItems = remember(state.items) {\n        state.items.distinctBy { it.bookSourceUrl }\n    }\n    var sourceMenuQuery by rememberSaveable { mutableStateOf(\"\") }\n    val filteredSourceMenuItems = remember(sourceMenuItems, sourceMenuQuery) {\n        val query = sourceMenuQuery.trim()\n        if (query.isEmpty()) {\n            sourceMenuItems\n        } else {\n            sourceMenuItems.filter { source ->\n                source.bookSourceName.contains(query, ignoreCase = true)\n            }\n        }\n    }\n    val sourceMenuListState = rememberLazyListState()\n    var sourceMenuExpanded by rememberSaveable { mutableStateOf(false) }\n    val defaultSourceIndex = remember(filteredSourceMenuItems, state.enhance.selectedSuite?.defaultSourceUrl) {\n        filteredSourceMenuItems.indexOfFirst {\n            it.bookSourceUrl == state.enhance.selectedSuite?.defaultSourceUrl\n        }\n    }\n'''
+          if old not in text:
+              raise SystemExit('source menu state block not found')
+          text = text.replace(old, new, 1)
+
+          text = text.replace(
+              '            val menuPrefixCount = if (composeEngine) 2 else 1\n',
+              '            val menuPrefixCount = if (composeEngine) 3 else 2\n',
+              1,
+          )
+
+          old = '''    val sourceMenuHeight = remember(sourceMenuItems.size, sourceActionCount, sourceMenuMaxHeight) {\n        // Approx. header 44dp + each menu row 56dp + outer breathing room.\n        // When a source is long-pressed the same popup changes to the action menu,\n        // so size it from the action count instead of the source count.\n        val rowCount = if (sourceActionCount > 0) sourceActionCount else sourceMenuItems.size\n        (68 + rowCount * 56).dp\n            .coerceIn(124.dp, sourceMenuMaxHeight)\n    }\n'''
+          new = '''    val sourceMenuHeight = remember(filteredSourceMenuItems.size, sourceActionCount, sourceMenuMaxHeight) {\n        // Source list mode includes header + search field; action-menu mode keeps its original sizing.\n        val rowCount = if (sourceActionCount > 0) sourceActionCount else filteredSourceMenuItems.size\n        val baseHeight = if (sourceActionCount > 0) 68 else 132\n        (baseHeight + rowCount * 56).dp\n            .coerceIn(124.dp, sourceMenuMaxHeight)\n    }\n'''
+          if old not in text:
+              raise SystemExit('source menu height block not found')
+          text = text.replace(old, new, 1)
+
+          old = '''            { expanded ->\n                sourceMenuExpanded = expanded\n                if (!expanded) sourceActionMenuUrl = null\n            }\n'''
+          new = '''            { expanded ->\n                sourceMenuExpanded = expanded\n                if (!expanded) {\n                    sourceActionMenuUrl = null\n                    sourceMenuQuery = \"\"\n                }\n            }\n'''
+          if old not in text:
+              raise SystemExit('menu expanded callback not found')
+          text = text.replace(old, new, 1)
+
+          old = '''                    item(key = \"source_menu_header\") {\n                        PillHeaderDivider(title = \"选择首页源\")\n                    }\n                    items(\n                        items = sourceMenuItems,\n                        key = { it.bookSourceUrl }\n                    ) { source ->\n'''
+          new = '''                    item(key = \"source_menu_header\") {\n                        PillHeaderDivider(title = \"选择首页源\")\n                    }\n                    item(key = \"source_menu_search\") {\n                        OutlinedTextField(\n                            value = sourceMenuQuery,\n                            onValueChange = { sourceMenuQuery = it },\n                            modifier = Modifier\n                                .fillMaxWidth()\n                                .padding(horizontal = 12.dp, vertical = 6.dp),\n                            placeholder = { Text(stringResource(R.string.search)) },\n                            leadingIcon = {\n                                Icon(\n                                    imageVector = Icons.Default.Search,\n                                    contentDescription = null\n                                )\n                            },\n                            singleLine = true\n                        )\n                    }\n                    items(\n                        items = filteredSourceMenuItems,\n                        key = { it.bookSourceUrl }\n                    ) { source ->\n'''
+          if old not in text:
+              raise SystemExit('source list block not found')
+          text = text.replace(old, new, 1)
+
+          path.write_text(text)
+          PY
+
+      - name: Commit patch
+        run: |
+          git config user.name "Jie"
+          git config user.email "1614094+yagay@users.noreply.github.com"
+          git add app/src/main/java/io/legado/app/ui/main/explore/ExploreScreen.kt
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: search waterfall source picker"
+          git push origin HEAD:main
