@@ -35,7 +35,7 @@ jobs:
           java-version: 21
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
 
       # settings.gradle 里的 aliyun 镜像面向国内开发机，GitHub runner 上可能不稳定。
       - name: Remove Aliyun mirrors (unreliable in CI)
