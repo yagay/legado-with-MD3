@@ -21,15 +21,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Apply native review core patch once
+      - name: Apply paragraph review parser compatibility fix once
         run: |
-          if ! grep -q 'localBindings\["paraIndex"\]' app/src/main/java/io/legado/app/model/analyzeRule/AnalyzeRule.kt; then
-            python3 .github/scripts/port_review_core.py
+          if grep -q 'org.htmlunit.corejs.javascript.NativeArray' app/src/main/java/io/legado/app/model/analyzeRule/ReviewRuleParser.kt; then
+            python3 .github/scripts/fix_review_parser_compat.py
             git config user.name Jie
             git config user.email 1614094+yagay@users.noreply.github.com
-            git add app/src/main/java/io/legado/app/data/entities/BookSource.kt \
-                    app/src/main/java/io/legado/app/model/analyzeRule/AnalyzeRule.kt
-            git commit -m 'feat: wire native paragraph review core'
+            git add app/src/main/java/io/legado/app/model/analyzeRule/ReviewRuleParser.kt
+            git commit -m 'fix: adapt paragraph review parser to MD3 rule engine'
             git push
           fi
 
