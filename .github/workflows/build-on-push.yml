@@ -8,7 +8,7 @@ on:
       - '**/modules/web/**'
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: debug-build-${{ github.ref }}
@@ -44,9 +44,33 @@ jobs:
             --no-daemon \
             --no-configuration-cache
 
-      - name: Upload Universal Debug APK
+      - name: Prepare direct-download APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="$(find app/build/outputs/apk/app/debug -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          test -n "$APK"
+          cp "$APK" legado-debug-universal.apk
+
+      - name: Upload Universal Debug APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: debug-universal-apk
           if-no-files-found: error
-          path: app/build/outputs/apk/app/debug/*.apk
+          path: legado-debug-universal.apk
+
+      - name: Publish direct APK to debug-latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view debug-latest >/dev/null 2>&1; then
+            gh release upload debug-latest legado-debug-universal.apk --clobber
+          else
+            gh release create debug-latest legado-debug-universal.apk \
+              --title "Debug Latest" \
+              --notes "Latest universal Debug APK from main." \
+              --prerelease \
+              --target "${GITHUB_SHA}"
+          fi
