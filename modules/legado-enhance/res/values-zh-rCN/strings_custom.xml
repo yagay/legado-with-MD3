@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="custom_config_title">自定义配置</string>
+    <string name="enhanced_backup_restore">备份与恢复（增强）</string>
+    <string name="backup_export_books">备份时导出书籍</string>
+    <string name="restore_import_books">恢复时导入书籍</string>
+    <string name="export_books_to_webdav">一键导出书籍到 WebDAV</string>
+    <string name="import_books_from_webdav">一键从 WebDAV 导入书籍</string>
+    <string name="container_background_image">容器背景图</string>
+    <string name="large_container_background_image">大容器背景图片</string>
+    <string name="large_container_background_opacity">大容器背景图透明度</string>
+    <string name="item_background_image">项目背景图片</string>
+    <string name="item_background_opacity">项目背景图透明度</string>
+    <string name="export_group_title">导出分组</string>
+    <string name="export_group_summary">选择要一键导出的书籍分组</string>
+</resources>
