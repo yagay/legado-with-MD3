@@ -298,7 +298,7 @@ fun ExploreScreen(
                     item(key = "source_menu_header") {
                         PillHeaderDivider(title = "选择首页源")
                     }
-                    item(key = "source_menu_search") {
+                    stickyHeader(key = "source_menu_search") {
                         OutlinedTextField(
                             value = sourceMenuQuery,
                             onValueChange = { sourceMenuQuery = it },
