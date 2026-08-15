@@ -14,8 +14,6 @@ import io.legado.app.utils.NetworkUtils
 import io.legado.app.utils.fromJsonArray
 import io.legado.app.utils.fromJsonObject
 import io.legado.app.utils.isDataUrl
-import org.htmlunit.corejs.javascript.NativeArray
-import org.htmlunit.corejs.javascript.Scriptable
 import kotlin.coroutines.CoroutineContext
 
 internal object ReviewRuleParser {
@@ -156,7 +154,7 @@ internal object ReviewRuleParser {
             .setLocal("paraData", paraData)
             .setLocal("page", page)
         val loggedRules = hashSetOf<String>()
-        val items = runCatching { normalizeList(analyzeRule.getElementsRaw(listRule)) }
+        val items = runCatching { normalizeList(analyzeRule.getElements(listRule)) }
             .onFailure { logRuleErrorOnce(loggedRules, "段评回复列表规则执行出错", listRule, it) }
             .getOrThrow()
         val replies = items.mapNotNull {
@@ -209,21 +207,16 @@ internal object ReviewRuleParser {
         rule: String,
         errorMessage: String,
         loggedRules: MutableSet<String>,
-    ): List<Any> = runCatching { normalizeList(analyzeRule.getElementsRaw(rule)) }
+    ): List<Any> = runCatching { normalizeList(analyzeRule.getElements(rule)) }
         .onFailure { logRuleErrorOnce(loggedRules, errorMessage, rule, it) }
         .getOrDefault(emptyList())
 
     private fun normalizeList(value: Any?): List<Any> = when (value) {
-        is NativeArray -> buildList {
-            for (index in 0 until value.length.toInt()) {
-                val item = value.get(index, value)
-                if (item != null && item !== Scriptable.NOT_FOUND) add(item)
-            }
-        }
-        is List<*> -> value.mapNotNull { it?.takeUnless { item -> item === Scriptable.NOT_FOUND } }
-        is Array<*> -> value.mapNotNull { it?.takeUnless { item -> item === Scriptable.NOT_FOUND } }
+        is List<*> -> value.filterNotNull()
+        is Array<*> -> value.filterNotNull()
         is String -> GSON.fromJsonArray<Any>(value).getOrNull().orEmpty()
-        else -> emptyList()
+        null -> emptyList()
+        else -> listOf(value)
     }
 
     internal data class ContentProtocol(
@@ -269,7 +262,7 @@ internal object ReviewRuleParser {
         val value = rule?.trim().orEmpty()
         if (value.isEmpty()) return null
         val result = if (content is Map<*, *> && isJsonPath(value)) {
-            runCatching { AnalyzeByJSonPath(content) { throw it }.getString(value) }
+            runCatching { AnalyzeByJSonPath(content).getString(value) }
         } else {
             runCatching { analyzeRule.getString(analyzeRule.splitSourceRule(value), content) }
         }
@@ -288,7 +281,7 @@ internal object ReviewRuleParser {
         val value = rule?.trim().orEmpty()
         if (value.isEmpty()) return emptyList()
         val result = if (content is Map<*, *> && isJsonPath(value)) {
-            runCatching { AnalyzeByJSonPath(content) { throw it }.getStringList(value) }
+            runCatching { AnalyzeByJSonPath(content).getStringList(value) }
         } else runCatching { analyzeRule.getStringList(value, content).orEmpty() }
         if (result.exceptionOrNull() is PathNotFoundException) return emptyList()
         val list = result.onFailure { logRuleErrorOnce(loggedRules, "段评规则执行出错", value, it) }
