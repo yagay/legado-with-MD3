@@ -21,17 +21,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Apply review dialog syntax fix once
-        run: |
-          if sed -n '1388,1408p' app/src/main/java/io/legado/app/ui/book/read/ReadBookController.kt | grep -q 'joinToString("$'; then
-            python3 .github/scripts/fix_review_dialog_strings.py
-            git config user.name Jie
-            git config user.email 1614094+yagay@users.noreply.github.com
-            git add app/src/main/java/io/legado/app/ui/book/read/ReadBookController.kt
-            git commit -m 'fix: escape paragraph review dialog newlines'
-            git push
-          fi
-
       - name: Set up JDK 21
         uses: actions/setup-java@v5
         with:
