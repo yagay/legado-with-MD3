@@ -1,0 +1,43 @@
+name: Fix List Search V2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-list-search-v2.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Apply patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('app/src/main/java/io/legado/app/ui/main/explore/ExploreViewModel.kt')
+          s = p.read_text()
+          old = '    fun onIntent(intent: ExploreIntent) {\n        if (enhance.onIntent(intent)) return\n        when (intent) {\n'
+          new = '    fun onIntent(intent: ExploreIntent) {\n        if (intent !is ExploreIntent.Search && enhance.onIntent(intent)) return\n        when (intent) {\n'
+          if old not in s:
+              raise SystemExit('target not found')
+          p.write_text(s.replace(old, new, 1))
+          PY
+
+      - name: Commit changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Jie"
+          git config user.email "1614094+yagay@users.noreply.github.com"
+          git add app/src/main/java/io/legado/app/ui/main/explore/ExploreViewModel.kt
+          git diff --cached --quiet || git commit -m "fix: restore discovery list search"
+          git push origin HEAD:main
