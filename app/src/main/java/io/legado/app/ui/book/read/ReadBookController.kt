@@ -1390,21 +1390,16 @@ class ReadBookController(
             }.getOrNull()
             withContext(Main) {
                 if (ReadBook.book?.bookUrl != book.bookUrl || result == null) return@withContext
-                val message = result.items.joinToString("
-
-") { item ->
+                val message = result.items.joinToString("\n\n") { item ->
                     buildString {
                         val name = item.name.orEmpty().ifBlank { "匿名" }
                         append(name)
                         if (item.badges.isNotEmpty()) append("  ${item.badges.joinToString(" ")}")
-                        item.time?.takeIf { it.isNotBlank() }?.let { append("
-$it") }
-                        item.content?.takeIf { it.isNotBlank() }?.let { append("
-$it") }
+                        item.time?.takeIf { it.isNotBlank() }?.let { append("\n$it") }
+                        item.content?.takeIf { it.isNotBlank() }?.let { append("\n$it") }
                         if (item.replies.isNotEmpty()) {
                             item.replies.forEach { reply ->
-                                append("
-  ↳ ${reply.name.orEmpty().ifBlank { "匿名" }}: ${reply.content.orEmpty()}")
+                                append("\n  ↳ ${reply.name.orEmpty().ifBlank { "匿名" }}: ${reply.content.orEmpty()}")
                             }
                         }
                     }
