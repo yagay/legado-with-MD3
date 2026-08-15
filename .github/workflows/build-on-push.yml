@@ -21,14 +21,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Apply review architecture fix once
+      - name: Apply review dialog syntax fix once
         run: |
-          if grep -q 'val chapter = appDb.bookChapterDao.getChapter(book.bookUrl, chapterIndex)' app/src/main/java/io/legado/app/ui/book/read/ReadBookController.kt; then
-            python3 .github/scripts/fix_review_architecture.py
+          if sed -n '1388,1408p' app/src/main/java/io/legado/app/ui/book/read/ReadBookController.kt | grep -q 'joinToString("$'; then
+            python3 .github/scripts/fix_review_dialog_strings.py
             git config user.name Jie
             git config user.email 1614094+yagay@users.noreply.github.com
             git add app/src/main/java/io/legado/app/ui/book/read/ReadBookController.kt
-            git commit -m 'fix: keep review loading out of reader DAO layer'
+            git commit -m 'fix: escape paragraph review dialog newlines'
             git push
           fi
 
