@@ -7,13 +7,14 @@ import io.legado.app.data.entities.SearchBook
 import io.legado.app.data.entities.rule.ExploreKind
 import io.legado.app.domain.gateway.ExploreBooksGateway
 import io.legado.app.help.source.SourceHelp
-import io.legado.app.help.source.ExploreSourceParser
 import io.legado.app.help.source.exploreKinds
+import io.legado.app.help.source.exploreKindsJson
 import io.legado.app.model.webBook.WebBook
 import io.legado.app.enhance.explore.model.ExploreTree
 import io.legado.app.enhance.explore.model.ExploreMode
 import io.legado.app.enhance.explore.builder.ExploreTreeBuilder
 import io.legado.app.enhance.explore.builder.ExploreFilterBuilder
+import io.legado.app.enhance.explore.builder.ModernExploreClassificationEngine
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -98,20 +99,29 @@ class ExploreRepositoryImpl(
     }
 
     override suspend fun getSourceExploreKinds(sourceUrl: String): List<ExploreKind> = withContext(IO) {
-        val source = appDb.bookSourceDao.getBookSource(sourceUrl)
-        val rawKinds = source?.exploreKinds() ?: emptyList()
-        return@withContext ExploreSourceParser.parse(rawKinds)
+        val source = appDb.bookSourceDao.getBookSource(sourceUrl) ?: return@withContext emptyList()
+        val flatKinds = source.exploreKinds()
+        ModernExploreClassificationEngine.classify(
+            flatKinds = flatKinds,
+            rawJson = source.exploreKindsJson()
+        ).kinds
     }
 
     override suspend fun getSourceExploreTree(sourceUrl: String): ExploreTree = withContext(IO) {
         val source = appDb.bookSourceDao.getBookSource(sourceUrl)
-        val rawKinds = source?.exploreKinds() ?: emptyList()
-        val parsedKinds = ExploreSourceParser.parse(rawKinds)
-        val mode = if (parsedKinds.any { it.hasChildren() }) ExploreMode.TREE else ExploreMode.FLAT
+            ?: return@withContext ExploreTree(emptyList(), ExploreMode.FLAT, emptyList())
+        val classified = ModernExploreClassificationEngine.classify(
+            flatKinds = source.exploreKinds(),
+            rawJson = source.exploreKindsJson()
+        )
         return@withContext ExploreTree(
-            rootNodes = ExploreTreeBuilder.build(parsedKinds),
-            mode = mode,
-            filterGroups = if (mode == ExploreMode.FLAT) ExploreFilterBuilder.build(parsedKinds) else emptyList()
+            rootNodes = ExploreTreeBuilder.build(classified.kinds),
+            mode = classified.mode,
+            filterGroups = if (classified.mode == ExploreMode.TREE) {
+                emptyList()
+            } else {
+                ExploreFilterBuilder.build(classified.kinds)
+            }
         )
     }
 
