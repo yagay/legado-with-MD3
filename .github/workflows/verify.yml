@@ -1,15 +1,6 @@
 name: Verify
 
 on:
-  push:
-    branches:
-      - main
-      - master
-    paths-ignore:
-      - '**/modules/web/**'
-  pull_request:
-    paths-ignore:
-      - '**/modules/web/**'
   workflow_dispatch:
 
 permissions:
@@ -37,12 +28,10 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      # settings.gradle 里的 aliyun 镜像面向国内开发机，GitHub runner 上可能不稳定。
       - name: Remove Aliyun mirrors (unreliable in CI)
         run: |
           sed -i '/maven.aliyun.com/d' settings.gradle
 
-      # 普通 push / PR 只做架构检查和 Debug 编译，缩短日常反馈时间。
       - name: Run architecture check and debug build
         run: |
           chmod +x gradlew
@@ -52,9 +41,7 @@ jobs:
             --no-daemon \
             --no-configuration-cache
 
-      # 手动触发 Verify 时再执行耗时较高的单元测试和 Lint。
       - name: Run full tests and lint
-        if: ${{ github.event_name == 'workflow_dispatch' }}
         run: |
           ./gradlew \
             testAppDebugUnitTest \
@@ -64,7 +51,7 @@ jobs:
             --no-configuration-cache
 
       - name: Upload unit test reports
-        if: ${{ always() && github.event_name == 'workflow_dispatch' }}
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: verify-unit-test-reports
@@ -74,7 +61,7 @@ jobs:
             app/build/reports/tests/testAppDebugUnitTest/**
 
       - name: Upload lint reports
-        if: ${{ always() && github.event_name == 'workflow_dispatch' }}
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: verify-lint-reports
