@@ -15,33 +15,42 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  patch_search_scope:
+  vendor_enhance:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          submodules: recursive
-      - name: Apply waterfall search patch once
+
+      - name: Vendor legado-enhance into main repo once
+        shell: bash
         run: |
-          if grep -q 'SetSuiteSearchField' app/src/main/java/io/legado/app/ui/main/explore/ExploreViewModel.kt; then
+          set -euo pipefail
+          if [ ! -f .gitmodules ]; then
+            echo "legado-enhance is already vendored"
             exit 0
           fi
-          python3 .github/scripts/patch_waterfall_search_scope.py
+
+          git clone https://github.com/yagay/legado-enhance.git /tmp/legado-enhance
+          git -C /tmp/legado-enhance checkout 49b71a9f5b47b41d787a92190f3fb61aa844e522
+          rm -rf /tmp/legado-enhance/.git
+
+          git rm -f modules/legado-enhance
+          rm -f .gitmodules
+          mkdir -p modules/legado-enhance
+          cp -a /tmp/legado-enhance/. modules/legado-enhance/
+
           git config user.name Jie
           git config user.email 1614094+yagay@users.noreply.github.com
-          git add app/src/main/java/io/legado/app/ui/main/explore/ExploreScreen.kt app/src/main/java/io/legado/app/ui/main/explore/ExploreViewModel.kt .tmp/ExploreViewModelEnhance.kt
-          git commit -m 'feat: add scoped waterfall search'
+          git add -A .gitmodules modules/legado-enhance
+          git commit -m 'refactor: vendor legado-enhance into main repository'
           git push
 
   debug:
-    needs: patch_search_scope
+    needs: vendor_enhance
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          submodules: recursive
 
       - name: Set up JDK 21
         uses: actions/setup-java@v5
