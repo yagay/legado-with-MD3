@@ -93,7 +93,8 @@ class AnalyzeUrl(
     private var coroutineContext: CoroutineContext = EmptyCoroutineContext,
     headerMapF: Map<String, String>? = null,
     hasLoginHeader: Boolean = true,
-    private val infoMap: MutableMap<String, String>? = null
+    private val infoMap: MutableMap<String, String>? = null,
+    private val extraParams: Map<String, Any?> = emptyMap()
 ) : JsExtensions {
     constructor(mUrl: String) : this(mUrl, null)
 
@@ -369,7 +370,11 @@ class AnalyzeUrl(
             bindings["baseUrl"] = baseUrl
             bindings["cookie"] = CookieStore
             bindings["cache"] = CacheManager
-            bindings["page"] = page
+            bindings["page"] = extraParams["page"]?.let { value ->
+                if (value is String) value.toIntOrNull() ?: value else value
+            } ?: page
+            extraParams["paraIndex"]?.let { bindings["paraIndex"] = it }
+            extraParams["paraData"]?.let { bindings["paraData"] = it }
             bindings["key"] = key
             bindings["speakText"] = speakText
             bindings["speakSpeed"] = speakSpeed

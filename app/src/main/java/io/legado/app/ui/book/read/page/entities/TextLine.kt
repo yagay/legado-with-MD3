@@ -38,6 +38,7 @@ data class TextLine(
     var lineBottom: Float = 0f,
     var indentWidth: Float = 0f,
     var paragraphNum: Int = 0,
+    var reviewTitleOffset: Int = 0,
     var chapterPosition: Int = 0,
     var pagePosition: Int = 0,
     val isTitle: Boolean = false,

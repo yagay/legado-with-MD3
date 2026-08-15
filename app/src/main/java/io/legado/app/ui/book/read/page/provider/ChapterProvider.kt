@@ -50,6 +50,48 @@ object ChapterProvider {
 
     const val indentChar = "　"
 
+    @Volatile
+    private var reviewCountProvider: ((Int, Int) -> Int)? = null
+    @Volatile
+    private var reviewKeyProvider: ((Int, Int) -> String?)? = null
+    @Volatile
+    private var reviewProviderChapterIndex: Int? = null
+
+    fun setReviewProviders(
+        countProvider: ((Int, Int) -> Int)?,
+        keyProvider: ((Int, Int) -> String?)?,
+        chapterIndex: Int? = ReadBook.durChapterIndex,
+    ) {
+        reviewCountProvider = countProvider
+        reviewKeyProvider = keyProvider
+        reviewProviderChapterIndex = chapterIndex.takeIf { countProvider != null }
+    }
+
+    fun clearReviewProviders() {
+        reviewCountProvider = null
+        reviewKeyProvider = null
+        reviewProviderChapterIndex = null
+    }
+
+    fun getReviewKeyById(reviewId: Int, chapterIndex: Int = ReadBook.durChapterIndex): String? {
+        if (reviewProviderChapterIndex != chapterIndex) return null
+        return reviewKeyProvider?.invoke(chapterIndex, reviewId)?.takeIf { it.isNotBlank() }
+    }
+
+    fun getReviewCount(
+        paragraphNum: Int,
+        isTitle: Boolean = false,
+        titleOffset: Int = 1,
+        chapterIndex: Int = ReadBook.durChapterIndex,
+    ): Int {
+        val provider = reviewCountProvider ?: return 0
+        if (reviewProviderChapterIndex != chapterIndex) return 0
+        if (isTitle) return provider(chapterIndex, -1).coerceAtLeast(0)
+        val reviewId = paragraphNum - titleOffset
+        if (reviewId <= 0) return 0
+        return provider(chapterIndex, reviewId).coerceAtLeast(0)
+    }
+
     /**
      * 朗读高亮 / 搜索命中那条线的画笔。
      *

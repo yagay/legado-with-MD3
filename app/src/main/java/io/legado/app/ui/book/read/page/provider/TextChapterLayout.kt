@@ -43,6 +43,7 @@ import io.legado.app.ui.book.read.page.entities.TextPage
 import io.legado.app.ui.book.read.page.entities.TitleSegment
 import io.legado.app.ui.book.read.page.entities.column.BaseColumn
 import io.legado.app.ui.book.read.page.entities.column.ImageColumn
+import io.legado.app.ui.book.read.page.entities.column.ReviewColumn
 import io.legado.app.ui.book.read.page.entities.column.TextBaseColumn
 import io.legado.app.ui.book.read.page.entities.column.TextColumn
 import io.legado.app.ui.book.read.page.entities.column.TextHtmlColumn
@@ -173,6 +174,7 @@ class TextChapterLayout(
     private val titleSegFlag = ReadBookConfig.titleSegFlag
     private val titleSegScaling = ReadBookConfig.titleSegScaling
     private var pendingTextPage = TextPage()
+    private var reviewTitleOffset = 0
 
     private val bookChapter inline get() = textChapter.chapter
     private val displayTitle inline get() = textChapter.title
@@ -378,6 +380,11 @@ class TextChapterLayout(
                 prepareNextPageIfNeed()
             }
         }
+
+        reviewTitleOffset = sequenceOf(
+            pendingTextPage.lines.asReversed().firstOrNull { it.isTitle },
+            textPages.asReversed().asSequence().flatMap { it.lines.asReversed().asSequence() }.firstOrNull { it.isTitle }
+        ).filterNotNull().firstOrNull()?.paragraphNum ?: 0
 
         val sb = StringBuffer()
         var isSetTypedImage = false
@@ -822,6 +829,13 @@ class TextChapterLayout(
                 textLine.addColumns(columns)
             }
             calcTextLinePosition(textPages, textLine, stringBuilder.length)
+            textLine.reviewTitleOffset = reviewTitleOffset
+            (textLine.columns.lastOrNull() as? ReviewColumn)?.count = ChapterProvider.getReviewCount(
+                paragraphNum = textLine.paragraphNum,
+                isTitle = textLine.isTitle,
+                titleOffset = textLine.reviewTitleOffset,
+                chapterIndex = bookChapter.index,
+            )
             stringBuilder.append(lineText)
             val textPage = pendingTextPage
             textPage.addLine(textLine)
@@ -1409,6 +1423,14 @@ class TextChapterLayout(
     ) {
         val style = charStyles?.getOrNull(textIndex)
         val column = when {
+            char == reviewChar && srcList.isNullOrEmpty() -> {
+                ReviewColumn(
+                    start = absStartX + xStart,
+                    end = absStartX + xEnd,
+                    count = 0,
+                )
+            }
+
             !srcList.isNullOrEmpty() && (char == srcReplaceChar || char == reviewChar) -> {
                 val src = srcList.removeFirst()
                 val click = clickList?.removeFirst()

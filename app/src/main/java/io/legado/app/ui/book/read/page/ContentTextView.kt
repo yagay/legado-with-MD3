@@ -274,8 +274,16 @@ class ContentTextView(context: Context, attrs: AttributeSet?) : View(context, at
                 }
 
                 is ReviewColumn -> {
-                    context.toastOnUi("Button Pressed!")
-                    handled = true
+                    if (column.count > 0) {
+                        val reviewId = if (textLine.isTitle) {
+                            -1
+                        } else {
+                            (textLine.paragraphNum - textLine.reviewTitleOffset)
+                                .takeIf { it > 0 } ?: textLine.paragraphNum
+                        }
+                        requireCallBack.onReviewClick(reviewId, column.count, textPage.chapterIndex)
+                        handled = true
+                    }
                 }
 
                 is ImageColumn -> when (ReadConfig.clickImgWay) {
@@ -805,5 +813,6 @@ class ContentTextView(context: Context, attrs: AttributeSet?) : View(context, at
         fun oldClickImg(src: String): Boolean
         fun clickImg(click: String, src: String)
         fun onMarkingClick(markingId: String)
+        fun onReviewClick(paragraphNum: Int, count: Int, chapterIndex: Int)
     }
 }

@@ -12,6 +12,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowManager
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
@@ -35,6 +36,8 @@ import io.legado.app.model.ReadAloud
 import io.legado.app.model.ReadBook
 import io.legado.app.model.ReadSessionState
 import io.legado.app.model.analyzeRule.AnalyzeRule
+import io.legado.app.model.analyzeRule.AnalyzeUrl
+import io.legado.app.model.analyzeRule.ReviewRuleParser
 import io.legado.app.model.analyzeRule.AnalyzeRule.Companion.setChapter
 import io.legado.app.model.analyzeRule.AnalyzeRule.Companion.setCoroutineContext
 import io.legado.app.model.analyzeRule.AnalyzeUrl.Companion.paramPattern
@@ -146,6 +149,9 @@ class ReadBookController(
     private val menuMutex = Mutex()
     @Volatile
     private var cachedActionMenuItems: List<ActionMenuItem>? = null
+    private var reviewSummaryAppliedKey: String? = null
+    private var reviewSummaryLoadingKey: String? = null
+    private var reviewSummaryRequestToken = 0L
 
     fun dismissTextActionMenu() {
         textMenuRequestVersion++
@@ -952,6 +958,7 @@ class ReadBookController(
         success: (() -> Unit)?
     ) {
         postRender(ReadBookEffect.UpContent(relativePosition, resetPageOffset, success))
+        handler.post { loadReviewSummaryIfNeeded() }
     }
 
     override suspend fun upContentAwait(
@@ -1278,6 +1285,133 @@ class ReadBookController(
         val aloudSpanStart = chapterStart - textChapter.getReadLength(pageIndex)
         textChapter.getPage(pageIndex)?.upPageAloudSpan(aloudSpanStart)
         refs?.readView?.upContent(resetPageOffset = false)
+    }
+
+    private fun buildReviewSummaryKey(): String? {
+        val book = ReadBook.book ?: return null
+        val source = ReadBook.bookSource ?: return null
+        val rule = source.ruleReview ?: return null
+        return "${source.getKey()}|${book.bookUrl}|${rule.hashCode()}#${ReadBook.durChapterIndex}"
+    }
+
+    private fun loadReviewSummaryIfNeeded() {
+        val book = ReadBook.book ?: run { ChapterProvider.clearReviewProviders(); return }
+        val source = ReadBook.bookSource ?: run { ChapterProvider.clearReviewProviders(); return }
+        val rule = source.ruleReview ?: run { ChapterProvider.clearReviewProviders(); return }
+        val summaryUrl = rule.configuredSummaryUrl() ?: run { ChapterProvider.clearReviewProviders(); return }
+        val chapterIndex = ReadBook.durChapterIndex
+        val key = "${source.getKey()}|${book.bookUrl}|${rule.hashCode()}#$chapterIndex"
+        if (reviewSummaryAppliedKey == key || reviewSummaryLoadingKey == key) return
+        reviewSummaryLoadingKey = key
+        val token = ++reviewSummaryRequestToken
+        ChapterProvider.clearReviewProviders()
+        activity.lifecycleScope.launch(IO) {
+            val result = runCatching {
+                val chapter = appDb.bookChapterDao.getChapter(book.bookUrl, chapterIndex) ?: return@runCatching null
+                if (chapter.isVolume) return@runCatching null
+                val analyzeUrl = AnalyzeUrl(
+                    summaryUrl,
+                    baseUrl = chapter.url,
+                    source = source,
+                    ruleData = book,
+                    chapter = chapter,
+                    coroutineContext = coroutineContext,
+                )
+                val body = analyzeUrl.getStrResponseAwait(useWebView = false).body ?: return@runCatching null
+                ReviewRuleParser.parseSummary(
+                    body, rule, source, book, chapter, analyzeUrl.url, coroutineContext
+                )
+            }.getOrNull()
+            withContext(Main) {
+                if (token != reviewSummaryRequestToken || buildReviewSummaryKey() != key) return@withContext
+                reviewSummaryLoadingKey = null
+                if (result == null) {
+                    ChapterProvider.clearReviewProviders()
+                    return@withContext
+                }
+                ChapterProvider.setReviewProviders(
+                    countProvider = { targetChapter, reviewId ->
+                        if (targetChapter == chapterIndex) result.counts[reviewId] ?: 0 else 0
+                    },
+                    keyProvider = { targetChapter, reviewId ->
+                        if (targetChapter == chapterIndex) result.keys[reviewId] else null
+                    },
+                    chapterIndex = chapterIndex,
+                )
+                reviewSummaryAppliedKey = key
+                ReadBook.loadContent(resetPageOffset = false)
+            }
+        }
+    }
+
+    override fun onReviewClick(paragraphNum: Int, count: Int, chapterIndex: Int) {
+        if (count <= 0 || paragraphNum == 0) return
+        val book = ReadBook.book ?: return
+        val source = ReadBook.bookSource ?: return
+        val rule = source.ruleReview ?: return
+        val detailUrl = rule.reviewDetailUrl?.takeIf { rule.enabled && it.isNotBlank() } ?: return
+        val paraData = ChapterProvider.getReviewKeyById(paragraphNum, chapterIndex).orEmpty()
+        activity.lifecycleScope.launch(IO) {
+            val result = runCatching {
+                val chapter = appDb.bookChapterDao.getChapter(book.bookUrl, chapterIndex) ?: return@runCatching null
+                val paraIndex = paragraphNum.toString()
+                val analyzeUrl = AnalyzeUrl(
+                    detailUrl,
+                    page = 1,
+                    baseUrl = chapter.url,
+                    source = source,
+                    ruleData = book,
+                    chapter = chapter,
+                    coroutineContext = coroutineContext,
+                    extraParams = mapOf(
+                        "paraIndex" to paraIndex,
+                        "paraData" to paraData,
+                        "page" to 1,
+                    ),
+                )
+                val body = analyzeUrl.getStrResponseAwait(useWebView = false).body ?: return@runCatching null
+                ReviewRuleParser.parseDetailPage(
+                    body = body,
+                    rule = rule,
+                    nextPageRule = rule.reviewDetailNextPageUrl,
+                    baseUrl = analyzeUrl.url,
+                    source = source,
+                    book = book,
+                    chapter = chapter,
+                    context = coroutineContext,
+                    paraIndex = paraIndex,
+                    paraData = paraData,
+                    page = "1",
+                )
+            }.getOrNull()
+            withContext(Main) {
+                if (ReadBook.book?.bookUrl != book.bookUrl || result == null) return@withContext
+                val message = result.items.joinToString("
+
+") { item ->
+                    buildString {
+                        val name = item.name.orEmpty().ifBlank { "匿名" }
+                        append(name)
+                        if (item.badges.isNotEmpty()) append("  ${item.badges.joinToString(" ")}")
+                        item.time?.takeIf { it.isNotBlank() }?.let { append("
+$it") }
+                        item.content?.takeIf { it.isNotBlank() }?.let { append("
+$it") }
+                        if (item.replies.isNotEmpty()) {
+                            item.replies.forEach { reply ->
+                                append("
+  ↳ ${reply.name.orEmpty().ifBlank { "匿名" }}: ${reply.content.orEmpty()}")
+                            }
+                        }
+                    }
+                }.ifBlank { "暂无段评" }
+                AlertDialog.Builder(activity)
+                    .setTitle("段评（$count）")
+                    .setMessage(message)
+                    .setPositiveButton(android.R.string.ok, null)
+                    .show()
+            }
+        }
     }
 
     // ── Key handling ──
