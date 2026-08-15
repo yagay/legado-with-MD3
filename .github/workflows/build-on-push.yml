@@ -1,4 +1,4 @@
-name: Build on Push
+name: Debug Build on Push
 
 on:
   push:
@@ -8,15 +8,42 @@ on:
       - '**/modules/web/**'
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: build-on-push-${{ github.ref }}
+  group: debug-build-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build:
-    uses: ./.github/workflows/auto-release.yml
-    with:
-      publish: false
-    secrets: inherit
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Remove Aliyun mirrors (unreliable in CI)
+        run: |
+          sed -i '/maven.aliyun.com/d' settings.gradle
+
+      - name: Build Debug APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleAppDebug --no-daemon --no-configuration-cache
+
+      - name: Upload Debug APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-apks
+          if-no-files-found: error
+          path: app/build/outputs/apk/app/debug/*.apk
