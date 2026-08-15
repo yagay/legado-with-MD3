@@ -407,6 +407,7 @@ sealed interface ExploreIntent {
     data class SelectWidgetTarget(val widgetId: String, val target: DiscoverySuiteWidgetTarget) : ExploreIntent
     data class LoadMoreWidgetData(val widgetId: String) : ExploreIntent
     data object LoadMoreSuiteSearch : ExploreIntent
+    data class SetSuiteSearchField(val field: String) : ExploreIntent
     data class ToggleCategorySheet(val show: Boolean) : ExploreIntent
     data class OpenBook(val book: SearchBook, val sharedCoverKey: String?) : ExploreIntent
 }

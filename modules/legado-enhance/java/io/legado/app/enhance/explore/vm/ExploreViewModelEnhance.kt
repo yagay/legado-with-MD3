@@ -50,6 +50,8 @@ data class EnhanceState(
     val suiteSearchLoading: Boolean = false,
     /** true 表示来自书源 searchUrl；false 表示本地过滤当前已加载书籍 */
     val suiteSearchRemote: Boolean = false,
+    /** name(default) / author / kind */
+    val suiteSearchField: String = "name",
     val suiteSearchPage: Int = 1,
     val suiteSearchIsEnd: Boolean = true,
     val widgetPages: ImmutableMap<String, Int> = persistentMapOf(),
@@ -83,6 +85,7 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
             is ExploreIntent.SelectWidgetTarget -> selectWidgetTarget(intent.widgetId, intent.target)
             is ExploreIntent.LoadMoreWidgetData -> loadMoreWidgetData(intent.widgetId)
             is ExploreIntent.LoadMoreSuiteSearch -> loadMoreSuiteSearch()
+            is ExploreIntent.SetSuiteSearchField -> setSuiteSearchField(intent.field)
             is ExploreIntent.ToggleCategorySheet -> vm.updateUiState {
                 it.copy(enhance = it.enhance.copy(showCategorySheet = intent.show))
             }
@@ -563,6 +566,25 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
         }
     }
 
+    private fun setSuiteSearchField(field: String) {
+        val normalized = field.takeIf { it == "name" || it == "author" || it == "kind" } ?: "name"
+        if (vm.uiState.value.enhance.suiteSearchField == normalized) return
+        vm.updateUiState { state ->
+            state.copy(
+                enhance = state.enhance.copy(
+                    suiteSearchField = normalized,
+                    suiteSearchBooks = null,
+                    suiteSearchLoading = false,
+                    suiteSearchRemote = false,
+                    suiteSearchPage = 1,
+                    suiteSearchIsEnd = true
+                )
+            )
+        }
+        val query = vm.uiState.value.searchKey.trim()
+        if (query.isNotBlank()) searchSuiteBooks(query)
+    }
+
     fun searchSuiteBooks(query: String) {
         suiteSearchJob?.cancel()
         if (query.isBlank()) {
@@ -586,8 +608,9 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
             val suite = state.enhance.selectedSuite ?: return@launch
             val sourceUrl = suite.defaultSourceUrl ?: state.items.firstOrNull()?.bookSourceUrl ?: return@launch
             val source = try { vm.exploreRepository.getBookSource(sourceUrl) } catch (_: Exception) { null }
-            val localMatches = filterLoadedSuiteBooks(state, suite, query)
-            if (!source?.searchUrl.isNullOrBlank()) {
+            val field = state.enhance.suiteSearchField
+            val localMatches = filterLoadedSuiteBooks(state, suite, query, field)
+            if (field == "name" && !source?.searchUrl.isNullOrBlank()) {
                 vm.updateUiState {
                     it.copy(
                         enhance = it.enhance.copy(
@@ -655,7 +678,8 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
     private fun filterLoadedSuiteBooks(
         state: ExploreViewModel.ExploreUiState,
         suite: DiscoverySuite,
-        query: String
+        query: String,
+        field: String = state.enhance.suiteSearchField
     ): List<SearchBook> {
         val bookWidgetId = suite.widgets.firstOrNull { widget ->
             widget.type == DiscoverySuiteWidgetType.WaterfallBooks.type ||
@@ -663,14 +687,12 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
                 widget.type == DiscoverySuiteWidgetType.HorizontalBooks.type
         }?.id
         val loadedBooks = bookWidgetId?.let { state.enhance.widgetBooks[it] }.orEmpty()
-        val q = query.lowercase()
         return loadedBooks.filter { book ->
-            book.name.contains(query, ignoreCase = true) ||
-                book.author.contains(query, ignoreCase = true) ||
-                book.kind.orEmpty().contains(query, ignoreCase = true) ||
-                book.intro.orEmpty().contains(query, ignoreCase = true) ||
-                book.latestChapterTitle.orEmpty().contains(query, ignoreCase = true) ||
-                book.wordCount.orEmpty().lowercase().contains(q)
+            when (field) {
+                "author" -> book.author.contains(query, ignoreCase = true)
+                "kind" -> book.kind.orEmpty().contains(query, ignoreCase = true)
+                else -> book.name.contains(query, ignoreCase = true)
+            }
         }
     }
 

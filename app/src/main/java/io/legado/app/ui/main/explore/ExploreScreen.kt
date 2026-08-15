@@ -7,6 +7,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,6 +32,7 @@ import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.VerticalAlignTop
@@ -299,12 +301,17 @@ fun ExploreScreen(
                         PillHeaderDivider(title = "选择首页源")
                     }
                     stickyHeader(key = "source_menu_search") {
-                        OutlinedTextField(
-                            value = sourceMenuQuery,
-                            onValueChange = { sourceMenuQuery = it },
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                                .background(MaterialTheme.colorScheme.surface)
+                        ) {
+                            OutlinedTextField(
+                                value = sourceMenuQuery,
+                                onValueChange = { sourceMenuQuery = it },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
                             placeholder = { Text(stringResource(R.string.search)) },
                             leadingIcon = {
                                 Icon(
@@ -312,8 +319,9 @@ fun ExploreScreen(
                                     contentDescription = null
                                 )
                             },
-                            singleLine = true
-                        )
+                                singleLine = true
+                            )
+                        }
                     }
                     items(
                         items = filteredSourceMenuItems,
@@ -436,7 +444,48 @@ fun ExploreScreen(
         } else null,
         onSearchQueryChange = { onIntent(ExploreIntent.Search(it)) },
         onSearchToggle = { onIntent(ExploreIntent.ToggleSearch(it)) },
-        searchPlaceholder = stringResource(R.string.search),
+        searchTrailingIcon = if (state.layoutMode == 1) {
+            {
+                var showSearchFieldMenu by remember { mutableStateOf(false) }
+                Box {
+                    TopBarActionButton(
+                        onClick = { showSearchFieldMenu = true },
+                        imageVector = Icons.Default.FilterAlt,
+                        contentDescription = when (state.enhance.suiteSearchField) {
+                            "author" -> "搜索作者"
+                            "kind" -> "搜索分类"
+                            else -> "搜索书籍名"
+                        }
+                    )
+                    RoundDropdownMenu(
+                        expanded = showSearchFieldMenu,
+                        onDismissRequest = { showSearchFieldMenu = false }
+                    ) {
+                        listOf(
+                            "name" to "书籍名",
+                            "author" to "作者",
+                            "kind" to "分类"
+                        ).forEach { (field, label) ->
+                            RoundDropdownMenuItem(
+                                text = label,
+                                isSelected = state.enhance.suiteSearchField == field,
+                                onClick = {
+                                    onIntent(ExploreIntent.SetSuiteSearchField(field))
+                                    showSearchFieldMenu = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        } else null,
+        searchPlaceholder = if (state.layoutMode == 1) {
+            when (state.enhance.suiteSearchField) {
+                "author" -> "搜索作者"
+                "kind" -> "搜索分类"
+                else -> "搜索书籍名"
+            }
+        } else stringResource(R.string.search),
         topBarActions = {
             if (state.layoutMode == 1) {
                 TopBarActionButton(
