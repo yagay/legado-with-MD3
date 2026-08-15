@@ -1307,7 +1307,9 @@ class ReadBookController(
         ChapterProvider.clearReviewProviders()
         activity.lifecycleScope.launch(IO) {
             val result = runCatching {
-                val chapter = appDb.bookChapterDao.getChapter(book.bookUrl, chapterIndex) ?: return@runCatching null
+                val chapter = ReadBook.curTextChapter?.chapter
+                    ?.takeIf { it.index == chapterIndex }
+                    ?: return@runCatching null
                 if (chapter.isVolume) return@runCatching null
                 val analyzeUrl = AnalyzeUrl(
                     summaryUrl,
@@ -1353,7 +1355,9 @@ class ReadBookController(
         val paraData = ChapterProvider.getReviewKeyById(paragraphNum, chapterIndex).orEmpty()
         activity.lifecycleScope.launch(IO) {
             val result = runCatching {
-                val chapter = appDb.bookChapterDao.getChapter(book.bookUrl, chapterIndex) ?: return@runCatching null
+                val chapter = ReadBook.curTextChapter?.chapter
+                    ?.takeIf { it.index == chapterIndex }
+                    ?: return@runCatching null
                 val paraIndex = paragraphNum.toString()
                 val analyzeUrl = AnalyzeUrl(
                     detailUrl,
