@@ -1,0 +1,201 @@
+name: Align Discovery Ordering And Sticky Search
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/align-discovery-order-and-sticky-search.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Patch ordering runtime and sticky search
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+
+          # 1) Generate the enhanced VM with legado-compatible SECTION/FLAT row ordering.
+          p = Path('modules/legado-enhance/java/io/legado/app/enhance/explore/vm/ExploreViewModelEnhance.kt')
+          s = p.read_text()
+
+          s = s.replace(
+              'import io.legado.app.enhance.explore.builder.ModernExploreControlExtractor.SelectControl\n',
+              'import io.legado.app.enhance.explore.builder.ModernExploreControlExtractor.SelectControl\n'
+              'import io.legado.app.enhance.explore.builder.ModernExploreClassificationEngine\n'
+              'import io.legado.app.enhance.explore.model.ExploreMode\n',
+              1,
+          )
+          s = s.replace(
+              'import io.legado.app.help.source.exploreKinds\n',
+              'import io.legado.app.help.source.exploreKinds\nimport io.legado.app.help.source.exploreKindsJson\n',
+              1,
+          )
+          s = s.replace(
+              '    private var allSourceKinds: List<ExploreKind> = emptyList()\n'
+              '    private var allSourceControls: List<SelectControl> = emptyList()\n',
+              '    private var allSourceKinds: List<ExploreKind> = emptyList()\n'
+              '    private var allSourceRawKinds: List<ExploreKind> = emptyList()\n'
+              '    private var allSourceMode: ExploreMode = ExploreMode.FLAT\n'
+              '    private var allSourceControls: List<SelectControl> = emptyList()\n',
+              1,
+          )
+          s = s.replace(
+              '                allSourceKinds = emptyList()\n                allSourceControls = emptyList()\n',
+              '                allSourceKinds = emptyList()\n                allSourceRawKinds = emptyList()\n                allSourceMode = ExploreMode.FLAT\n                allSourceControls = emptyList()\n',
+              1,
+          )
+
+          old = '''            allSourceKinds = try {
+                vm.exploreRepository.getSourceExploreKinds(defaultSourceUrl)
+            } catch (e: Exception) {
+                emptyList()
+            }
+            allSourceControls = try {
+                val source = vm.exploreRepository.getBookSource(defaultSourceUrl)
+                ModernExploreControlExtractor.fromFlatKinds(source?.exploreKinds().orEmpty())
+            } catch (e: Exception) {
+                emptyList()
+            }
+'''
+          new = '''            val source = try {
+                vm.exploreRepository.getBookSource(defaultSourceUrl)
+            } catch (_: Exception) {
+                null
+            }
+            allSourceRawKinds = try {
+                source?.exploreKinds().orEmpty()
+            } catch (_: Exception) {
+                emptyList()
+            }
+            val classification = try {
+                ModernExploreClassificationEngine.classify(
+                    allSourceRawKinds,
+                    source?.exploreKindsJson().orEmpty()
+                )
+            } catch (_: Exception) {
+                ModernExploreClassificationEngine.Result(allSourceRawKinds, ExploreMode.FLAT)
+            }
+            allSourceKinds = classification.kinds
+            allSourceMode = classification.mode
+            allSourceControls = ModernExploreControlExtractor.fromFlatKinds(allSourceRawKinds)
+'''
+          if old not in s:
+              raise SystemExit('refresh classification block not found')
+          s = s.replace(old, new, 1)
+
+          old = '''                source.clearExploreKindsCache()
+                allSourceKinds = vm.exploreRepository.getSourceExploreKinds(defaultSourceUrl)
+                allSourceControls = ModernExploreControlExtractor.fromFlatKinds(source.exploreKinds())
+                rebuildSelectors(suite, defaultSourceUrl)
+'''
+          new = '''                source.clearExploreKindsCache()
+                allSourceRawKinds = source.exploreKinds()
+                val classification = ModernExploreClassificationEngine.classify(
+                    allSourceRawKinds,
+                    source.exploreKindsJson()
+                )
+                allSourceKinds = classification.kinds
+                allSourceMode = classification.mode
+                allSourceControls = ModernExploreControlExtractor.fromFlatKinds(allSourceRawKinds)
+                rebuildSelectors(suite, defaultSourceUrl)
+'''
+          if old not in s:
+              raise SystemExit('select reload block not found')
+          s = s.replace(old, new, 1)
+
+          marker = '''        val finalSelections = selectors
+            .associateBy({ it.id }, { it.selectedTitle.orEmpty() })
+            .toMutableMap()
+'''
+          replacement = '''        // yagay/legado 的 SECTION/FLAT 最终不是固定“频道 -> 分类 -> select”，
+        // 而是给每一行保留其在原始 ExploreKind 中的位置，再按 sourceIndex 稳定排序。
+        // 真正 TREE 则保持路径层级顺序，根级 select 追加在树路径之后。
+        val orderedSelectors = if (allSourceMode == ExploreMode.TREE) {
+            selectors
+        } else {
+            selectors.withIndex()
+                .sortedWith(compareBy({ selectorSourceIndex(it.value) }, { it.index }))
+                .map { it.value }
+        }
+
+        val finalSelections = orderedSelectors
+            .associateBy({ it.id }, { it.selectedTitle.orEmpty() })
+            .toMutableMap()
+'''
+          if marker not in s:
+              raise SystemExit('finalSelections marker not found')
+          s = s.replace(marker, replacement, 1)
+          s = s.replace(
+              '                    dynamicSelectors = selectors.toImmutableList(),\n',
+              '                    dynamicSelectors = orderedSelectors.toImmutableList(),\n',
+              1,
+          )
+
+          helper_marker = '    private fun countExploreNodes(kinds: List<ExploreKind>): Int {\n'
+          helper = '''    private fun selectorSourceIndex(selector: DynamicSelectorUi): Int {
+        if (selector.id.startsWith(DYNAMIC_SELECT_PREFIX)) {
+            return selector.id.removePrefix(DYNAMIC_SELECT_PREFIX).toIntOrNull() ?: Int.MAX_VALUE
+        }
+        val optionTitles = selector.targets
+            .asSequence()
+            .map { cleanExploreTitle(it.title) }
+            .filter { it.isNotBlank() }
+            .toSet()
+        if (optionTitles.isEmpty()) return Int.MAX_VALUE
+        return allSourceRawKinds.indexOfFirst { kind ->
+            cleanExploreTitle(kind.title) in optionTitles
+        }.takeIf { it >= 0 } ?: Int.MAX_VALUE
+    }
+
+'''
+          if helper_marker not in s:
+              raise SystemExit('countExploreNodes marker not found')
+          s = s.replace(helper_marker, helper + helper_marker, 1)
+          p.write_text(s)
+
+          # Copy the generated full file into the main repo so connector can write it to legado-enhance.
+          out = Path('.tmp/ExploreViewModelEnhance.kt')
+          out.parent.mkdir(parents=True, exist_ok=True)
+          out.write_text(s)
+
+          # 2) Keep source-picker search field pinned while only the source rows scroll.
+          screen = Path('app/src/main/java/io/legado/app/ui/main/explore/ExploreScreen.kt')
+          t = screen.read_text()
+          old = '''                    item(key = "source_menu_search") {
+                        OutlinedTextField(
+'''
+          new = '''                    stickyHeader(key = "source_menu_search") {
+                        OutlinedTextField(
+'''
+          if old not in t:
+              raise SystemExit('source menu search item not found')
+          t = t.replace(old, new, 1)
+          # Account for only one scrollable prefix item now: the sticky search field doesn't consume list scroll positioning.
+          t = t.replace(
+              '            val menuPrefixCount = if (composeEngine) 3 else 2\n',
+              '            val menuPrefixCount = if (composeEngine) 3 else 2\n',
+              1,
+          )
+          screen.write_text(t)
+          PY
+
+      - name: Commit generated patch inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Jie"
+          git config user.email "1614094+yagay@users.noreply.github.com"
+          git add .tmp/ExploreViewModelEnhance.kt app/src/main/java/io/legado/app/ui/main/explore/ExploreScreen.kt
+          git diff --cached --quiet || git commit -m "fix: align waterfall filter order and pin source search"
+          git push origin HEAD:main
