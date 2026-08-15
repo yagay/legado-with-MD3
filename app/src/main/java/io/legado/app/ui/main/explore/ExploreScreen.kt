@@ -40,6 +40,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -208,17 +210,28 @@ fun ExploreScreen(
     val sourceMenuItems = remember(state.items) {
         state.items.distinctBy { it.bookSourceUrl }
     }
+    var sourceMenuQuery by rememberSaveable { mutableStateOf("") }
+    val filteredSourceMenuItems = remember(sourceMenuItems, sourceMenuQuery) {
+        val query = sourceMenuQuery.trim()
+        if (query.isEmpty()) {
+            sourceMenuItems
+        } else {
+            sourceMenuItems.filter { source ->
+                source.bookSourceName.contains(query, ignoreCase = true)
+            }
+        }
+    }
     val sourceMenuListState = rememberLazyListState()
     var sourceMenuExpanded by rememberSaveable { mutableStateOf(false) }
-    val defaultSourceIndex = remember(sourceMenuItems, state.enhance.selectedSuite?.defaultSourceUrl) {
-        sourceMenuItems.indexOfFirst {
+    val defaultSourceIndex = remember(filteredSourceMenuItems, state.enhance.selectedSuite?.defaultSourceUrl) {
+        filteredSourceMenuItems.indexOfFirst {
             it.bookSourceUrl == state.enhance.selectedSuite?.defaultSourceUrl
         }
     }
     LaunchedEffect(sourceMenuExpanded, defaultSourceIndex, sourceActionMenuSource) {
         if (sourceMenuExpanded && sourceActionMenuSource == null && defaultSourceIndex >= 0) {
             // Miuix adds one outer spacer before the shared header item.
-            val menuPrefixCount = if (composeEngine) 2 else 1
+            val menuPrefixCount = if (composeEngine) 3 else 2
             sourceMenuListState.scrollToItem(defaultSourceIndex + menuPrefixCount)
         }
     }
@@ -249,12 +262,11 @@ fun ExploreScreen(
             7 + if (source.hasLoginUrl) 1 else 0
         } ?: 0
     }
-    val sourceMenuHeight = remember(sourceMenuItems.size, sourceActionCount, sourceMenuMaxHeight) {
-        // Approx. header 44dp + each menu row 56dp + outer breathing room.
-        // When a source is long-pressed the same popup changes to the action menu,
-        // so size it from the action count instead of the source count.
-        val rowCount = if (sourceActionCount > 0) sourceActionCount else sourceMenuItems.size
-        (68 + rowCount * 56).dp
+    val sourceMenuHeight = remember(filteredSourceMenuItems.size, sourceActionCount, sourceMenuMaxHeight) {
+        // Source list mode includes header + search field; action-menu mode keeps its original sizing.
+        val rowCount = if (sourceActionCount > 0) sourceActionCount else filteredSourceMenuItems.size
+        val baseHeight = if (sourceActionCount > 0) 68 else 132
+        (baseHeight + rowCount * 56).dp
             .coerceIn(124.dp, sourceMenuMaxHeight)
     }
     val sourcePopupWidth = remember(sourceMenuWidth, sourceActionMenuSource) {
@@ -273,7 +285,10 @@ fun ExploreScreen(
         onSubtitleMenuExpandedChange = if (state.layoutMode == 1) {
             { expanded ->
                 sourceMenuExpanded = expanded
-                if (!expanded) sourceActionMenuUrl = null
+                if (!expanded) {
+                    sourceActionMenuUrl = null
+                    sourceMenuQuery = ""
+                }
             }
         } else null,
         subtitleDropdownMenuLazy = if (state.layoutMode == 1) {
@@ -283,8 +298,25 @@ fun ExploreScreen(
                     item(key = "source_menu_header") {
                         PillHeaderDivider(title = "选择首页源")
                     }
+                    item(key = "source_menu_search") {
+                        OutlinedTextField(
+                            value = sourceMenuQuery,
+                            onValueChange = { sourceMenuQuery = it },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                            placeholder = { Text(stringResource(R.string.search)) },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = null
+                                )
+                            },
+                            singleLine = true
+                        )
+                    }
                     items(
-                        items = sourceMenuItems,
+                        items = filteredSourceMenuItems,
                         key = { it.bookSourceUrl }
                     ) { source ->
                         RoundDropdownMenuItem(
