@@ -7,6 +7,9 @@ on:
     paths-ignore:
       - '**/modules/web/**'
 
+permissions:
+  contents: write
+
 concurrency:
   group: build-on-push-${{ github.ref }}
   cancel-in-progress: true
