@@ -21,20 +21,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Apply native paragraph review display patch once
+      - name: Apply legado leg review port once
         run: |
-          if ! grep -q 'onReviewClick(paragraphNum: Int, count: Int, chapterIndex: Int)' app/src/main/java/io/legado/app/ui/book/read/ReadBookController.kt; then
-            python3 .github/scripts/port_review_display.py
+          if [ ! -f app/src/main/java/io/legado/app/enhance/review/ReviewCapabilityResolver.kt ]; then
+            python3 .github/scripts/port_leg_review.py
             git config user.name Jie
             git config user.email 1614094+yagay@users.noreply.github.com
-            git add app/src/main/java/io/legado/app/model/analyzeRule/AnalyzeUrl.kt \
-                    app/src/main/java/io/legado/app/ui/book/read/page/entities/TextLine.kt \
-                    app/src/main/java/io/legado/app/ui/book/read/page/entities/column/ReviewColumn.kt \
-                    app/src/main/java/io/legado/app/ui/book/read/page/provider/ChapterProvider.kt \
-                    app/src/main/java/io/legado/app/ui/book/read/page/provider/TextChapterLayout.kt \
-                    app/src/main/java/io/legado/app/ui/book/read/page/ContentTextView.kt \
-                    app/src/main/java/io/legado/app/ui/book/read/ReadBookController.kt
-            git commit -m 'feat: add native paragraph review display flow'
+            git add app/src/main/java/io/legado/app/enhance/review \
+                    app/src/main/java/io/legado/app/ui/book/info/BookInfoContract.kt \
+                    app/src/main/java/io/legado/app/ui/book/info/BookInfoViewModel.kt \
+                    app/src/main/java/io/legado/app/ui/book/info/BookInfoScreen.kt \
+                    app/src/main/java/io/legado/app/ui/book/info/BookInfoReviewUi.kt \
+                    app/src/main/res/values/strings_enhance_review.xml
+            git commit -m 'feat: port book reviews from legado leg branch'
             git push
           fi
 
