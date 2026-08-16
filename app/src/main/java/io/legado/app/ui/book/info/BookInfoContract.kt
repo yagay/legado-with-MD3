@@ -68,6 +68,7 @@ data class BookReviewUiState(
 data class BookReviewItemUi(
     val key: String,
     val name: String,
+    val avatarUrl: String?,
     val badges: List<String>,
     val content: String?,
     val imageUrl: String?,

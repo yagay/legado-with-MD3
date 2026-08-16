@@ -1,28 +1,45 @@
 package io.legado.app.ui.book.info
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import io.legado.app.ui.theme.LegadoTheme
 
 @Composable
@@ -48,13 +65,14 @@ internal fun BookReviewSheet(
     state: BookReviewUiState,
     onDismiss: () -> Unit,
     onLoadMore: () -> Unit,
+    onImageClick: (String) -> Unit,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
                     text = if (state.totalCount != null) "书评（共 ${state.totalCount} 条）" else "书评",
-                    style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold,
                 )
             }
@@ -64,7 +82,7 @@ internal fun BookReviewSheet(
                 state.items.isEmpty() -> Text("暂无书评", modifier = Modifier.padding(vertical = 24.dp))
                 else -> LazyColumn {
                     items(state.items, key = { it.key }) { item ->
-                        BookReviewItem(item)
+                        BookReviewItem(item = item, onImageClick = onImageClick)
                     }
                     if (state.hasMore) {
                         item {
@@ -83,27 +101,135 @@ internal fun BookReviewSheet(
 }
 
 @Composable
-private fun BookReviewItem(item: BookReviewItemUi) {
+private fun BookReviewItem(
+    item: BookReviewItemUi,
+    onImageClick: (String) -> Unit,
+) {
+    var repliesExpanded by rememberSaveable(item.key) { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(item.name.ifBlank { "匿名用户" }, fontWeight = FontWeight.SemiBold)
-            item.time?.takeIf { it.isNotBlank() }?.let { Text(it, style = androidx.compose.material3.MaterialTheme.typography.bodySmall) }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            ReviewAvatar(item.avatarUrl, item.name)
+            Column(Modifier.weight(1f)) {
+                Text(item.name.ifBlank { "匿名用户" }, fontWeight = FontWeight.SemiBold)
+                item.time?.takeIf { it.isNotBlank() }?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall)
+                }
+            }
         }
         if (item.badges.isNotEmpty()) {
-            Text(item.badges.joinToString(" · "), style = androidx.compose.material3.MaterialTheme.typography.labelSmall)
+            Text(
+                item.badges.joinToString(" · "),
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.padding(start = 46.dp, top = 2.dp),
+            )
         }
         item.content?.takeIf { it.isNotBlank() }?.let {
-            Text(it, modifier = Modifier.padding(top = 4.dp))
+            Text(it, modifier = Modifier.padding(start = 46.dp, top = 6.dp))
+        }
+        item.imageUrl?.takeIf { it.isNotBlank() }?.let { imageUrl ->
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = "评论图片",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .padding(start = 46.dp, top = 8.dp)
+                    .fillMaxWidth()
+                    .heightIn(max = 280.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { onImageClick(imageUrl) },
+            )
         }
         val meta = buildList {
             item.likeCount?.takeIf { it > 0 }?.let { add("赞 $it") }
             item.replyCount?.takeIf { it > 0 }?.let { add("回复 $it") }
         }
-        if (meta.isNotEmpty()) Text(meta.joinToString("  "), style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
-        item.replies.forEach { reply ->
-            Column(Modifier.fillMaxWidth().padding(start = 16.dp, top = 6.dp)) {
-                Text("${reply.name.ifBlank { "匿名" }}：${reply.content.orEmpty()}", style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+        if (meta.isNotEmpty()) {
+            Text(
+                meta.joinToString("  "),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(start = 46.dp, top = 6.dp),
+            )
+        }
+        if (item.replies.isNotEmpty()) {
+            TextButton(
+                onClick = { repliesExpanded = !repliesExpanded },
+                modifier = Modifier.padding(start = 34.dp),
+            ) {
+                Text(if (repliesExpanded) "收起回复" else "展开 ${item.replies.size} 条回复")
             }
+            if (repliesExpanded) {
+                Surface(
+                    color = LegadoTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().padding(start = 46.dp),
+                ) {
+                    Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                        item.replies.forEach { reply ->
+                            ReviewReplyItem(reply, onImageClick)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReviewReplyItem(reply: BookReviewItemUi, onImageClick: (String) -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            ReviewAvatar(reply.avatarUrl, reply.name, size = 26)
+            Text(reply.name.ifBlank { "匿名" }, fontWeight = FontWeight.Medium, style = MaterialTheme.typography.bodySmall)
+            reply.time?.takeIf { it.isNotBlank() }?.let {
+                Text(it, style = MaterialTheme.typography.labelSmall)
+            }
+        }
+        reply.content?.takeIf { it.isNotBlank() }?.let {
+            Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 34.dp, top = 3.dp))
+        }
+        reply.imageUrl?.takeIf { it.isNotBlank() }?.let { imageUrl ->
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = "回复图片",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .padding(start = 34.dp, top = 6.dp)
+                    .fillMaxWidth()
+                    .heightIn(max = 220.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .clickable { onImageClick(imageUrl) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReviewAvatar(avatarUrl: String?, name: String, size: Int = 36) {
+    val modifier = Modifier.size(size.dp).clip(CircleShape)
+    if (!avatarUrl.isNullOrBlank()) {
+        AsyncImage(
+            model = avatarUrl,
+            contentDescription = if (name.isBlank()) "用户头像" else "$name 的头像",
+            contentScale = ContentScale.Crop,
+            modifier = modifier,
+        )
+    } else {
+        Box(
+            modifier = modifier,
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Person,
+                contentDescription = null,
+                tint = LegadoTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size((size * 0.68f).dp),
+            )
         }
     }
 }

@@ -306,6 +306,7 @@ class BookInfoViewModel(
             BookInfoIntent.ReadRecordClick -> setSheet(BookInfoSheet.ReadRecord)
             BookInfoIntent.BookReviewClick -> openBookReview()
             BookInfoIntent.LoadMoreBookReviews -> loadBookReviews(loadMore = true)
+            is BookInfoIntent.BookReviewImageClick -> showDialog(BookInfoDialog.PhotoPreview(intent.imageUrl))
             BookInfoIntent.RemarkClick -> showDialog(BookInfoDialog.EditRemark(currentBook?.remark))
             is BookInfoIntent.SaveCover -> {
                 saveCoverToGallery(intent.path)
@@ -1528,6 +1529,7 @@ class BookInfoViewModel(
         return BookReviewItemUi(
             key = id?.takeIf { it.isNotBlank() } ?: fallback,
             name = name.orEmpty(),
+            avatarUrl = avatar,
             badges = badges,
             content = content,
             imageUrl = imageUrl,
