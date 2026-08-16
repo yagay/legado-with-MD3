@@ -33,7 +33,11 @@ android {
 }
 
 dependencies {
+    // Legacy engine used by all existing sources unless explicitly switched.
     api(libs.mozilla.rhino)
+    // Current Legado HtmlUnit fork. Packages are org.htmlunit.corejs.*, so it can coexist
+    // with the legacy org.mozilla.javascript runtime in the same APK.
+    api("org.htmlunit:htmlunit-core-js:5.3.0-legado.3")
 
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.okhttp)
