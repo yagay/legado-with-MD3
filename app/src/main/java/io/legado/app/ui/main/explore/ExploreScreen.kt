@@ -226,14 +226,12 @@ fun ExploreScreen(
     val sourceMenuTextStyle = MaterialTheme.typography.labelLarge
     val sourceMenuTextMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
-    val sourceMenuSearchOffsetPx = with(density) { 72.dp.roundToPx() }
     LaunchedEffect(
         sourceMenuExpanded,
         defaultSourceIndex,
         sourceActionMenuSource,
         sourceGroupMenuOpen,
-        sourceMenuQuery,
-        sourceMenuSearchOffsetPx
+        sourceMenuQuery
     ) {
         if (
             sourceMenuExpanded &&
@@ -243,10 +241,7 @@ fun ExploreScreen(
             defaultSourceIndex >= 0
         ) {
             val menuPrefixCount = if (composeEngine) 3 else 2
-            sourceMenuListState.scrollToItem(
-                index = defaultSourceIndex + menuPrefixCount,
-                scrollOffset = -sourceMenuSearchOffsetPx
-            )
+            sourceMenuListState.scrollToItem(defaultSourceIndex + menuPrefixCount)
         }
     }
     val sourceMenuWidth = remember(sourceMenuItems, sourceMenuTextStyle, density) {
@@ -465,7 +460,7 @@ fun ExploreScreen(
                         item(key = "source_menu_header") {
                             PillHeaderDivider(title = "选择首页源")
                         }
-                        stickyHeader(key = "source_menu_search") {
+                        item(key = "source_menu_search") {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
