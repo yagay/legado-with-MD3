@@ -20,6 +20,9 @@ import io.legado.app.domain.gateway.BookSourceCheckStatus
 import io.legado.app.domain.gateway.CheckSourceSettings
 import io.legado.app.domain.gateway.CheckSourceSettingsGateway
 import io.legado.app.domain.gateway.OtherSettingsGateway
+import io.legado.app.enhance.source.hasBookReviewCapability
+import io.legado.app.enhance.source.hasOtherCommentCapability
+import io.legado.app.enhance.source.hasParagraphReviewCapability
 import io.legado.app.help.book.ContentProcessor
 import io.legado.app.help.http.decompressed
 import io.legado.app.help.http.newCallResponseBody
@@ -68,6 +71,9 @@ class BookSourceViewModel(
         const val FILTER_NO_GROUP = "@noGroup"
         const val FILTER_ENABLED_EXPLORE = "@enabledExplore"
         const val FILTER_DISABLED_EXPLORE = "@disabledExplore"
+        const val FILTER_BOOK_REVIEW = "@review:book"
+        const val FILTER_PARAGRAPH_REVIEW = "@review:paragraph"
+        const val FILTER_OTHER_COMMENT = "@review:other"
         const val PREFIX_GROUP = "group:"
     }
 
@@ -660,9 +666,16 @@ private fun BookSourceCheckResult.displayMessage(application: Application): Stri
 private fun List<BookSourcePart>.filterFor(filter: String?, query: String): List<BookSourcePart> =
     filter { source ->
         val filterMatch = when (filter) {
-            null -> true; BookSourceViewModel.FILTER_ENABLED -> source.enabled; BookSourceViewModel.FILTER_DISABLED -> !source.enabled
-            BookSourceViewModel.FILTER_LOGIN -> source.hasLoginUrl; BookSourceViewModel.FILTER_NO_GROUP -> source.bookSourceGroup.isNullOrBlank()
-            BookSourceViewModel.FILTER_ENABLED_EXPLORE -> source.enabledExplore; BookSourceViewModel.FILTER_DISABLED_EXPLORE -> !source.enabledExplore
+            null -> true
+            BookSourceViewModel.FILTER_ENABLED -> source.enabled
+            BookSourceViewModel.FILTER_DISABLED -> !source.enabled
+            BookSourceViewModel.FILTER_LOGIN -> source.hasLoginUrl
+            BookSourceViewModel.FILTER_NO_GROUP -> source.bookSourceGroup.isNullOrBlank()
+            BookSourceViewModel.FILTER_ENABLED_EXPLORE -> source.enabledExplore
+            BookSourceViewModel.FILTER_DISABLED_EXPLORE -> !source.enabledExplore
+            BookSourceViewModel.FILTER_BOOK_REVIEW -> source.getBookSource()?.hasBookReviewCapability() == true
+            BookSourceViewModel.FILTER_PARAGRAPH_REVIEW -> source.getBookSource()?.hasParagraphReviewCapability() == true
+            BookSourceViewModel.FILTER_OTHER_COMMENT -> source.getBookSource()?.hasOtherCommentCapability() == true
             else -> filter.startsWith(BookSourceViewModel.PREFIX_GROUP) && source.bookSourceGroup?.split(
                 ","
             )?.contains(filter.removePrefix(BookSourceViewModel.PREFIX_GROUP)) == true
@@ -702,5 +715,8 @@ private fun String.displayName(application: Application) = when (this) {
     BookSourceViewModel.FILTER_NO_GROUP -> application.getString(io.legado.app.R.string.no_group)
     BookSourceViewModel.FILTER_ENABLED_EXPLORE -> application.getString(io.legado.app.R.string.enabled_explore)
     BookSourceViewModel.FILTER_DISABLED_EXPLORE -> application.getString(io.legado.app.R.string.disabled_explore)
+    BookSourceViewModel.FILTER_BOOK_REVIEW -> "有书评"
+    BookSourceViewModel.FILTER_PARAGRAPH_REVIEW -> application.getString(io.legado.app.R.string.review)
+    BookSourceViewModel.FILTER_OTHER_COMMENT -> "其他评论"
     else -> removePrefix(BookSourceViewModel.PREFIX_GROUP)
 }
