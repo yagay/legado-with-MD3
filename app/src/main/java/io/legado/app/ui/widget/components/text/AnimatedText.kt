@@ -187,9 +187,10 @@ private fun UseWebText(
                 settings.useWideViewPort = false
                 settings.loadWithOverviewMode = false
                 webViewClient = object : WebViewClient() {
-                    override fun onPageFinished(view: WebView, url: String?) {
+                    override fun onPageFinished(view: WebView?, url: String?) {
                         super.onPageFinished(view, url)
-                        view.evaluateJavascript(
+                        val currentView = view ?: return
+                        currentView.evaluateJavascript(
                             "Math.max(document.body.scrollHeight, document.documentElement.scrollHeight).toString()"
                         ) { result ->
                             val cssHeight = result
@@ -197,7 +198,7 @@ private fun UseWebText(
                                 ?.trim('"')
                                 ?.toDoubleOrNull()
                                 ?: return@evaluateJavascript
-                            val density = view.resources.displayMetrics.density
+                            val density = currentView.resources.displayMetrics.density
                             heightDp = ((cssHeight * density).roundToInt() / density)
                                 .coerceAtLeast(1f)
                         }
