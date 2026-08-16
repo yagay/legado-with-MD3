@@ -45,6 +45,18 @@ class SourceJsEngineLifecycleTest {
         assertEquals(1.0, incrementGlobal(source))
     }
 
+    @Test
+    fun `switching Rhino mode resets upstream shared global state`() {
+        val source = modernSource("mode-switch").apply {
+            jsLib = "function compatLibraryLoaded() { return true; }"
+        }
+
+        assertEquals(1.0, incrementGlobal(source))
+        SourceJsEngineModeStore.setMode(source.getKey(), SourceJsEngineMode.LEGACY)
+        SourceJsEngineModeStore.setMode(source.getKey(), SourceJsEngineMode.MODERN)
+        assertEquals(1.0, incrementGlobal(source))
+    }
+
     private fun incrementGlobal(source: BookSource): Any? = source.evalJS(
         "globalThis.__lifecycleCount = (globalThis.__lifecycleCount || 0) + 1; globalThis.__lifecycleCount"
     )
