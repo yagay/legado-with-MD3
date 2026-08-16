@@ -35,11 +35,8 @@ object ModernExploreControlExtractor {
     fun fromTreeRoot(nodes: List<ExploreNode>): List<SelectControl> =
         nodes.mapNotNull { node ->
             val kind = node.originalKind ?: return@mapNotNull null
-            if (node.children.isNotEmpty() || kind.type != ExploreKind.Type.select) {
-                null
-            } else {
-                kind.toSelectControl(node.sourceIndex)
-            }
+            if (node.children.isNotEmpty() || kind.type != ExploreKind.Type.select) null
+            else kind.toSelectControl(node.sourceIndex)
         }
 
     fun findSearchControl(kinds: List<ExploreKind>): SearchControl? {
@@ -58,12 +55,7 @@ object ModernExploreControlExtractor {
                 .maxByOrNull { (textIndex, _) -> textIndex }
                 ?: return@forEachIndexed
 
-            return SearchControl(
-                textKind = matched.second,
-                buttonKind = button,
-                textSourceIndex = matched.first,
-                buttonSourceIndex = buttonIndex,
-            )
+            return SearchControl(matched.second, button, matched.first, buttonIndex)
         }
 
         if (textControls.size == 1) {
@@ -81,19 +73,13 @@ object ModernExploreControlExtractor {
                 .minByOrNull { (index, _) -> index }
 
             if (refreshButton != null) {
-                return SearchControl(
-                    textKind = text,
-                    buttonKind = refreshButton.second,
-                    textSourceIndex = textIndex,
-                    buttonSourceIndex = refreshButton.first,
-                )
+                return SearchControl(text, refreshButton.second, textIndex, refreshButton.first)
             }
 
-            // 3. Wrapped-function fallback: many shared sources hide the actual InfoMap/refresh
-            // work inside doSearch()/load()/run() helpers. If the non-category control block has
-            // only one text field and the next native control is a button, the pair is structural
-            // enough to reuse without guessing from its visible title. Multi-text forms never use
-            // this fallback, so account/password/captcha forms remain visible.
+            // 3. Wrapped-function fallback: a single text followed by the next native button.
+            // This catches doSearch()/load()/run() wrappers whose body is not visible here.
+            // Explicit login/browser/form actions are excluded, and multi-text forms never enter
+            // this branch, so account/password/captcha controls remain visible.
             val nextNative = kinds
                 .mapIndexedNotNull { index, kind ->
                     if (index <= textIndex) return@mapIndexedNotNull null
@@ -105,13 +91,11 @@ object ModernExploreControlExtractor {
                 }
                 .minByOrNull { (index, _) -> index }
 
-            if (nextNative?.second?.type == ExploreKind.Type.button) {
-                return SearchControl(
-                    textKind = text,
-                    buttonKind = nextNative.second,
-                    textSourceIndex = textIndex,
-                    buttonSourceIndex = nextNative.first,
-                )
+            if (
+                nextNative?.second?.type == ExploreKind.Type.button &&
+                !actionLooksLikeExplicitForm(nextNative.second.action.orEmpty())
+            ) {
+                return SearchControl(text, nextNative.second, textIndex, nextNative.first)
             }
         }
 
@@ -148,6 +132,15 @@ object ModernExploreControlExtractor {
         ).any { method ->
             Regex("(?:java\\s*\\.\\s*)?$method\\s*\\(").containsMatchIn(js)
         }
+    }
+
+    internal fun actionLooksLikeExplicitForm(action: String): Boolean {
+        if (action.isBlank()) return false
+        val js = normalizeAction(action)
+        return Regex("(?:java\\s*\\.\\s*)?(?:login|showBrowser|openLogin)\\s*\\(", RegexOption.IGNORE_CASE)
+            .containsMatchIn(js) ||
+            Regex("(?:java\\s*\\.\\s*)?open\\s*\\(\\s*['\"]login['\"]", RegexOption.IGNORE_CASE)
+                .containsMatchIn(js)
     }
 
     private fun normalizeAction(action: String): String = when {
