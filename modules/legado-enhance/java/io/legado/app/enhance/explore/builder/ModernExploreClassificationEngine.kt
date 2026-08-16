@@ -12,12 +12,9 @@ import io.legado.app.utils.GSON
  * 原则：
  * 1. source.exploreKinds() 始终是书源行为的事实来源，保留原始顺序与完整 type/action/chars/default/style；
  * 2. 只有原始 JSON 明确提供 children 时才建立 TREE；
- * 3. 没有显式 children 时，仅依据无可执行目标的 Header 判断 SECTION/FLAT；
+ * 3. 没有显式 children 时，仅依据无可执行目标的 Header 和原始顺序恢复 SECTION；
  * 4. 不根据“男频/女频/热门/完结/排行榜”等名称猜测层级；
  * 5. 不过滤 text/button/toggle/select，也不生成“全部/分类”等伪 ExploreKind。
- *
- * 这样增强层只增加现代布局所需的结构元数据，真正的书源语义继续由
- * HapeLee/TeamLegado 的 ExploreKind、InfoMap、ExploreKindUiUseCase 与 WebBook 处理。
  */
 object ModernExploreClassificationEngine {
 
@@ -34,12 +31,11 @@ object ModernExploreClassificationEngine {
             return Result(explicitTree, ExploreMode.TREE)
         }
 
-        val mode = if (flatKinds.any(::isSectionHeader)) {
-            ExploreMode.SECTION
-        } else {
-            ExploreMode.FLAT
+        if (flatKinds.any(::isSectionHeader)) {
+            return Result(buildSectionTree(flatKinds), ExploreMode.SECTION)
         }
-        return Result(flatKinds, mode)
+
+        return Result(flatKinds, ExploreMode.FLAT)
     }
 
     private fun parseRawTree(json: String): List<ExploreKind> {
@@ -59,6 +55,36 @@ object ModernExploreClassificationEngine {
             ?.mapNotNull(::parseNode)
             .orEmpty()
         return if (children.isEmpty()) kind else kind.copy(children = children)
+    }
+
+    /**
+     * 只按书源原始顺序切分 Header 后的连续区间。
+     * Header 本身只作为展示容器；它后面的原始 ExploreKind 不做任何类型转换或过滤。
+     */
+    private fun buildSectionTree(kinds: List<ExploreKind>): List<ExploreKind> {
+        val result = mutableListOf<ExploreKind>()
+        var currentHeader: ExploreKind? = null
+        var currentChildren = mutableListOf<ExploreKind>()
+
+        fun flushSection() {
+            val header = currentHeader ?: return
+            result += header.copy(children = currentChildren.toList())
+            currentChildren = mutableListOf()
+        }
+
+        kinds.forEach { kind ->
+            if (isSectionHeader(kind)) {
+                flushSection()
+                currentHeader = kind
+            } else if (currentHeader == null) {
+                // Header 前的项目保持根级原始项，不制造额外“分类”节点。
+                result += kind
+            } else {
+                currentChildren += kind
+            }
+        }
+        flushSection()
+        return result
     }
 
     private fun List<ExploreKind>.hasChildrenDeep(): Boolean =
