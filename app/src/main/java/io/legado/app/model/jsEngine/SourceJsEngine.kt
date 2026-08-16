@@ -20,7 +20,7 @@ interface SourceJsEngine {
     ): Any?
 }
 
-/** Existing MD3/Mozilla Rhino behaviour, kept byte-for-byte equivalent at the binding/scope level. */
+/** Existing MD3/Mozilla Rhino behaviour, kept equivalent at the binding/scope level. */
 object LegacySourceJsEngine : SourceJsEngine {
     override fun eval(
         source: BaseSource,
@@ -47,18 +47,8 @@ object LegacySourceJsEngine : SourceJsEngine {
     }
 }
 
-/**
- * Central switch. MODERN is intentionally unavailable until the isolated HtmlUnit-Rhino runtime
- * is installed; selecting it fails loudly instead of silently running the wrong engine.
- */
+/** Central per-source switch. Unconfigured sources always remain on LEGACY. */
 object SourceJsEngineRouter {
-    @Volatile
-    private var modernEngine: SourceJsEngine? = null
-
-    fun installModernEngine(engine: SourceJsEngine) {
-        modernEngine = engine
-    }
-
     fun eval(
         source: BaseSource,
         jsStr: String,
@@ -66,11 +56,7 @@ object SourceJsEngineRouter {
     ): Any? {
         return when (SourceJsEngineModeStore.getMode(source.getKey())) {
             SourceJsEngineMode.LEGACY -> LegacySourceJsEngine.eval(source, jsStr, bindingsConfig)
-            SourceJsEngineMode.MODERN -> {
-                val engine = modernEngine
-                    ?: error("Modern source JavaScript engine is not installed")
-                engine.eval(source, jsStr, bindingsConfig)
-            }
+            SourceJsEngineMode.MODERN -> ModernSourceJsEngine.eval(source, jsStr, bindingsConfig)
         }
     }
 }
