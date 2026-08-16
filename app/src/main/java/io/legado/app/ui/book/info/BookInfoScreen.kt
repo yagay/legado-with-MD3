@@ -1255,9 +1255,9 @@ private fun BookInfoSummary(
             }
         }
         Spacer(modifier = Modifier.height(4.dp))
-        AnimatedTextLine(
+        BookIntroContent(
             text = book.displayIntro.orEmpty().ifBlank { stringResource(R.string.intro_show_null) },
-            style = LegadoTheme.typography.bodyMedium,
+            baseUrl = book.bookUrl,
         )
     }
 }
