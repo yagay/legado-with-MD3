@@ -14,6 +14,10 @@ class BookSourceRepository(private val bookSourceDao: BookSourceDao) {
         return bookSourceDao.flowAll()
     }
 
+    fun flowAllSources(): Flow<List<BookSource>> {
+        return bookSourceDao.flowAllSources()
+    }
+
     fun flowEnabled(): Flow<List<BookSourcePart>> {
         return bookSourceDao.flowEnabled()
     }

@@ -23,6 +23,9 @@ interface BookSourceDao {
     @Query("select * from book_sources_part order by customOrder asc")
     fun flowAll(): Flow<List<BookSourcePart>>
 
+    @Query("select * from book_sources order by customOrder asc")
+    fun flowAllSources(): Flow<List<BookSource>>
+
     @Query(
         """select bp.*
         from book_sources b join book_sources_part bp on b.bookSourceUrl = bp.bookSourceUrl 

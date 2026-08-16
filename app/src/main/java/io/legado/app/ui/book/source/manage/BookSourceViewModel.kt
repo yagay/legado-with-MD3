@@ -122,9 +122,8 @@ class BookSourceViewModel(
         }
     }
 
-    private val reviewCapabilityFilters = repository.flowAll()
-        .map {
-            val sources = repository.getAll()
+    private val reviewCapabilityFilters = repository.flowAllSources()
+        .map { sources ->
             ReviewCapabilityFilters(
                 bookReviewUrls = sources.asSequence()
                     .filter { it.hasBookReviewCapability() }
@@ -141,11 +140,6 @@ class BookSourceViewModel(
             )
         }
         .flowOn(Dispatchers.IO)
-        .stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5_000),
-            ReviewCapabilityFilters(),
-        )
 
     private val sourceFilter = combine(searchKey, filter, reviewCapabilityFilters) { query, activeFilter, reviewFilters ->
         SourceFilter(query, activeFilter, reviewFilters)
