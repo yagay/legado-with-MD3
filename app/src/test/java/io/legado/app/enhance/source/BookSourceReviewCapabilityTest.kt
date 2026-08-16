@@ -1,7 +1,11 @@
 package io.legado.app.enhance.source
 
 import io.legado.app.data.entities.BookSource
+import io.legado.app.data.entities.rule.BookInfoRule
+import io.legado.app.data.entities.rule.ContentRule
+import io.legado.app.data.entities.rule.ExploreRule
 import io.legado.app.data.entities.rule.ReviewRule
+import io.legado.app.data.entities.rule.SearchRule
 import io.legado.app.utils.GSON
 import io.legado.app.utils.fromJsonObject
 import org.junit.Assert.assertFalse
@@ -76,6 +80,27 @@ class BookSourceReviewCapabilityTest {
     }
 
     @Test
+    fun `modern paragraph summary rules are not misclassified as book review`() {
+        val source = BookSource(
+            bookSourceUrl = "https://example.com/modern-paragraph-review",
+            ruleReview = ReviewRule(
+                enabled = true,
+                reviewSummaryUrl = "/summary",
+                summaryListRule = "$.data[*]",
+                summaryParagraphIndexRule = "$.paragraphIndex",
+                summaryParagraphDataRule = "$.paragraphData",
+                summaryCountRule = "$.count",
+                reviewDetailUrl = "/detail",
+                detailListRule = "$.comments[*]",
+                detailContentRule = "$.content",
+            )
+        )
+
+        assertTrue(source.hasParagraphReviewCapability())
+        assertFalse(source.hasBookReviewCapability())
+    }
+
+    @Test
     fun `other comment capability follows reply and interaction rules`() {
         val source = BookSource(
             bookSourceUrl = "https://example.com/other-comments",
@@ -86,6 +111,50 @@ class BookSourceReviewCapabilityTest {
         )
 
         assertTrue(source.hasOtherCommentCapability())
+        assertFalse(source.hasParagraphReviewCapability())
+    }
+
+    @Test
+    fun `legacy fanqie aggregate protocol is visible in review groups`() {
+        val source = BookSource(
+            bookSourceUrl = "https://example.com/fanqie",
+            ruleSearch = SearchRule(bookUrl = "/api/detail?book_id={{$.book_id}}"),
+            ruleContent = ContentRule(
+                content = "@js:'/api/comment?book_id='+book.bookUrl+' data.data.comment user_info user_name digg_count reply_count'"
+            )
+        )
+
+        assertTrue(source.hasBookReviewCapability())
+        assertTrue(source.hasOtherCommentCapability())
+        assertFalse(source.hasParagraphReviewCapability())
+    }
+
+    @Test
+    fun `legacy paragraph aggregate protocol is visible in paragraph and other groups`() {
+        val source = BookSource(
+            bookSourceUrl = "https://example.com/paragraph-aggregate",
+            jsLib = "fetch('/get_para_review?book_id=1'); fetch('/para_review?book_id=1')",
+        )
+
+        assertTrue(source.hasParagraphReviewCapability())
+        assertTrue(source.hasOtherCommentCapability())
+        assertFalse(source.hasBookReviewCapability())
+    }
+
+    @Test
+    fun `legacy qq protocol is visible in book review group`() {
+        val source = BookSource(
+            bookSourceUrl = "https://example.com/qq",
+            ruleBookInfo = BookInfoRule(
+                intro = "@js:result.commentlist..content",
+                tocUrl = "https://ubook.reader.qq.com/api/book/chapter-list",
+            ),
+            ruleExplore = ExploreRule(
+                bookUrl = "https://detailadr.reader.qq.com/?bid={{$.bid}}",
+            ),
+        )
+
+        assertTrue(source.hasBookReviewCapability())
         assertFalse(source.hasParagraphReviewCapability())
     }
 
