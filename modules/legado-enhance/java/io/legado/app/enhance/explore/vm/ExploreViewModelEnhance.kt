@@ -595,12 +595,16 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
             )
         }
 
-        val orderedSelectors = if (allSourceMode == ExploreMode.TREE) {
-            selectors
-        } else {
+        // Flat sources have no structural parent/child ordering, so sourceIndex may be used
+        // to restore independent controls to their original declaration order. Once SECTION
+        // or TREE has recovered hierarchy, traversal order is authoritative and must not be
+        // sorted again by raw source positions.
+        val orderedSelectors = if (allSourceMode == ExploreMode.FLAT) {
             selectors.withIndex()
                 .sortedWith(compareBy({ selectorSourceIndex(it.value) }, { it.index }))
                 .map { it.value }
+        } else {
+            selectors
         }
         val finalSelections = orderedSelectors
             .associateBy({ it.id }, { it.selectedTitle.orEmpty() })
