@@ -12,6 +12,7 @@ import com.google.gson.ToNumberPolicy
 import com.google.gson.internal.LinkedTreeMap
 import com.google.gson.reflect.TypeToken
 import com.google.gson.stream.JsonWriter
+import io.legado.app.data.entities.BookSource
 import io.legado.app.data.entities.rule.BookInfoRule
 import io.legado.app.data.entities.rule.ContentRule
 import io.legado.app.data.entities.rule.ExploreRule
@@ -39,7 +40,7 @@ val INITIAL_GSON: Gson by lazy {
         .create()
 }
 
-val GSON: Gson by lazy {
+private val RULE_GSON: Gson by lazy {
     INITIAL_GSON.newBuilder()
         .registerTypeAdapter(ExploreRule::class.java, ExploreRule.jsonDeserializer)
         .registerTypeAdapter(SearchRule::class.java, SearchRule.jsonDeserializer)
@@ -50,10 +51,41 @@ val GSON: Gson by lazy {
         .create()
 }
 
+val GSON: Gson by lazy {
+    RULE_GSON.newBuilder()
+        .registerTypeAdapter(BookSource::class.java, BookSourceJsonDeserializer())
+        .create()
+}
+
 val GSONStrict: Gson by lazy {
     GSON.newBuilder()
         .setStrictness(Strictness.STRICT)
         .create()
+}
+
+/**
+ * Keeps compatibility with legacy Legado sources that expose review support as
+ * the top-level `enabledReview` flag. Current BookSource no longer stores that
+ * field, so migrate it into ReviewRule.enabled before the source is persisted.
+ */
+private class BookSourceJsonDeserializer : JsonDeserializer<BookSource?> {
+
+    override fun deserialize(
+        json: JsonElement,
+        typeOfT: Type,
+        context: JsonDeserializationContext?
+    ): BookSource? {
+        val source = RULE_GSON.fromJson<BookSource>(json, BookSource::class.java)
+        if (json.isJsonObject && json.asJsonObject.get("enabledReview")?.let {
+                runCatching { it.asBoolean }.getOrDefault(false)
+            } == true
+        ) {
+            source.ruleReview = (source.ruleReview ?: ReviewRule()).apply {
+                enabled = true
+            }
+        }
+        return source
+    }
 }
 
 inline fun <reified T> genericType(): Type = object : TypeToken<T>() {}.type
@@ -103,7 +135,7 @@ inline fun <reified T> Gson.fromJsonArray(inputStream: InputStream?): Result<Lis
 }
 
 fun Gson.writeToOutputStream(out: OutputStream, any: Any) {
-    val writer = JsonWriter(OutputStreamWriter(out, "UTF-8"))
+    val writer = JsonWriter(OutputStreamWriter(out, "utf-8"))
     writer.setIndent("  ")
     if (any is List<*>) {
         writer.beginArray()
