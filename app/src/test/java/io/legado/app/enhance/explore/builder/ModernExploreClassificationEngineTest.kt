@@ -1,6 +1,7 @@
 package io.legado.app.enhance.explore.builder
 
 import io.legado.app.data.entities.rule.ExploreKind
+import io.legado.app.data.entities.rule.FlexChildStyle
 import io.legado.app.enhance.explore.model.ExploreMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
@@ -83,6 +84,58 @@ class ModernExploreClassificationEngineTest {
         assertEquals(listOf("分类一", "状态"), section.children.map { it.title })
         assertSame(url, section.children[0].originalKind)
         assertSame(select, section.children[1].originalKind)
+    }
+
+    @Test
+    fun `legacy flat visual hierarchy keeps channel groups above categories`() {
+        val fullRow = FlexChildStyle(layout_flexGrow = 1f, layout_flexBasisPercent = 1f)
+        val quarterRow = FlexChildStyle(layout_flexGrow = 1f, layout_flexBasisPercent = 0.25f)
+        fun header(title: String) = ExploreKind(title = title, style = fullRow)
+        fun item(title: String, id: String) = ExploreKind(
+            title = title,
+            url = "https://example.com/$id",
+            style = quarterRow,
+        )
+
+        val kinds = listOf(
+            ExploreKind(title = "我的书架", url = "https://example.com/bookshelf", style = fullRow),
+            header("༺ˇ»`ʚ男生频道ɞ´«ˇ༻"),
+            header("༺ 玄幻 ༻"),
+            item("[推荐]", "male-fantasy-recommend"),
+            item("完结", "male-fantasy-finished"),
+            item("连载", "male-fantasy-loading"),
+            header("༺ 神豪 ༻"),
+            item("[推荐]", "male-rich-recommend"),
+            item("完结", "male-rich-finished"),
+            item("连载", "male-rich-loading"),
+            header("༺ˇ»`ʚ女生频道ɞ´«ˇ༻"),
+            header("༺ 无敌 ༻"),
+            item("[推荐]", "female-invincible-recommend"),
+            item("完结", "female-invincible-finished"),
+            item("连载", "female-invincible-loading"),
+            header("༺ 种田 ༻"),
+            item("[推荐]", "female-farm-recommend"),
+            item("完结", "female-farm-finished"),
+            item("连载", "female-farm-loading"),
+        )
+
+        val result = ModernExploreClassificationEngine.classify(kinds, "")
+
+        assertEquals(ExploreMode.SECTION, result.mode)
+        assertEquals(
+            listOf("我的书架", "༺ˇ»`ʚ男生频道ɞ´«ˇ༻", "༺ˇ»`ʚ女生频道ɞ´«ˇ༻"),
+            result.nodes.map { it.title }
+        )
+
+        val male = result.nodes[1]
+        assertEquals(listOf("༺ 玄幻 ༻", "༺ 神豪 ༻"), male.children.map { it.title })
+        assertEquals(listOf("[推荐]", "完结", "连载"), male.children[0].children.map { it.title })
+        assertEquals(listOf("[推荐]", "完结", "连载"), male.children[1].children.map { it.title })
+
+        val female = result.nodes[2]
+        assertEquals(listOf("༺ 无敌 ༻", "༺ 种田 ༻"), female.children.map { it.title })
+        assertEquals(listOf("[推荐]", "完结", "连载"), female.children[0].children.map { it.title })
+        assertEquals(listOf("[推荐]", "完结", "连载"), female.children[1].children.map { it.title })
     }
 
     @Test
