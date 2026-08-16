@@ -1,0 +1,29 @@
+name: One-time Source Name Marquee Refactor
+
+on:
+  push:
+    branches: [ beta ]
+    paths:
+      - '.github/workflows/add-source-name-marquee-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  refactor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: beta
+      - name: Add source name marquee
+        run: python3 .github/scripts/add_source_name_marquee_once.py
+      - name: Commit refactor and remove temporary files
+        run: |
+          rm .github/scripts/add_source_name_marquee_once.py
+          rm .github/workflows/add-source-name-marquee-once.yml
+          git config user.name "Jie"
+          git config user.email "1614094+yagay@users.noreply.github.com"
+          git add -A
+          git commit -m "refactor(explore): keep source names single-line with marquee"
+          git push origin HEAD:beta
