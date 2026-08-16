@@ -59,15 +59,17 @@ class ModernExploreControlExtractorTest {
             action = "java.refreshExplore()"
         )
 
-        val control = ModernExploreControlExtractor.findSearchControl(listOf(text, search, login, refresh))!!
+        val result = ModernExploreControlExtractor.extractNativeControls(
+            listOf(text, search, login, refresh)
+        )
 
-        assertSame(text, control.textKind)
-        assertSame(search, control.buttonKind)
-        assertEquals(setOf(0, 1), control.hiddenSourceIndexes)
+        assertSame(text, result.searchControl?.textKind)
+        assertSame(search, result.searchControl?.buttonKind)
+        assertEquals(listOf(login, refresh), result.visibleControls)
     }
 
     @Test
-    fun `fanqie wrapped exploreSearch works even with another text control`() {
+    fun `fanqie wrapped exploreSearch hides only search pair with other text present`() {
         val searchText = ExploreKind(
             title = "搜索关键词",
             type = ExploreKind.Type.text,
@@ -83,19 +85,42 @@ class ModernExploreControlExtractorTest {
             title = "服务器返回输入项",
             type = ExploreKind.Type.text
         )
+        val update = ExploreKind(
+            title = "更新配置",
+            type = ExploreKind.Type.button,
+            action = "getCloudSettings(true)"
+        )
         val settings = ExploreKind(
             title = "书源设置",
             type = ExploreKind.Type.button,
             action = "getHtmlSettings()"
         )
 
-        val control = ModernExploreControlExtractor.findSearchControl(
-            listOf(searchText, searchButton, serverText, settings)
-        )!!
+        val result = ModernExploreControlExtractor.extractNativeControls(
+            listOf(searchText, searchButton, serverText, update, settings)
+        )
 
-        assertSame(searchText, control.textKind)
-        assertSame(searchButton, control.buttonKind)
-        assertEquals(setOf(0, 1), control.hiddenSourceIndexes)
+        assertSame(searchText, result.searchControl?.textKind)
+        assertSame(searchButton, result.searchControl?.buttonKind)
+        assertEquals(listOf(serverText, update, settings), result.visibleControls)
+    }
+
+    @Test
+    fun `non native category controls never leak into visible native controls`() {
+        val category = ExploreKind(title = "分类", url = "https://example.com/list")
+        val select = ExploreKind(
+            title = "状态",
+            type = ExploreKind.Type.select,
+            chars = arrayOf("全部", "完结")
+        )
+        val toggle = ExploreKind(title = "开关", type = ExploreKind.Type.toggle)
+
+        val result = ModernExploreControlExtractor.extractNativeControls(
+            listOf(category, select, toggle)
+        )
+
+        assertNull(result.searchControl)
+        assertEquals(listOf(toggle), result.visibleControls)
     }
 
     @Test
