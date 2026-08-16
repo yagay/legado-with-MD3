@@ -197,6 +197,7 @@ sealed interface BookInfoIntent {
     data object ReadRecordClick : BookInfoIntent
     data object BookReviewClick : BookInfoIntent
     data object LoadMoreBookReviews : BookInfoIntent
+    data class BookReviewImageClick(val imageUrl: String) : BookInfoIntent
     data object RemarkClick : BookInfoIntent
     data class SaveCover(val path: String) : BookInfoIntent
     data class ConfirmDelete(val deleteOriginal: Boolean) : BookInfoIntent
@@ -278,6 +279,7 @@ sealed interface BookInfoEffect {
         val origin: String?,
         val coverPath: String?,
     ) : BookInfoEffect
+
     data class NavigateToExploreShow(
         val title: String?,
         val sourceUrl: String,
