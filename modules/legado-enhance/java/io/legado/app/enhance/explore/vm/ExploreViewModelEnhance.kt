@@ -2,6 +2,7 @@ package io.legado.app.enhance.explore.vm
 
 import androidx.compose.runtime.Stable
 import androidx.lifecycle.viewModelScope
+import com.script.rhino.runScriptWithContext
 import io.legado.app.data.entities.SearchBook
 import io.legado.app.data.entities.rule.ExploreKind
 import io.legado.app.enhance.explore.builder.ModernExploreControlExtractor
@@ -17,12 +18,11 @@ import io.legado.app.help.source.clearExploreKindsCache
 import io.legado.app.help.source.exploreKinds
 import io.legado.app.help.source.exploreKindsJson
 import io.legado.app.help.source.getExploreInfoMap
-import io.legado.app.model.analyzeRule.AnalyzeRule
-import io.legado.app.model.analyzeRule.AnalyzeRule.Companion.setCoroutineContext
 import io.legado.app.ui.main.explore.ExploreEffect
 import io.legado.app.ui.main.explore.ExploreIntent
 import io.legado.app.ui.main.explore.ExploreViewModel
 import io.legado.app.ui.main.explore.ExploreViewModel.DynamicSelectorUi
+import io.legado.app.ui.login.SourceLoginJsExtensions
 import kotlinx.collections.immutable.*
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.Job
@@ -67,6 +67,8 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
     private var allSourceMode: ExploreMode = ExploreMode.FLAT
     private var allSourceControls: List<SelectControl> = emptyList()
     private var suiteSearchJob: Job? = null
+    /** Invalidates stale waterfall loads whenever a dynamic control/source changes. */
+    private var widgetRequestVersion: Long = 0L
 
     fun onIntent(intent: ExploreIntent): Boolean {
         when (intent) {
@@ -148,6 +150,7 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
     private fun refreshSuite() {
         val suite = vm.uiState.value.enhance.selectedSuite ?: return
         val defaultSourceUrl = suite.defaultSourceUrl ?: vm.uiState.value.items.firstOrNull()?.bookSourceUrl ?: return
+        widgetRequestVersion++
         vm.updateUiState {
             it.copy(
                 enhance = it.enhance.copy(
@@ -196,6 +199,7 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
         val suite = enhance.selectedSuite ?: return
         val defaultSourceUrl = suite.defaultSourceUrl ?: state.items.firstOrNull()?.bookSourceUrl ?: return
         val currentUrl = enhance.selectedWidgetTargets["current_url"] ?: return
+        val requestVersion = widgetRequestVersion
         val nextPage = (enhance.widgetPages[widgetId] ?: 1) + 1
         vm.updateUiState {
             it.copy(enhance = it.enhance.copy(widgetLoading = (it.enhance.widgetLoading + (widgetId to true)).toImmutableMap()))
@@ -208,6 +212,9 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
                     args = null,
                     page = nextPage
                 )
+                if (requestVersion != widgetRequestVersion ||
+                    vm.uiState.value.enhance.selectedWidgetTargets["current_url"] != currentUrl
+                ) return@launch
                 if (result.books.isEmpty()) {
                     vm.updateUiState {
                         it.copy(
@@ -305,10 +312,25 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
         if (value !in control.options) return
         if (vm.uiState.value.enhance.selectedWidgetTargets[widgetId] == value) return
         saveSelection(widgetId, value)
+        // Dynamic selects may rebuild the whole discovery page. Invalidate the previous
+        // platform/category request immediately so a slow old response cannot overwrite
+        // the newly selected platform.
+        widgetRequestVersion++
         vm.updateUiState { state ->
+            val selections = state.enhance.selectedWidgetTargets.toMutableMap().apply {
+                put(widgetId, value)
+                remove("current_url")
+            }
             state.copy(
                 enhance = state.enhance.copy(
-                    selectedWidgetTargets = (state.enhance.selectedWidgetTargets + (widgetId to value)).toImmutableMap()
+                    selectedWidgetTargets = selections.toImmutableMap(),
+                    widgetBooks = persistentMapOf(),
+                    widgetLoading = persistentMapOf(),
+                    widgetPages = persistentMapOf(),
+                    widgetIsEnd = persistentMapOf(),
+                    suiteSearchBooks = null,
+                    suiteSearchLoading = false,
+                    suiteSearchRemote = false,
                 )
             )
         }
@@ -332,10 +354,15 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
                                 action.removePrefix("{{").removeSuffix("}}")
                             else -> action
                         }
-                        AnalyzeRule(source = source, preUpdateJs = true)
-                            .setContent(actionJs, source.getKey())
-                            .setCoroutineContext(coroutineContext)
-                            .evalJS("var infoMap = result;\n$actionJs", infoMap)
+                        // Match legado:leg applyDiscoverSelectValue(): execute in the
+                        // BookSource JS scope so jsLib helpers (setVariable/BaseUrl/etc.)
+                        // and injected infoMap/java are the same ones used by discovery.
+                        runScriptWithContext {
+                            source.evalJS(actionJs) {
+                                put("java", SourceLoginJsExtensions(null, source))
+                                put("infoMap", infoMap)
+                            }
+                        }
                     }
                 source.clearExploreKindsCache()
                 allSourceRawKinds = source.exploreKinds()
@@ -562,10 +589,14 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
 
     private fun loadWidgetDataWithUrl(widgetId: String, sourceUrl: String, tagUrl: String) {
         if (tagUrl.isEmpty()) return
+        val requestVersion = widgetRequestVersion
         vm.updateUiState { it.copy(enhance = it.enhance.copy(widgetLoading = (it.enhance.widgetLoading + (widgetId to true)).toImmutableMap())) }
         vm.viewModelScope.launch(IO) {
             try {
                 val result = vm.exploreBooksUseCase.execute(sourceUrl = sourceUrl, moduleUrl = tagUrl, args = null)
+                if (requestVersion != widgetRequestVersion ||
+                    vm.uiState.value.enhance.selectedWidgetTargets["current_url"] != tagUrl
+                ) return@launch
                 val finalBooks = result.books.distinctBy { it.bookUrl }
                 vm.updateUiState {
                     it.copy(
@@ -578,7 +609,11 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
                     )
                 }
             } catch (_: Exception) {
-                vm.updateUiState { it.copy(enhance = it.enhance.copy(widgetLoading = (it.enhance.widgetLoading + (widgetId to false)).toImmutableMap())) }
+                if (requestVersion == widgetRequestVersion &&
+                    vm.uiState.value.enhance.selectedWidgetTargets["current_url"] == tagUrl
+                ) {
+                    vm.updateUiState { it.copy(enhance = it.enhance.copy(widgetLoading = (it.enhance.widgetLoading + (widgetId to false)).toImmutableMap())) }
+                }
             }
         }
     }
