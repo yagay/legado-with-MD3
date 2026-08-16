@@ -1,0 +1,135 @@
+name: Patch portable Rhino metadata
+
+on:
+  push:
+    branches: [beta]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: beta
+          fetch-depth: 0
+      - name: Patch import export boundaries
+        shell: python
+        run: |
+          from pathlib import Path
+
+          manage = Path('app/src/main/java/io/legado/app/ui/book/source/manage/BookSourceViewModel.kt')
+          s = manage.read_text()
+          if 'BookSourceJsEngineMetadata' not in s:
+              s = s.replace(
+                  'import io.legado.app.model.Debug\n' if 'import io.legado.app.model.Debug\n' in s else 'import io.legado.app.help.source.SourceHelp\n',
+                  ('import io.legado.app.model.Debug\n' if 'import io.legado.app.model.Debug\n' in s else 'import io.legado.app.help.source.SourceHelp\n') +
+                  'import io.legado.app.model.jsEngine.BookSourceJsEngineMetadata\n'
+                  'import io.legado.app.model.jsEngine.SourceJsEngineMode\n'
+                  'import io.legado.app.model.jsEngine.SourceJsEngineModeStore\n'
+              )
+              s = s.replace(
+                  '    private val importState =\n        MutableStateFlow<BaseImportUiState<BookSource>>(BaseImportUiState.Idle)\n',
+                  '    private val importState =\n        MutableStateFlow<BaseImportUiState<BookSource>>(BaseImportUiState.Idle)\n'
+                  '    private val pendingImportJsEngineModes = mutableMapOf<String, SourceJsEngineMode>()\n'
+              )
+              s = s.replace(
+                  '            BookSourceIntent.CancelImport -> importState.value = BaseImportUiState.Idle\n',
+                  '            BookSourceIntent.CancelImport -> {\n'
+                  '                pendingImportJsEngineModes.clear()\n'
+                  '                importState.value = BaseImportUiState.Idle\n'
+                  '            }\n'
+              )
+              s = s.replace(
+                  '    private fun importSources(input: String) {\n        importState.value = BaseImportUiState.Loading\n',
+                  '    private fun importSources(input: String) {\n'
+                  '        pendingImportJsEngineModes.clear()\n'
+                  '        importState.value = BaseImportUiState.Loading\n'
+              )
+              s = s.replace(
+                  '            }.onSuccess { importState.value = it }\n                .onFailure {\n                    importState.value = BaseImportUiState.Error(it.localizedMessage ?: "导入失败")\n                }\n',
+                  '            }.onSuccess { importState.value = it }\n'
+                  '                .onFailure {\n'
+                  '                    pendingImportJsEngineModes.clear()\n'
+                  '                    importState.value = BaseImportUiState.Error(it.localizedMessage ?: "导入失败")\n'
+                  '                }\n'
+              )
+              s = s.replace(
+                  '            text.isJsonArray() -> GSON.fromJsonArray<BookSource>(text).getOrThrow()\n',
+                  '            text.isJsonArray() -> {\n'
+                  '                val arrayValue = JsonParser.parseString(text).asJsonArray\n'
+                  '                arrayValue.forEach(::rememberImportedJsEngineMode)\n'
+                  '                GSON.fromJsonArray<BookSource>(text).getOrThrow()\n'
+                  '            }\n'
+              )
+              s = s.replace(
+                  '                } else listOf(GSON.fromJsonObject<BookSource>(text).getOrThrow())\n',
+                  '                } else {\n'
+                  '                    rememberImportedJsEngineMode(objectValue)\n'
+                  '                    listOf(GSON.fromJsonObject<BookSource>(text).getOrThrow())\n'
+                  '                }\n'
+              )
+              marker = '    private fun updateImportItems(transform: (List<ImportItemWrapper<BookSource>>) -> List<ImportItemWrapper<BookSource>>) {'
+              helper = '''    private fun rememberImportedJsEngineMode(element: com.google.gson.JsonElement) {\n        val key = BookSourceJsEngineMetadata.readSourceKey(element) ?: return\n        val mode = BookSourceJsEngineMetadata.readMode(element) ?: return\n        pendingImportJsEngineModes[key] = mode\n    }\n\n'''
+              s = s.replace(marker, helper + marker)
+              s = s.replace(
+                  '            val sources = state.items.filter { it.isSelected }.map { wrapper ->\n',
+                  '            val selectedItems = state.items.filter { it.isSelected }\n'
+                  '            val sources = selectedItems.map { wrapper ->\n'
+              )
+              s = s.replace(
+                  '            SourceHelp.insertBookSource(*sources.toTypedArray())\n            ContentProcessor.upReplaceRules()\n',
+                  '            SourceHelp.insertBookSource(*sources.toTypedArray())\n'
+                  '            selectedItems.zip(sources).forEach { (wrapper, source) ->\n'
+                  '                pendingImportJsEngineModes[source.bookSourceUrl]?.let { mode ->\n'
+                  '                    SourceJsEngineModeStore.setMode(source.bookSourceUrl, mode)\n'
+                  '                } ?: if (wrapper.oldData?.bookSourceUrl != source.bookSourceUrl) {\n'
+                  '                    SourceJsEngineModeStore.clearMode(source.bookSourceUrl)\n'
+                  '                }\n'
+                  '            }\n'
+                  '            pendingImportJsEngineModes.clear()\n'
+                  '            ContentProcessor.upReplaceRules()\n'
+              )
+              s = s.replace('it.write(GSON.toJson(selected))', 'it.write(BookSourceJsEngineMetadata.toJson(selected))')
+              s = s.replace('file = GSON.toJson(selected),', 'file = BookSourceJsEngineMetadata.toJson(selected),')
+              manage.write_text(s)
+
+          edit = Path('app/src/main/java/io/legado/app/ui/book/source/edit/BookSourceEditViewModel.kt')
+          s = edit.read_text()
+          if 'BookSourceJsEngineMetadata' not in s:
+              s = s.replace(
+                  'import io.legado.app.model.SharedJsScope\n',
+                  'import io.legado.app.model.SharedJsScope\n'
+                  'import io.legado.app.model.jsEngine.BookSourceJsEngineMetadata\n'
+              )
+              s = s.replace(
+                  '    private var baselineJsEngineMode = SourceJsEngineMode.LEGACY\n',
+                  '    private var baselineJsEngineMode = SourceJsEngineMode.LEGACY\n'
+                  '    private var pendingImportedJsEngineMode: SourceJsEngineMode? = null\n'
+              )
+              old_copy = '''            BookSourceEditIntent.Copy -> _effects.tryEmit(\n                BookSourceEditEffect.CopyText(\n                    GSON.toJson(\n                        currentSource()\n                    )\n                )\n            )\n\n            BookSourceEditIntent.Share -> _effects.tryEmit(\n                BookSourceEditEffect.ShareText(\n                    GSON.toJson(\n                        currentSource()\n                    )\n                )\n            )\n'''
+              new_copy = '''            BookSourceEditIntent.Copy -> _effects.tryEmit(\n                BookSourceEditEffect.CopyText(\n                    BookSourceJsEngineMetadata.toJson(currentSource(), _uiState.value.jsEngineMode)\n                )\n            )\n\n            BookSourceEditIntent.Share -> _effects.tryEmit(\n                BookSourceEditEffect.ShareText(\n                    BookSourceJsEngineMetadata.toJson(currentSource(), _uiState.value.jsEngineMode)\n                )\n            )\n'''
+              s = s.replace(old_copy, new_copy)
+              old_import = '''    private fun importText(text: String) = viewModelScope.launch(Dispatchers.IO) {\n        runCatching { parseSource(text) }.onSuccess { source ->\n            withContext(Dispatchers.Main) { applySource(source) }\n            _uiState.update { it.copy(dirty = true) }\n'''
+              new_import = '''    private fun importText(text: String) = viewModelScope.launch(Dispatchers.IO) {\n        pendingImportedJsEngineMode = null\n        runCatching { parseSource(text) }.onSuccess { source ->\n            val importedMode = pendingImportedJsEngineMode\n            withContext(Dispatchers.Main) {\n                applySource(source)\n                importedMode?.let { mode ->\n                    _uiState.update { it.copy(jsEngineMode = mode) }\n                }\n            }\n            _uiState.update { it.copy(dirty = true) }\n'''
+              s = s.replace(old_import, new_import)
+              old_parse = '''        } else GSON.fromJsonArray<BookSource>(text).getOrThrow().first()\n\n        text.isJsonObject() -> if (text.contains("ruleSearchUrl") || text.contains("ruleFindUrl")) {\n            ImportOldData.fromOldBookSource(jsonPath.parse(text))\n        } else GSON.fromJsonObject<BookSource>(text).getOrThrow()\n'''
+              new_parse = '''        } else {\n            val arrayValue = JsonParser.parseString(text).asJsonArray\n            pendingImportedJsEngineMode = arrayValue.firstOrNull()?.let(BookSourceJsEngineMetadata::readMode)\n            GSON.fromJsonArray<BookSource>(text).getOrThrow().first()\n        }\n\n        text.isJsonObject() -> if (text.contains("ruleSearchUrl") || text.contains("ruleFindUrl")) {\n            ImportOldData.fromOldBookSource(jsonPath.parse(text))\n        } else {\n            val objectValue = JsonParser.parseString(text)\n            pendingImportedJsEngineMode = BookSourceJsEngineMetadata.readMode(objectValue)\n            GSON.fromJsonObject<BookSource>(text).getOrThrow()\n        }\n'''
+              s = s.replace(old_parse, new_parse)
+              edit.write_text(s)
+
+          for path in (manage, edit):
+              text = path.read_text()
+              if 'BookSourceJsEngineMetadata' not in text:
+                  raise SystemExit(f'patch did not apply to {path}')
+      - name: Commit patch
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add app/src/main/java/io/legado/app/ui/book/source/manage/BookSourceViewModel.kt app/src/main/java/io/legado/app/ui/book/source/edit/BookSourceEditViewModel.kt
+          git commit -m "feat: carry Rhino mode with book source JSON"
+          git push origin HEAD:beta
