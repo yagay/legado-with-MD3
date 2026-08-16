@@ -12,7 +12,7 @@ import io.legado.app.utils.GSON
  * 原则：
  * 1. source.exploreKinds() 始终是书源行为的事实来源，保留原始顺序与完整 type/action/chars/default/style；
  * 2. 只有原始 JSON 明确提供 children 时才建立 TREE；
- * 3. 没有显式 children 时，仅依据无可执行目标的 Header 和原始顺序恢复 SECTION；
+ * 3. 没有显式 children 时，仅依据纯展示 URL Header 和原始顺序恢复 SECTION；
  * 4. 不根据“男频/女频/热门/完结/排行榜”等名称猜测层级；
  * 5. 不过滤 text/button/toggle/select，也不生成“全部/分类”等伪 ExploreKind。
  */
@@ -90,6 +90,13 @@ object ModernExploreClassificationEngine {
     private fun List<ExploreKind>.hasChildrenDeep(): Boolean =
         any { !it.children.isNullOrEmpty() || it.children.orEmpty().hasChildrenDeep() }
 
+    /**
+     * text/button/toggle/select 没有 URL 很正常，它们是上游协议控件，不是分段 Header。
+     * 只有默认 url 类型且没有任何可执行目标的条目才作为纯展示 Header。
+     */
     private fun isSectionHeader(kind: ExploreKind): Boolean =
-        kind.url.isNullOrBlank() && kind.action.isNullOrBlank() && kind.title.isNotBlank()
+        kind.type == ExploreKind.Type.url &&
+            kind.url.isNullOrBlank() &&
+            kind.action.isNullOrBlank() &&
+            kind.title.isNotBlank()
 }
