@@ -138,8 +138,9 @@ text, count = infer_pattern.subn(infer_replacement, text, count=1)
 if count != 1:
     raise SystemExit(f'infer selector replacement count={count}')
 
+# The global call-site replacements above also rename the private helper declarations.
 extensions_pattern = re.compile(
-    r'''\n    private fun ExploreKind\.hasChildren\(\): Boolean =[\s\S]*?\n    private fun ExploreKind\.isGroupHeader\(\): Boolean =[^\n]*\n'''
+    r'''\n    private fun ExploreKind\.hasModernChildren\(\): Boolean =[\s\S]*?\n    private fun ExploreKind\.isGroupHeader\(\): Boolean =[^\n]*\n'''
 )
 text, count = extensions_pattern.subn('\n', text, count=1)
 if count != 1:
@@ -164,6 +165,9 @@ for token in [
     'extractSelectVariableKey',
     '.targetUrl()',
     '.hasChildren()',
+    '.isGroupHeader()',
+    'private fun ExploreKind.hasModernChildren',
+    'private fun ExploreKind.modernTargetUrl',
 ]:
     if token in text:
         raise SystemExit(f'forbidden leftover: {token}')
