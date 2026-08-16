@@ -218,7 +218,10 @@ object BookChapterList {
             val payRule = analyzeRule.splitSourceRule(tocRule.isPay)
             val upTimeRule = analyzeRule.splitSourceRule(tocRule.updateTime)
             val isVolumeRule = analyzeRule.splitSourceRule(tocRule.isVolume)
-            val tocCountWords = AppConfig.tocCountWords
+            // Current MD3 does not expose upstream's tocCountWords preference yet.
+            // Upstream defaults it to true, so keep the same rule-parsing behavior here
+            // without pulling a settings-system change into the compatibility layer.
+            val tocCountWords = true
             elements.forEachIndexed { index, item ->
                 coroutineContext.ensureActive()
                 analyzeRule.setContent(item)
