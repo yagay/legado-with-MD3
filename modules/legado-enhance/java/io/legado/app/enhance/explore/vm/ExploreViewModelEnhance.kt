@@ -18,6 +18,7 @@ import io.legado.app.help.source.exploreKinds
 import io.legado.app.help.source.exploreKindsJson
 import io.legado.app.help.source.getExploreInfoMap
 import io.legado.app.model.analyzeRule.AnalyzeRule
+import io.legado.app.model.analyzeRule.AnalyzeRule.Companion.setCoroutineContext
 import io.legado.app.ui.main.explore.ExploreEffect
 import io.legado.app.ui.main.explore.ExploreIntent
 import io.legado.app.ui.main.explore.ExploreViewModel
@@ -324,15 +325,17 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
                     ?.trim()
                     ?.takeIf { it.isNotBlank() }
                     ?.let { action ->
-                        val actionRule = if (action.startsWith("<js>") || action.startsWith("{{")) {
-                            action
-                        } else {
-                            "<js>$action</js>"
+                        val actionJs = when {
+                            action.startsWith("<js>") && action.endsWith("</js>") ->
+                                action.removePrefix("<js>").removeSuffix("</js>")
+                            action.startsWith("{{") && action.endsWith("}}") ->
+                                action.removePrefix("{{").removeSuffix("}}")
+                            else -> action
                         }
                         AnalyzeRule(source = source, preUpdateJs = true)
-                            .setContent(actionRule, source.getKey())
-                            .put("infoMap", infoMap)
-                            .getString(actionRule)
+                            .setContent(actionJs, source.getKey())
+                            .setCoroutineContext(coroutineContext)
+                            .evalJS("var infoMap = result;\n$actionJs", infoMap)
                     }
                 source.clearExploreKindsCache()
                 allSourceRawKinds = source.exploreKinds()
