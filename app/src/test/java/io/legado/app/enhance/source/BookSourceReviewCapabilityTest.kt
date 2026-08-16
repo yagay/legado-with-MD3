@@ -115,6 +115,22 @@ class BookSourceReviewCapabilityTest {
     }
 
     @Test
+    fun `legacy review quote endpoint belongs to paragraph and other comment groups`() {
+        val source = BookSource(
+            bookSourceUrl = "https://example.com/quote-comments",
+            ruleReview = ReviewRule(
+                reviewUrl = "/paragraph/comments",
+                reviewQuoteUrl = "/paragraph/replies",
+                contentRule = "$.content",
+            )
+        )
+
+        assertTrue(source.hasParagraphReviewCapability())
+        assertTrue(source.hasOtherCommentCapability())
+        assertFalse(source.hasBookReviewCapability())
+    }
+
+    @Test
     fun `legacy fanqie aggregate protocol is visible in review groups`() {
         val source = BookSource(
             bookSourceUrl = "https://example.com/fanqie",
@@ -133,11 +149,22 @@ class BookSourceReviewCapabilityTest {
     fun `legacy paragraph aggregate protocol is visible in paragraph and other groups`() {
         val source = BookSource(
             bookSourceUrl = "https://example.com/paragraph-aggregate",
-            jsLib = "fetch('/get_para_review?book_id=1'); fetch('/para_review?book_id=1')",
+            jsLib = "fetch('/get_para_review?book_id=1'); fetch('/para_review?book_id=1'); var replies=[];",
         )
 
         assertTrue(source.hasParagraphReviewCapability())
         assertTrue(source.hasOtherCommentCapability())
+        assertFalse(source.hasBookReviewCapability())
+    }
+
+    @Test
+    fun `single legacy paragraph endpoint is enough for source manager classification`() {
+        val source = BookSource(
+            bookSourceUrl = "https://example.com/legacy-paragraph-summary",
+            jsLib = "function loadReview(){ return fetch('/get_para_review?book_id=' + bookId); }",
+        )
+
+        assertTrue(source.hasParagraphReviewCapability())
         assertFalse(source.hasBookReviewCapability())
     }
 
