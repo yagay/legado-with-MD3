@@ -9,13 +9,13 @@ import org.junit.Test
 class ModernExploreControlExtractorTest {
 
     @Test
-    fun `detects text and button only when button reads matching infoMap key`() {
+    fun `detects text and button when button reads matching infoMap key`() {
         val text = ExploreKind(title = "keyword", type = ExploreKind.Type.text)
         val unrelated = ExploreKind(title = "分类", url = "https://example.com/list")
         val button = ExploreKind(
             title = "执行",
             type = ExploreKind.Type.button,
-            action = "<js>var q = infoMap.get('keyword'); java.reUiView(false)</js>"
+            action = "<js>var q = infoMap.get('keyword'); java.refreshExplore()</js>"
         )
 
         val control = ModernExploreControlExtractor.findSearchControl(
@@ -33,7 +33,7 @@ class ModernExploreControlExtractorTest {
         val button = ExploreKind(
             title = "动作B",
             type = ExploreKind.Type.button,
-            action = "{{ let value = infoMap[\"参数A\"]; java.reUiView(false); }}"
+            action = "{{ let value = infoMap[\"参数A\"]; java.refreshExplore(); }}"
         )
 
         val control = ModernExploreControlExtractor.findSearchControl(listOf(text, button))
@@ -43,13 +43,44 @@ class ModernExploreControlExtractorTest {
     }
 
     @Test
-    fun `does not infer semantics from adjacent text and button`() {
+    fun `single text plus refresh button is treated as embedded search`() {
+        val text = ExploreKind(title = "任意参数", type = ExploreKind.Type.text)
+        val button = ExploreKind(
+            title = "任意动作",
+            type = ExploreKind.Type.button,
+            action = "java.refreshExplore()"
+        )
+
+        val control = ModernExploreControlExtractor.findSearchControl(listOf(text, button))
+
+        assertSame(text, control?.textKind)
+        assertSame(button, control?.buttonKind)
+        assertEquals(setOf(0, 1), control?.hiddenSourceIndexes)
+    }
+
+    @Test
+    fun `single text plus legacy refresh callback is supported`() {
+        val text = ExploreKind(title = "值", type = ExploreKind.Type.text)
+        val button = ExploreKind(
+            title = "动作",
+            type = ExploreKind.Type.button,
+            action = "<js>java.reLoginView(false)</js>"
+        )
+
+        val control = ModernExploreControlExtractor.findSearchControl(listOf(text, button))
+
+        assertSame(text, control?.textKind)
+        assertSame(button, control?.buttonKind)
+    }
+
+    @Test
+    fun `multiple text form is never inferred from refresh button alone`() {
         val account = ExploreKind(title = "账号", type = ExploreKind.Type.text)
         val password = ExploreKind(title = "密码", type = ExploreKind.Type.text)
         val button = ExploreKind(
-            title = "登录",
+            title = "提交",
             type = ExploreKind.Type.button,
-            action = "java.login()"
+            action = "java.refreshExplore()"
         )
 
         assertNull(
@@ -57,6 +88,18 @@ class ModernExploreControlExtractorTest {
                 listOf(account, password, button)
             )
         )
+    }
+
+    @Test
+    fun `does not infer unrelated single text and button without refresh`() {
+        val text = ExploreKind(title = "值", type = ExploreKind.Type.text)
+        val button = ExploreKind(
+            title = "动作",
+            type = ExploreKind.Type.button,
+            action = "java.login()"
+        )
+
+        assertNull(ModernExploreControlExtractor.findSearchControl(listOf(text, button)))
     }
 
     @Test
