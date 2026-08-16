@@ -1,0 +1,119 @@
+name: Vendor upstream Legado Rhino runtime
+
+on:
+  push:
+    branches: [ beta ]
+
+permissions:
+  contents: write
+
+jobs:
+  vendor:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Vendor isolated upstream Rhino module
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/legado-upstream
+          git clone --depth=1 --filter=blob:none --sparse https://github.com/LegadoTeam/legado.git /tmp/legado-upstream
+          git -C /tmp/legado-upstream sparse-checkout set modules/rhino
+
+          rm -rf modules/rhino-upstream
+          mkdir -p modules/rhino-upstream/src/main/java
+          cp -R /tmp/legado-upstream/modules/rhino/src/main/java/com modules/rhino-upstream/src/main/java/
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          root = Path('modules/rhino-upstream/src/main/java')
+          for p in root.rglob('*.kt'):
+              s = p.read_text(encoding='utf-8')
+              # Mechanical namespace isolation only. Runtime behavior stays upstream.
+              s = s.replace('com.script.', 'com.script.upstream.')
+              s = s.replace('package com.script\n', 'package com.script.upstream\n')
+              p.write_text(s, encoding='utf-8')
+
+          bridge = root / 'com/script/upstream/bridge/UpstreamLegadoRuntime.kt'
+          bridge.parent.mkdir(parents=True, exist_ok=True)
+          bridge.write_text('''package com.script.upstream.bridge
+
+          import com.script.upstream.ScriptBindings
+          import com.script.upstream.rhino.RhinoScriptEngine
+
+          /** Thin JVM-value facade over the vendored LegadoTeam Rhino runtime. */
+          object UpstreamLegadoRuntime {
+              fun eval(js: String, bindings: Map<String, Any?>): Any? {
+                  val scriptBindings = ScriptBindings()
+                  bindings.forEach { (key, value) -> scriptBindings[key] = value }
+                  val scope = RhinoScriptEngine.getRuntimeScope(scriptBindings)
+                  return RhinoScriptEngine.eval(js, scope)
+              }
+          }
+          '''.replace('          ', ''), encoding='utf-8')
+          PY
+
+          cat > modules/rhino-upstream/build.gradle.kts <<'EOF'
+          plugins {
+              alias(libs.plugins.android.library)
+          }
+
+          android {
+              compileSdk = 37
+              namespace = "com.script.upstream"
+              kotlin {
+                  jvmToolchain {
+                      languageVersion.set(JavaLanguageVersion.of(21))
+                  }
+              }
+              defaultConfig {
+                  minSdk = 26
+              }
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_21
+                  targetCompatibility = JavaVersion.VERSION_21
+              }
+              lint {
+                  checkDependencies = true
+                  targetSdk = 37
+              }
+          }
+
+          dependencies {
+              api("org.htmlunit:htmlunit-core-js:5.3.0-legado.3")
+              implementation(libs.kotlinx.coroutines.core)
+              implementation(libs.okhttp)
+              implementation(libs.androidx.collection)
+          }
+          EOF
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          settings = Path('settings.gradle')
+          s = settings.read_text(encoding='utf-8')
+          marker = "include ':modules:rhino'\n"
+          if "include ':modules:rhino-upstream'" not in s:
+              if marker not in s:
+                  raise SystemExit('settings rhino include anchor not found')
+              s = s.replace(marker, marker + "include ':modules:rhino-upstream'\n", 1)
+              settings.write_text(s, encoding='utf-8')
+
+          app = Path('app/build.gradle.kts')
+          s = app.read_text(encoding='utf-8')
+          marker = '    implementation(project(":modules:rhino"))\n'
+          if 'implementation(project(":modules:rhino-upstream"))' not in s:
+              if marker not in s:
+                  raise SystemExit('app rhino dependency anchor not found')
+              s = s.replace(marker, marker + '    implementation(project(":modules:rhino-upstream"))\n', 1)
+              app.write_text(s, encoding='utf-8')
+          PY
+
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add modules/rhino-upstream settings.gradle app/build.gradle.kts
+          git diff --cached --quiet && exit 0
+          git commit -m "refactor: vendor isolated TeamLegado Rhino runtime"
+          git push
