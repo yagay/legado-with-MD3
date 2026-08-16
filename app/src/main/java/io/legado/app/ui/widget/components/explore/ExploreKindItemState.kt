@@ -19,7 +19,9 @@ import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.launch
 
 /**
- * 封装 ExploreKind 的业务状态与交互逻辑
+ * 封装 ExploreKind 的业务状态与交互逻辑。
+ * InfoMap 与 ExploreKindUiUseCase 始终作为书源行为的唯一事实来源；
+ * 外部回调只用于同步额外的展示状态，不能替代上游书源状态写入。
  */
 @Stable
 class ExploreKindItemState(
@@ -51,22 +53,19 @@ class ExploreKindItemState(
     }
 
     fun updateValue(value: String, onValueChange: ((String) -> Unit)?) {
-        if (onValueChange != null) {
-            onValueChange(value)
-        } else {
-            infoMap?.let {
-                it[kind.title] = value
-                it.saveNow()
-            }
+        infoMap?.let {
+            it[kind.title] = value
+            it.saveNow()
         }
+        onValueChange?.invoke(value)
     }
 
     @Composable
     fun ResolveDisplayName(override: String?) {
         LaunchedEffect(override, sourceUrl, kind.title, kind.viewName, useCase) {
-            displayName = override
-                ?: useCase?.resolveDisplayName(kind, sourceUrl, infoMap)
-                        ?: kind.title
+            displayName = useCase?.resolveDisplayName(kind, sourceUrl, infoMap)
+                ?: override
+                ?: kind.title
         }
     }
 
