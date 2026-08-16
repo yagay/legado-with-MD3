@@ -1,14 +1,18 @@
 package io.legado.app.enhance.source
 
 import io.legado.app.data.entities.BookSource
-import io.legado.app.data.entities.rule.ReviewRule
 
 /**
  * Detect review capabilities without changing the upstream BookSource model or
  * persisting synthetic source groups.
+ *
+ * Capability detection intentionally ignores ReviewRule.enabled. That flag
+ * controls whether review behavior is currently enabled at runtime, while this
+ * filter answers whether the source has the corresponding rules configured at
+ * all. Imported sources may omit enabled and therefore deserialize it as false.
  */
 fun BookSource.hasBookReviewCapability(): Boolean =
-    ruleReview.activeReviewRule()?.run {
+    ruleReview?.run {
         hasAny(
             reviewSummaryUrl,
             summaryListRule,
@@ -27,7 +31,7 @@ fun BookSource.hasBookReviewCapability(): Boolean =
     } == true
 
 fun BookSource.hasParagraphReviewCapability(): Boolean =
-    ruleReview.activeReviewRule()?.run {
+    ruleReview?.run {
         hasAny(
             reviewUrl,
             avatarRule,
@@ -38,7 +42,7 @@ fun BookSource.hasParagraphReviewCapability(): Boolean =
     } == true
 
 fun BookSource.hasOtherCommentCapability(): Boolean =
-    ruleReview.activeReviewRule()?.run {
+    ruleReview?.run {
         hasAny(
             replyListRule,
             replyIdRule,
@@ -53,9 +57,6 @@ fun BookSource.hasOtherCommentCapability(): Boolean =
             deleteUrl,
         )
     } == true
-
-private fun ReviewRule?.activeReviewRule(): ReviewRule? =
-    this?.takeIf { it.enabled }
 
 private fun hasAny(vararg values: String?): Boolean =
     values.any { !it.isNullOrBlank() }
