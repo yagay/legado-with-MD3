@@ -30,17 +30,24 @@ class AdaptiveExploreControlRowsTest {
     }
 
     @Test
-    fun `text inputs always occupy their own row`() {
+    fun `text controls can share a row when width allows`() {
         val controls = listOf(
-            ExploreKind(title = "前", type = ExploreKind.Type.button),
-            ExploreKind(title = "输入内容", type = ExploreKind.Type.text),
-            ExploreKind(title = "后", type = ExploreKind.Type.button),
+            ExploreKind(title = "输入", type = ExploreKind.Type.text),
+            ExploreKind(title = "确定", type = ExploreKind.Type.button),
         )
 
         val rows = packAdaptiveControlRows(controls)
 
-        assertEquals(3, rows.size)
-        assertEquals(ExploreKind.Type.text, rows[1].single().type)
+        assertEquals(1, rows.size)
+        assertEquals(controls, rows.single())
+    }
+
+    @Test
+    fun `text controls keep a larger minimum width`() {
+        val text = ExploreKind(title = "A", type = ExploreKind.Type.text)
+        val button = ExploreKind(title = "A", type = ExploreKind.Type.button)
+
+        assertTrue(controlWidthUnits(text) > controlWidthUnits(button))
     }
 
     @Test
