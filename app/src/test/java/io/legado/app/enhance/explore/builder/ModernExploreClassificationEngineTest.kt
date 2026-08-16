@@ -21,12 +21,15 @@ class ModernExploreClassificationEngineTest {
         val result = ModernExploreClassificationEngine.classify(kinds, "")
 
         assertEquals(ExploreMode.FLAT, result.mode)
-        assertEquals(kinds, result.kinds)
-        kinds.indices.forEach { index -> assertSame(kinds[index], result.kinds[index]) }
+        assertEquals(kinds.map { it.title }, result.nodes.map { it.title })
+        kinds.indices.forEach { index ->
+            assertSame(kinds[index], result.nodes[index].originalKind)
+            assertEquals(index, result.nodes[index].sourceIndex)
+        }
     }
 
     @Test
-    fun `section grouping uses header boundaries and preserves child kinds`() {
+    fun `section grouping uses header boundaries and preserves original kinds`() {
         val header = ExploreKind(title = "频道")
         val url = ExploreKind(title = "分类一", url = "https://example.com/1")
         val select = ExploreKind(
@@ -39,11 +42,12 @@ class ModernExploreClassificationEngineTest {
         val result = ModernExploreClassificationEngine.classify(kinds, "")
 
         assertEquals(ExploreMode.SECTION, result.mode)
-        val section = result.kinds.single()
+        val section = result.nodes.single()
         assertEquals("频道", section.title)
-        assertEquals(listOf(url, select), section.children)
-        assertSame(url, section.children.orEmpty()[0])
-        assertSame(select, section.children.orEmpty()[1])
+        assertSame(header, section.originalKind)
+        assertEquals(listOf("分类一", "状态"), section.children.map { it.title })
+        assertSame(url, section.children[0].originalKind)
+        assertSame(select, section.children[1].originalKind)
     }
 
     @Test
@@ -58,11 +62,11 @@ class ModernExploreClassificationEngineTest {
         val result = ModernExploreClassificationEngine.classify(kinds, "")
 
         assertEquals(ExploreMode.FLAT, result.mode)
-        assertEquals(kinds, result.kinds)
+        assertEquals(kinds.map { it.title }, result.nodes.map { it.title })
     }
 
     @Test
-    fun `explicit json children are the only source of tree hierarchy`() {
+    fun `explicit json children live only in enhance nodes`() {
         val rawJson = """
             [
               {
@@ -79,10 +83,11 @@ class ModernExploreClassificationEngineTest {
         val result = ModernExploreClassificationEngine.classify(flatKinds, rawJson)
 
         assertEquals(ExploreMode.TREE, result.mode)
-        assertEquals("频道", result.kinds.single().title)
-        val children = result.kinds.single().children.orEmpty()
-        assertEquals(listOf("输入", "分类"), children.map { it.title })
-        assertEquals(ExploreKind.Type.text, children.first().type)
-        assertEquals("runText()", children.first().action)
+        val root = result.nodes.single()
+        assertEquals("频道", root.title)
+        assertEquals(listOf("输入", "分类"), root.children.map { it.title })
+        val input = root.children.first().originalKind!!
+        assertEquals(ExploreKind.Type.text, input.type)
+        assertEquals("runText()", input.action)
     }
 }
