@@ -1,5 +1,6 @@
 package io.legado.app.model.jsEngine
 
+import android.app.Application
 import io.legado.app.data.entities.BookSource
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -9,9 +10,17 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import splitties.init.injectAsAppCtx
+
+class JsEngineCompatibilityTestApplication : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        injectAsAppCtx()
+    }
+}
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [36])
+@Config(sdk = [36], application = JsEngineCompatibilityTestApplication::class)
 class SourceJsEngineCompatibilityTest {
 
     private val sourceKeys = mutableListOf<String>()
