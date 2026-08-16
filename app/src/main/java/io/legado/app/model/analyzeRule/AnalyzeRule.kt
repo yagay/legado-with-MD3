@@ -22,6 +22,8 @@ import io.legado.app.help.http.BackstageWebView
 import io.legado.app.help.http.CookieStore
 import io.legado.app.help.source.getShareScope
 import io.legado.app.model.Debug
+import io.legado.app.model.jsEngine.SourceJsEngineMode
+import io.legado.app.model.jsEngine.SourceJsEngineModeStore
 import io.legado.app.model.webBook.WebBook
 import io.legado.app.utils.GSON
 import io.legado.app.utils.GSONStrict
@@ -834,6 +836,26 @@ class AnalyzeRule(
      * 执行JS
      */
     fun evalJS(jsStr: String, result: Any? = null): Any? {
+        if (source != null &&
+            SourceJsEngineModeStore.getMode(source.getKey()) == SourceJsEngineMode.MODERN
+        ) {
+            return source.evalJS(jsStr) {
+                put("java", this@AnalyzeRule)
+                put("source", source)
+                put("book", book)
+                put("result", result)
+                put("baseUrl", baseUrl)
+                put("chapter", chapter)
+                put("title", chapter?.title)
+                put("src", content)
+                put("nextChapterUrl", nextChapterUrl)
+                put("rssArticle", rssArticle)
+                put("fromBookInfo", isFromBookInfo)
+                localBindings["paraIndex"]?.let { put("paraIndex", it) }
+                localBindings["paraData"]?.let { put("paraData", it) }
+                localBindings["page"]?.let { put("page", it.toIntOrNull() ?: it) }
+            }
+        }
         val bindings = buildScriptBindings { bindings ->
             bindings["java"] = this
             bindings["cookie"] = CookieStore
