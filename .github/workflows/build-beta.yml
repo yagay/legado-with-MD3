@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: beta-build-${{ github.ref }}
@@ -21,47 +21,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          fetch-depth: 2
-
-      - name: Apply exact AnalyzeRule modern-engine routing
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path('app/src/main/java/io/legado/app/model/analyzeRule/AnalyzeRule.kt')
-          text = path.read_text(encoding='utf-8')
-
-          import_anchor = 'import io.legado.app.model.Debug\n'
-          import_block = (
-              'import io.legado.app.model.Debug\n'
-              'import io.legado.app.model.jsEngine.SourceJsEngineMode\n'
-              'import io.legado.app.model.jsEngine.SourceJsEngineModeStore\n'
-          )
-          if 'SourceJsEngineModeStore' not in text:
-              if text.count(import_anchor) != 1:
-                  raise SystemExit('AnalyzeRule import anchor mismatch')
-              text = text.replace(import_anchor, import_block, 1)
-
-          marker = '''    fun evalJS(jsStr: String, result: Any? = null): Any? {\n        val bindings = buildScriptBindings { bindings ->'''
-          replacement = '''    fun evalJS(jsStr: String, result: Any? = null): Any? {\n        if (source != null &&\n            SourceJsEngineModeStore.getMode(source.getKey()) == SourceJsEngineMode.MODERN\n        ) {\n            return source.evalJS(jsStr) {\n                put("java", this@AnalyzeRule)\n                put("source", source)\n                put("book", book)\n                put("result", result)\n                put("baseUrl", baseUrl)\n                put("chapter", chapter)\n                put("title", chapter?.title)\n                put("src", content)\n                put("nextChapterUrl", nextChapterUrl)\n                put("rssArticle", rssArticle)\n                put("fromBookInfo", isFromBookInfo)\n                localBindings["paraIndex"]?.let { put("paraIndex", it) }\n                localBindings["paraData"]?.let { put("paraData", it) }\n                localBindings["page"]?.let { put("page", it.toIntOrNull() ?: it) }\n            }\n        }\n        val bindings = buildScriptBindings { bindings ->'''
-          if marker not in text:
-              raise SystemExit('AnalyzeRule evalJS anchor mismatch')
-          text = text.replace(marker, replacement, 1)
-          path.write_text(text, encoding='utf-8')
-          PY
-
-          # Restore this workflow to its previous read-only form in the same commit.
-          git checkout HEAD^ -- .github/workflows/build-beta.yml
-          git diff --check
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app/src/main/java/io/legado/app/model/analyzeRule/AnalyzeRule.kt .github/workflows/build-beta.yml
-          git commit -m "route AnalyzeRule JavaScript by source engine"
-          git push origin HEAD:beta
-          echo "AnalyzeRule routing committed; successor beta build will validate it."
-          exit 0
 
       - name: Set up JDK 21
         uses: actions/setup-java@v5
