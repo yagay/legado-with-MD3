@@ -4,22 +4,21 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import io.legado.app.data.entities.rule.ExploreKind
 import io.legado.app.enhance.explore.model.ExploreMode
+import io.legado.app.enhance.explore.model.ExploreNode
 import io.legado.app.utils.GSON
 
 /**
- * 现代发现页只负责识别“展示结构”，不重新解释书源协议。
+ * 现代发现页只识别展示结构，不修改上游 ExploreKind 协议模型。
  *
- * 原则：
- * 1. source.exploreKinds() 始终是书源行为的事实来源，保留原始顺序与完整 type/action/chars/default/style；
- * 2. 只有原始 JSON 明确提供 children 时才建立 TREE；
- * 3. 没有显式 children 时，仅依据纯展示 URL Header 和原始顺序恢复 SECTION；
- * 4. 不根据“男频/女频/热门/完结/排行榜”等名称猜测层级；
- * 5. 不过滤 text/button/toggle/select，也不生成“全部/分类”等伪 ExploreKind。
+ * - source.exploreKinds() 保持原始 type/action/chars/default/style 与顺序；
+ * - 只有原始 JSON 明确提供 children 时才建立 TREE；
+ * - 无显式树时，仅根据纯展示 Header 与原始顺序建立 SECTION；
+ * - 不根据分类名称猜测频道、状态、榜单等业务语义。
  */
 object ModernExploreClassificationEngine {
 
     data class Result(
-        val kinds: List<ExploreKind>,
+        val nodes: List<ExploreNode>,
         val mode: ExploreMode
     )
 
@@ -35,68 +34,94 @@ object ModernExploreClassificationEngine {
             return Result(buildSectionTree(flatKinds), ExploreMode.SECTION)
         }
 
-        return Result(flatKinds, ExploreMode.FLAT)
+        return Result(
+            nodes = flatKinds.mapIndexed { index, kind -> kind.toNode(sourceIndex = index) },
+            mode = ExploreMode.FLAT
+        )
     }
 
-    private fun parseRawTree(json: String): List<ExploreKind> {
+    private fun parseRawTree(json: String): List<ExploreNode> {
         if (json.isBlank()) return emptyList()
         return runCatching {
-            GSON.fromJson(json, JsonArray::class.java).mapNotNull(::parseNode)
+            GSON.fromJson(json, JsonArray::class.java)
+                .mapIndexedNotNull { index, element -> parseNode(element, level = 0, sourceIndex = index) }
         }.getOrDefault(emptyList())
     }
 
-    private fun parseNode(element: JsonElement): ExploreKind? {
+    private fun parseNode(
+        element: JsonElement,
+        level: Int,
+        sourceIndex: Int,
+    ): ExploreNode? {
         if (!element.isJsonObject) return null
         val obj = element.asJsonObject
+        // Gson ignores the JSON-only children member because upstream ExploreKind does not own hierarchy.
         val kind = GSON.fromJson(obj, ExploreKind::class.java) ?: return null
         val children = obj.get("children")
             ?.takeIf(JsonElement::isJsonArray)
             ?.asJsonArray
-            ?.mapNotNull(::parseNode)
+            ?.mapIndexedNotNull { index, child ->
+                parseNode(child, level = level + 1, sourceIndex = index)
+            }
             .orEmpty()
-        return if (children.isEmpty()) kind else kind.copy(children = children)
+        return kind.toNode(
+            children = children,
+            level = level,
+            sourceIndex = sourceIndex,
+        )
     }
 
     /**
-     * 只按书源原始顺序切分 Header 后的连续区间。
-     * Header 本身只作为展示容器；它后面的原始 ExploreKind 不做任何类型转换或过滤。
+     * 只按 Header 边界切分连续区间，原始 ExploreKind 不做转换或过滤。
      */
-    private fun buildSectionTree(kinds: List<ExploreKind>): List<ExploreKind> {
-        val result = mutableListOf<ExploreKind>()
-        var currentHeader: ExploreKind? = null
-        var currentChildren = mutableListOf<ExploreKind>()
+    private fun buildSectionTree(kinds: List<ExploreKind>): List<ExploreNode> {
+        val result = mutableListOf<ExploreNode>()
+        var currentHeader: IndexedValue<ExploreKind>? = null
+        var currentChildren = mutableListOf<ExploreNode>()
 
         fun flushSection() {
-            val header = currentHeader ?: return
-            result += header.copy(children = currentChildren.toList())
+            val indexed = currentHeader ?: return
+            result += indexed.value.toNode(
+                children = currentChildren.toList(),
+                level = 0,
+                sourceIndex = indexed.index,
+            )
             currentChildren = mutableListOf()
         }
 
-        kinds.forEach { kind ->
+        kinds.withIndex().forEach { indexed ->
+            val kind = indexed.value
             if (isSectionHeader(kind)) {
                 flushSection()
-                currentHeader = kind
+                currentHeader = indexed
             } else if (currentHeader == null) {
-                // Header 前的项目保持根级原始项，不制造额外“分类”节点。
-                result += kind
+                result += kind.toNode(level = 0, sourceIndex = indexed.index)
             } else {
-                currentChildren += kind
+                currentChildren += kind.toNode(level = 1, sourceIndex = indexed.index)
             }
         }
         flushSection()
         return result
     }
 
-    private fun List<ExploreKind>.hasChildrenDeep(): Boolean =
-        any { !it.children.isNullOrEmpty() || it.children.orEmpty().hasChildrenDeep() }
+    private fun List<ExploreNode>.hasChildrenDeep(): Boolean =
+        any { it.children.isNotEmpty() || it.children.hasChildrenDeep() }
 
-    /**
-     * text/button/toggle/select 没有 URL 很正常，它们是上游协议控件，不是分段 Header。
-     * 只有默认 url 类型且没有任何可执行目标的条目才作为纯展示 Header。
-     */
+    private fun ExploreKind.toNode(
+        children: List<ExploreNode> = emptyList(),
+        level: Int = 0,
+        sourceIndex: Int = -1,
+    ): ExploreNode = ExploreNode(
+        title = title,
+        url = modernTargetUrl(),
+        children = children,
+        originalKind = this,
+        level = level,
+        sourceIndex = sourceIndex,
+    )
+
     private fun isSectionHeader(kind: ExploreKind): Boolean =
         kind.type == ExploreKind.Type.url &&
-            kind.url.isNullOrBlank() &&
-            kind.action.isNullOrBlank() &&
+            kind.modernTargetUrl().isNullOrBlank() &&
             kind.title.isNotBlank()
 }
