@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: beta-build-${{ github.ref }}
@@ -21,21 +21,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - name: Apply AnalyzeRule coroutine context propagation
-        run: |
-          sed -i '/import io.legado.app.model.jsEngine.SourceJsEngineModeStore/a import io.legado.app.model.jsEngine.SourceJsEngineRouter' app/src/main/java/io/legado/app/model/analyzeRule/AnalyzeRule.kt
-          python3 -c "from pathlib import Path; import base64; p=Path('app/src/main/java/io/legado/app/model/analyzeRule/AnalyzeRule.kt'); s=p.read_text(); old=base64.b64decode('ICAgICAgICAgICAgcmV0dXJuIHNvdXJjZS5ldmFsSlMoanNTdHIpIHsKICAgICAgICAgICAgICAgIHB1dCgiamF2YSIsIHRoaXNAQW5hbHl6ZVJ1bGUpCiAgICAgICAgICAgICAgICBwdXQoInNvdXJjZSIsIHNvdXJjZSkKICAgICAgICAgICAgICAgIHB1dCgiYm9vayIsIGJvb2spCiAgICAgICAgICAgICAgICBwdXQoInJlc3VsdCIsIHJlc3VsdCkKICAgICAgICAgICAgICAgIHB1dCgiYmFzZVVybCIsIGJhc2VVcmwpCiAgICAgICAgICAgICAgICBwdXQoImNoYXB0ZXIiLCBjaGFwdGVyKQogICAgICAgICAgICAgICAgcHV0KCJ0aXRsZSIsIGNoYXB0ZXI/LnRpdGxlKQogICAgICAgICAgICAgICAgcHV0KCJzcmMiLCBjb250ZW50KQogICAgICAgICAgICAgICAgcHV0KCJuZXh0Q2hhcHRlclVybCIsIG5leHRDaGFwdGVyVXJsKQogICAgICAgICAgICAgICAgcHV0KCJyc3NBcnRpY2xlIiwgcnNzQXJ0aWNsZSkKICAgICAgICAgICAgICAgIHB1dCgiZnJvbUJvb2tJbmZvIiwgaXNGcm9tQm9va0luZm8pCiAgICAgICAgICAgICAgICBsb2NhbEJpbmRpbmdzWyJwYXJhSW5kZXgiXT8ubGV0IHsgcHV0KCJwYXJhSW5kZXgiLCBpdCkgfQogICAgICAgICAgICAgICAgbG9jYWxCaW5kaW5nc1sicGFyYURhdGEiXT8ubGV0IHsgcHV0KCJwYXJhRGF0YSIsIGl0KSB9CiAgICAgICAgICAgICAgICBsb2NhbEJpbmRpbmdzWyJwYWdlIl0/LmxldCB7IHB1dCgicGFnZSIsIGl0LnRvSW50T3JOdWxsKCkgPzogaXQpIH0KICAgICAgICAgICAgfQo=').decode(); new=base64.b64decode('ICAgICAgICAgICAgcmV0dXJuIFNvdXJjZUpzRW5naW5lUm91dGVyLmV2YWwoCiAgICAgICAgICAgICAgICBzb3VyY2UsCiAgICAgICAgICAgICAgICBqc1N0ciwKICAgICAgICAgICAgICAgIHsKICAgICAgICAgICAgICAgICAgICBwdXQoImphdmEiLCB0aGlzQEFuYWx5emVSdWxlKQogICAgICAgICAgICAgICAgICAgIHB1dCgic291cmNlIiwgc291cmNlKQogICAgICAgICAgICAgICAgICAgIHB1dCgiYm9vayIsIGJvb2spCiAgICAgICAgICAgICAgICAgICAgcHV0KCJyZXN1bHQiLCByZXN1bHQpCiAgICAgICAgICAgICAgICAgICAgcHV0KCJiYXNlVXJsIiwgYmFzZVVybCkKICAgICAgICAgICAgICAgICAgICBwdXQoImNoYXB0ZXIiLCBjaGFwdGVyKQogICAgICAgICAgICAgICAgICAgIHB1dCgidGl0bGUiLCBjaGFwdGVyPy50aXRsZSkKICAgICAgICAgICAgICAgICAgICBwdXQoInNyYyIsIGNvbnRlbnQpCiAgICAgICAgICAgICAgICAgICAgcHV0KCJuZXh0Q2hhcHRlclVybCIsIG5leHRDaGFwdGVyVXJsKQogICAgICAgICAgICAgICAgICAgIHB1dCgicnNzQXJ0aWNsZSIsIHJzc0FydGljbGUpCiAgICAgICAgICAgICAgICAgICAgcHV0KCJmcm9tQm9va0luZm8iLCBpc0Zyb21Cb29rSW5mbykKICAgICAgICAgICAgICAgICAgICBsb2NhbEJpbmRpbmdzWyJwYXJhSW5kZXgiXT8ubGV0IHsgcHV0KCJwYXJhSW5kZXgiLCBpdCkgfQogICAgICAgICAgICAgICAgICAgIGxvY2FsQmluZGluZ3NbInBhcmFEYXRhIl0/LmxldCB7IHB1dCgicGFyYURhdGEiLCBpdCkgfQogICAgICAgICAgICAgICAgICAgIGxvY2FsQmluZGluZ3NbInBhZ2UiXT8ubGV0IHsgcHV0KCJwYWdlIiwgaXQudG9JbnRPck51bGwoKSA/OiBpdCkgfQogICAgICAgICAgICAgICAgfSwKICAgICAgICAgICAgICAgIGNvcm91dGluZUNvbnRleHQsCiAgICAgICAgICAgICkK').decode(); assert old in s or new in s, 'AnalyzeRule MODERN block not found'; p.write_text(s if new in s else s.replace(old,new,1))"
-          if ! git diff --quiet; then
-            git config user.name github-actions[bot]
-            git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-            git add app/src/main/java/io/legado/app/model/analyzeRule/AnalyzeRule.kt
-            git commit -m "fix: propagate AnalyzeRule coroutine context upstream"
-            git push origin HEAD:beta
-            exit 0
-          fi
 
       - name: Set up JDK 21
         uses: actions/setup-java@v5
