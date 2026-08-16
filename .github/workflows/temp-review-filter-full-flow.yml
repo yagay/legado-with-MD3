@@ -1,0 +1,26 @@
+name: Temporary review filter full-source flow fix
+on:
+  push:
+    branches: [ beta ]
+    paths:
+      - '.github/workflows/temp-review-filter-full-flow.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: beta
+      - name: Apply review filter fix
+        run: python .github/scripts/patch_review_filter_full_flow.py
+      - name: Clean temporary files
+        run: rm -f .github/workflows/temp-review-filter-full-flow.yml .github/scripts/patch_review_filter_full_flow.py
+      - name: Commit
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "fix(source): drive review filters from full source flow"
+          git push origin beta
