@@ -187,13 +187,18 @@ class ModernExploreClassificationEngineTest {
 
         assertEquals(listOf("推荐", "评分", "热门"), fantasy.children.map { it.title })
         fantasy.children.forEach { rank ->
-            assertEquals(listOf("全部", "完结", "连载"), rank.children.map { it.title })
+            assertEquals(1, rank.children.size)
+            assertEquals("分类", rank.children.single().title)
+            assertEquals(
+                listOf("全部", "完结", "连载"),
+                rank.children.single().children.map { it.title }
+            )
         }
         assertEquals(
             "https://example.com/list?gender=0&tags=7&creation_status=Finished&sort=1&page={{page}}",
-            fantasy.children[1].children[1].url
+            fantasy.children[1].children.single().children[1].url
         )
-        assertSame(kinds[7], fantasy.children[1].children[1].originalKind)
+        assertSame(kinds[7], fantasy.children[1].children.single().children[1].originalKind)
     }
 
     @Test
