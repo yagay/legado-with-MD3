@@ -26,6 +26,9 @@ import io.legado.app.help.http.newCallResponseBody
 import io.legado.app.help.http.okHttpClient
 import io.legado.app.help.http.text
 import io.legado.app.help.source.SourceHelp
+import io.legado.app.model.jsEngine.BookSourceJsEngineMetadata
+import io.legado.app.model.jsEngine.SourceJsEngineMode
+import io.legado.app.model.jsEngine.SourceJsEngineModeStore
 import io.legado.app.ui.widget.components.importComponents.BaseImportUiState
 import io.legado.app.ui.widget.components.importComponents.ImportItemWrapper
 import io.legado.app.ui.widget.components.importComponents.ImportStatus
@@ -82,6 +85,7 @@ class BookSourceViewModel(
     private val enabledOverrides = MutableStateFlow<Map<String, Boolean>>(emptyMap())
     private val importState =
         MutableStateFlow<BaseImportUiState<BookSource>>(BaseImportUiState.Idle)
+    private val pendingImportJsEngineModes = mutableMapOf<String, SourceJsEngineMode>()
     private val _effects = MutableSharedFlow<BookSourceEffect>(extraBufferCapacity = 16)
     val effects = _effects.asSharedFlow()
 
@@ -351,7 +355,10 @@ class BookSourceViewModel(
                 )
             }
 
-            BookSourceIntent.CancelImport -> importState.value = BaseImportUiState.Idle
+            BookSourceIntent.CancelImport -> {
+                pendingImportJsEngineModes.clear()
+                importState.value = BaseImportUiState.Idle
+            }
             BookSourceIntent.SaveImportedSources -> saveImportedSources()
         }
     }
@@ -435,6 +442,7 @@ class BookSourceViewModel(
     }
 
     private fun importSources(input: String) {
+        pendingImportJsEngineModes.clear()
         importState.value = BaseImportUiState.Loading
         launch {
             runCatching {
@@ -476,6 +484,7 @@ class BookSourceViewModel(
                 )
             }.onSuccess { importState.value = it }
                 .onFailure {
+                    pendingImportJsEngineModes.clear()
                     importState.value = BaseImportUiState.Error(it.localizedMessage ?: "导入失败")
                 }
         }
@@ -483,7 +492,11 @@ class BookSourceViewModel(
 
     private suspend fun parseImportSources(text: String): List<BookSource> {
         val sources = when {
-            text.isJsonArray() -> GSON.fromJsonArray<BookSource>(text).getOrThrow()
+            text.isJsonArray() -> {
+                val arrayValue = JsonParser.parseString(text).asJsonArray
+                arrayValue.forEach(::rememberImportedJsEngineMode)
+                GSON.fromJsonArray<BookSource>(text).getOrThrow()
+            }
             text.isJsonObject() -> {
                 val objectValue = JsonParser.parseString(text).asJsonObject
                 val sourceUrls = objectValue.getAsJsonArray("sourceUrls")
@@ -500,13 +513,22 @@ class BookSourceViewModel(
                         }.decompressed().text("utf-8")
                         parseImportSources(sourceText)
                     }
-                } else listOf(GSON.fromJsonObject<BookSource>(text).getOrThrow())
+                } else {
+                    rememberImportedJsEngineMode(objectValue)
+                    listOf(GSON.fromJsonObject<BookSource>(text).getOrThrow())
+                }
             }
 
             else -> error("格式不正确")
         }
         require(sources.all { it.bookSourceUrl.isNotBlank() }) { "不是书源" }
         return sources
+    }
+
+    private fun rememberImportedJsEngineMode(element: com.google.gson.JsonElement) {
+        val key = BookSourceJsEngineMetadata.readSourceKey(element) ?: return
+        val mode = BookSourceJsEngineMetadata.readMode(element) ?: return
+        pendingImportJsEngineModes[key] = mode
     }
 
     private fun updateImportItems(transform: (List<ImportItemWrapper<BookSource>>) -> List<ImportItemWrapper<BookSource>>) {
@@ -543,7 +565,8 @@ class BookSourceViewModel(
     private fun saveImportedSources() {
         val state = importState.value as? BaseImportUiState.Success<BookSource> ?: return
         launch {
-            val sources = state.items.filter { it.isSelected }.map { wrapper ->
+            val selectedItems = state.items.filter { it.isSelected }
+            val sources = selectedItems.map { wrapper ->
                 wrapper.data.copy().apply {
                     wrapper.oldData?.let { old ->
                         if (state.keepOriginalName) bookSourceName = old.bookSourceName
@@ -566,6 +589,14 @@ class BookSourceViewModel(
                 }
             }
             SourceHelp.insertBookSource(*sources.toTypedArray())
+            selectedItems.zip(sources).forEach { (wrapper, source) ->
+                pendingImportJsEngineModes[source.bookSourceUrl]?.let { mode ->
+                    SourceJsEngineModeStore.setMode(source.bookSourceUrl, mode)
+                } ?: if (wrapper.oldData?.bookSourceUrl != source.bookSourceUrl) {
+                    SourceJsEngineModeStore.clearMode(source.bookSourceUrl)
+                }
+            }
+            pendingImportJsEngineModes.clear()
             ContentProcessor.upReplaceRules()
             importState.value = BaseImportUiState.Idle
             _effects.tryEmit(BookSourceEffect.ImportFinished)
@@ -577,7 +608,7 @@ class BookSourceViewModel(
         runCatching {
             val selected = repository.getAll().filter { ids.isEmpty() || it.bookSourceUrl in ids }
             application.contentResolver.openOutputStream(uri)?.bufferedWriter()
-                ?.use { it.write(GSON.toJson(selected)) }
+                ?.use { it.write(BookSourceJsEngineMetadata.toJson(selected)) }
                 ?: error("无法打开导出文件")
         }.onSuccess { _effects.tryEmit(BookSourceEffect.ShowSnackbar("导出成功")) }
             .onFailure { _effects.tryEmit(BookSourceEffect.ShowSnackbar("导出失败: ${it.localizedMessage}")) }
@@ -588,7 +619,7 @@ class BookSourceViewModel(
             val selected = repository.getAll().filter { ids.isEmpty() || it.bookSourceUrl in ids }
             uploadRepository.upload(
                 fileName = "bookSource.json",
-                file = GSON.toJson(selected),
+                file = BookSourceJsEngineMetadata.toJson(selected),
                 contentType = "application/json",
             )
         }.onSuccess { url ->

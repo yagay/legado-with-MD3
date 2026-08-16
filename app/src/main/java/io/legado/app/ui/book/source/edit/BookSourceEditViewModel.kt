@@ -19,6 +19,7 @@ import io.legado.app.help.source.SourceHelp
 import io.legado.app.help.source.clearExploreKindsCache
 import io.legado.app.help.storage.ImportOldData
 import io.legado.app.model.SharedJsScope
+import io.legado.app.model.jsEngine.BookSourceJsEngineMetadata
 import io.legado.app.model.jsEngine.SourceJsEngineMode
 import io.legado.app.model.jsEngine.SourceJsEngineModeStore
 import io.legado.app.ui.widget.components.variable.VariableEditorUiState
@@ -53,6 +54,7 @@ class BookSourceEditViewModel(
     private var draftJson = JsonObject()
     private var baselineJson = ""
     private var baselineJsEngineMode = SourceJsEngineMode.LEGACY
+    private var pendingImportedJsEngineMode: SourceJsEngineMode? = null
 
     fun onIntent(intent: BookSourceEditIntent) {
         when (intent) {
@@ -81,17 +83,13 @@ class BookSourceEditViewModel(
 
             BookSourceEditIntent.Copy -> _effects.tryEmit(
                 BookSourceEditEffect.CopyText(
-                    GSON.toJson(
-                        currentSource()
-                    )
+                    BookSourceJsEngineMetadata.toJson(currentSource(), _uiState.value.jsEngineMode)
                 )
             )
 
             BookSourceEditIntent.Share -> _effects.tryEmit(
                 BookSourceEditEffect.ShareText(
-                    GSON.toJson(
-                        currentSource()
-                    )
+                    BookSourceJsEngineMetadata.toJson(currentSource(), _uiState.value.jsEngineMode)
                 )
             )
 
@@ -290,8 +288,15 @@ class BookSourceEditViewModel(
     }
 
     private fun importText(text: String) = viewModelScope.launch(Dispatchers.IO) {
+        pendingImportedJsEngineMode = null
         runCatching { parseSource(text) }.onSuccess { source ->
-            withContext(Dispatchers.Main) { applySource(source) }
+            val importedMode = pendingImportedJsEngineMode
+            withContext(Dispatchers.Main) {
+                applySource(source)
+                importedMode?.let { mode ->
+                    _uiState.update { it.copy(jsEngineMode = mode) }
+                }
+            }
             _uiState.update { it.copy(dirty = true) }
         }.onFailure {
             _effects.emit(
@@ -307,11 +312,19 @@ class BookSourceEditViewModel(
         text.isJsonArray() -> if (text.contains("ruleSearchUrl") || text.contains("ruleFindUrl")) {
             val items: List<Map<String, Any>> = jsonPath.parse(text).read("$")
             ImportOldData.fromOldBookSource(jsonPath.parse(items[0]))
-        } else GSON.fromJsonArray<BookSource>(text).getOrThrow().first()
+        } else {
+            val arrayValue = JsonParser.parseString(text).asJsonArray
+            pendingImportedJsEngineMode = arrayValue.firstOrNull()?.let(BookSourceJsEngineMetadata::readMode)
+            GSON.fromJsonArray<BookSource>(text).getOrThrow().first()
+        }
 
         text.isJsonObject() -> if (text.contains("ruleSearchUrl") || text.contains("ruleFindUrl")) {
             ImportOldData.fromOldBookSource(jsonPath.parse(text))
-        } else GSON.fromJsonObject<BookSource>(text).getOrThrow()
+        } else {
+            val objectValue = JsonParser.parseString(text)
+            pendingImportedJsEngineMode = BookSourceJsEngineMetadata.readMode(objectValue)
+            GSON.fromJsonObject<BookSource>(text).getOrThrow()
+        }
 
         else -> throw NoStackTraceException("格式不对")
     }
