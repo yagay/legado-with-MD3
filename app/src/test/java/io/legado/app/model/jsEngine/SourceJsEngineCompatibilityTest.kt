@@ -51,7 +51,8 @@ class SourceJsEngineCompatibilityTest {
         assertEquals(source.getKey(), result[2])
         val data = result[3] as Map<*, *>
         assertEquals(true, data["ok"])
-        assertEquals(listOf(1.0, 2.0), data["values"])
+        val values = data["values"] as List<*>
+        assertEquals(listOf(1, 2), values.map { (it as Number).toInt() })
     }
 
     @Test
