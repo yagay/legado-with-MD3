@@ -193,7 +193,7 @@ class ModernExploreClassificationEngineTest {
             "https://example.com/list?gender=0&tags=7&creation_status=Finished&sort=1&page={{page}}",
             fantasy.children[1].children[1].url
         )
-        assertSame(kinds[8], fantasy.children[1].children[1].originalKind)
+        assertSame(kinds[7], fantasy.children[1].children[1].originalKind)
     }
 
     @Test
