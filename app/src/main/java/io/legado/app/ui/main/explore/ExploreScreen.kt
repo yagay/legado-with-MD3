@@ -298,6 +298,7 @@ fun ExploreScreen(
                     ) { source ->
                         RoundDropdownMenuItem(
                             text = source.bookSourceName,
+                            marquee = true,
                             isSelected = source.bookSourceUrl == state.enhance.selectedSuite?.defaultSourceUrl,
                             onClick = {
                                 sourceActionMenuUrl = null
