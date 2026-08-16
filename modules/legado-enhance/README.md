@@ -22,6 +22,7 @@
 | 模块名 | 路径 | 核心描述 |
 | :--- | :--- | :--- |
 | **发现页套件** | `explore/` | 实现瀑布流布局、多级类目自动解析及筛选树构建。 |
+| **书源能力检测** | `source/` | 动态识别书评、段评和其他评论能力，不修改 `BookSource` 数据模型，也不写入虚拟书源分组。 |
 | **设置搜索** | `settingssearch/` | 提供全局设置项搜索、精准滚动定位及背景高亮动画。 |
 | **WebDAV 增强** | `webdav/` | 提供书籍实体（EPUB/TXT）的增量云同步逻辑。 |
 | **UI 委托** | `ui/` | 承载“我的”页面逻辑扩展及通用的滚动控制。 |
@@ -39,7 +40,7 @@
     cd modules/legado-enhance
     git add .
     git commit -m "feat: your description"
-    git push origin main
+    git push origin beta
     ```
 
 ### 新增增强模块
