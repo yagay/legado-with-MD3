@@ -35,9 +35,19 @@ jobs:
         run: |
           sed -i '/maven.aliyun.com/d' settings.gradle
 
-      - name: Build Universal Debug APK
+      - name: Run JavaScript compatibility tests
         run: |
           chmod +x gradlew
+          ./gradlew \
+            :modules:rhino-upstream:testDebugUnitTest \
+            :app:testAppDebugUnitTest \
+            --tests "com.script.upstream.bridge.UpstreamLegadoRuntimeTest" \
+            --tests "io.legado.app.model.jsEngine.SourceJsEngineCompatibilityTest" \
+            --no-daemon \
+            --no-configuration-cache
+
+      - name: Build Universal Debug APK
+        run: |
           ./gradlew assembleAppDebug \
             -PenableAbiSplits=false \
             --no-daemon \
