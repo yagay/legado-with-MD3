@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.items
@@ -192,10 +193,6 @@ fun ExploreScreen(
     val sourceToDelete = remember(sourceToDeleteUrl, state.items) {
         state.items.firstOrNull { it.bookSourceUrl == sourceToDeleteUrl }
     }
-    // Long-pressing a source in the waterfall source picker switches the SAME
-    // popup into the standard source action menu instead of opening a nested popup.
-    // This avoids the double-popup problem while keeping the exact same actions
-    // available as the list layout's source long-press menu.
     var sourceActionMenuUrl by rememberSaveable { mutableStateOf<String?>(null) }
     val sourceActionMenuSource = remember(sourceActionMenuUrl, state.items) {
         state.items.firstOrNull { it.bookSourceUrl == sourceActionMenuUrl }
@@ -204,15 +201,11 @@ fun ExploreScreen(
 
     val composeEngine = ThemeResolver.isMiuixEngine(composeEngine)
 
-    // Source picker popup is lazy-rendered for speed, but must have a concrete
-    // size so Popup/DropdownMenu never asks LazyColumn for intrinsic sizes.
-    // Width follows the longest visible source name; height grows with item
-    // count and stops at a comfortable maximum, so one/few sources do not
-    // leave a giant empty panel.
     val sourceMenuItems = remember(state.items) {
         state.items.distinctBy { it.bookSourceUrl }
     }
     var sourceMenuQuery by rememberSaveable { mutableStateOf("") }
+    var sourceGroupMenuOpen by rememberSaveable { mutableStateOf(false) }
     val filteredSourceMenuItems = remember(sourceMenuItems, sourceMenuQuery) {
         val query = sourceMenuQuery.trim()
         if (query.isEmpty()) {
@@ -225,18 +218,6 @@ fun ExploreScreen(
     }
     val sourceMenuListState = rememberLazyListState()
     var sourceMenuExpanded by rememberSaveable { mutableStateOf(false) }
-    val defaultSourceIndex = remember(filteredSourceMenuItems, state.enhance.selectedSuite?.defaultSourceUrl) {
-        filteredSourceMenuItems.indexOfFirst {
-            it.bookSourceUrl == state.enhance.selectedSuite?.defaultSourceUrl
-        }
-    }
-    LaunchedEffect(sourceMenuExpanded, defaultSourceIndex, sourceActionMenuSource) {
-        if (sourceMenuExpanded && sourceActionMenuSource == null && defaultSourceIndex >= 0) {
-            // Miuix adds one outer spacer before the shared header item.
-            val menuPrefixCount = if (composeEngine) 3 else 2
-            sourceMenuListState.scrollToItem(defaultSourceIndex + menuPrefixCount)
-        }
-    }
     val sourceMenuTextStyle = MaterialTheme.typography.labelLarge
     val sourceMenuTextMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
@@ -249,36 +230,47 @@ fun ExploreScreen(
             ).size.width
         } ?: 0
         with(density) { longestPx.toDp() + 88.dp }
-            .coerceIn(190.dp, 360.dp)
+            .coerceIn(240.dp, 360.dp)
     }
     val configuration = LocalConfiguration.current
     val sourceMenuMaxHeight = remember(configuration.screenHeightDp) {
-        // Match the effective maximum height used by the standard top-right
-        // DropdownMenu: keep the same 48dp vertical safety margin on both
-        // sides of the window, instead of using a fixed 420dp cap.
         (configuration.screenHeightDp.dp - 96.dp).coerceAtLeast(124.dp)
     }
     val sourceActionCount = remember(sourceActionMenuSource) {
         sourceActionMenuSource?.let { source ->
-            // Back + top + edit + search + optional login + set-home + refresh + delete
             7 + if (source.hasLoginUrl) 1 else 0
         } ?: 0
     }
-    val sourceMenuHeight = remember(filteredSourceMenuItems.size, sourceActionCount, sourceMenuMaxHeight) {
-        // Source list mode includes header + search field; action-menu mode keeps its original sizing.
-        val rowCount = if (sourceActionCount > 0) sourceActionCount else filteredSourceMenuItems.size
-        val baseHeight = if (sourceActionCount > 0) 68 else 132
+    val sourceMenuHeight = remember(
+        filteredSourceMenuItems.size,
+        sourceActionCount,
+        sourceGroupMenuOpen,
+        state.groups.size,
+        sourceMenuMaxHeight
+    ) {
+        val rowCount = when {
+            sourceActionCount > 0 -> sourceActionCount
+            sourceGroupMenuOpen -> state.groups.size + 2
+            else -> filteredSourceMenuItems.size + 1
+        }
+        val baseHeight = when {
+            sourceActionCount > 0 -> 68
+            sourceGroupMenuOpen -> 68
+            else -> 188
+        }
         (baseHeight + rowCount * 56).dp
             .coerceIn(124.dp, sourceMenuMaxHeight)
     }
     val sourcePopupWidth = remember(sourceMenuWidth, sourceActionMenuSource) {
         if (sourceActionMenuSource != null) maxOf(sourceMenuWidth, 240.dp) else sourceMenuWidth
     }
+    val currentSourceName = state.enhance.selectedSourceName
+        ?: state.enhance.selectedSuite?.displayName
 
     ListScaffold(
         title = stringResource(R.string.discovery),
         state = state,
-        subtitle = if (state.layoutMode == 0) state.selectedGroup.ifEmpty { stringResource(R.string.all) } else state.enhance.selectedSourceName ?: state.enhance.selectedSuite?.displayName,
+        subtitle = if (state.layoutMode == 0) state.selectedGroup.ifEmpty { stringResource(R.string.all) } else currentSourceName,
         subtitleDropdownMenuWidth = sourcePopupWidth,
         subtitleDropdownMenuHeight = sourceMenuHeight,
         subtitleDropdownMenuState = sourceMenuListState,
@@ -289,6 +281,7 @@ fun ExploreScreen(
                 sourceMenuExpanded = expanded
                 if (!expanded) {
                     sourceActionMenuUrl = null
+                    sourceGroupMenuOpen = false
                     sourceMenuQuery = ""
                 }
             }
@@ -296,148 +289,224 @@ fun ExploreScreen(
         subtitleDropdownMenuLazy = if (state.layoutMode == 1) {
             { dismiss ->
                 val actionSource = sourceActionMenuSource
-                if (actionSource == null) {
-                    item(key = "source_menu_header") {
-                        PillHeaderDivider(title = "选择首页源")
-                    }
-                    stickyHeader(key = "source_menu_search") {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(MaterialTheme.colorScheme.surface)
-                        ) {
-                            OutlinedTextField(
-                                value = sourceMenuQuery,
-                                onValueChange = { sourceMenuQuery = it },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                            placeholder = { Text(stringResource(R.string.search)) },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.Search,
-                                    contentDescription = null
-                                )
-                            },
-                                singleLine = true
+                when {
+                    actionSource != null -> {
+                        item(key = "source_action_header_${actionSource.bookSourceUrl}") {
+                            PillHeaderDivider(title = actionSource.bookSourceName)
+                        }
+                        item(key = "source_action_back") {
+                            RoundDropdownMenuItem(
+                                leadingIcon = { MenuItemIcon(Icons.Default.ArrowBack) },
+                                text = "返回书源列表",
+                                onClick = { sourceActionMenuUrl = null }
                             )
                         }
-                    }
-                    items(
-                        items = filteredSourceMenuItems,
-                        key = { it.bookSourceUrl }
-                    ) { source ->
-                        RoundDropdownMenuItem(
-                            text = source.bookSourceName,
-                            isSelected = source.bookSourceUrl == state.enhance.selectedSuite?.defaultSourceUrl,
-                            onClick = {
-                                sourceActionMenuUrl = null
-                                onIntent(ExploreIntent.SetSuiteDefaultSource(source.bookSourceUrl))
-                                dismiss()
-                            },
-                            onLongClick = {
-                                // Do not create a second Popup. Reuse this popup and swap
-                                // its content to the same action set used by list headers.
-                                sourceActionMenuUrl = source.bookSourceUrl
-                                scope.launch { sourceMenuListState.scrollToItem(0) }
-                            }
-                        )
-                    }
-                } else {
-                    item(key = "source_action_header_${actionSource.bookSourceUrl}") {
-                        PillHeaderDivider(title = actionSource.bookSourceName)
-                    }
-                    item(key = "source_action_back") {
-                        RoundDropdownMenuItem(
-                            leadingIcon = { MenuItemIcon(Icons.Default.ArrowBack) },
-                            text = "返回书源列表",
-                            onClick = { sourceActionMenuUrl = null }
-                        )
-                    }
-                    item(key = "source_action_top") {
-                        RoundDropdownMenuItem(
-                            leadingIcon = { MenuItemIcon(Icons.Default.VerticalAlignTop) },
-                            text = stringResource(R.string.to_top),
-                            onClick = {
-                                onIntent(ExploreIntent.TopSource(actionSource))
-                                sourceActionMenuUrl = null
-                                dismiss()
-                            }
-                        )
-                    }
-                    item(key = "source_action_edit") {
-                        RoundDropdownMenuItem(
-                            leadingIcon = { MenuItemIcon(Icons.Default.Edit) },
-                            text = stringResource(R.string.edit),
-                            onClick = {
-                                onIntent(ExploreIntent.OpenEdit(actionSource))
-                                sourceActionMenuUrl = null
-                                dismiss()
-                            }
-                        )
-                    }
-                    item(key = "source_action_search") {
-                        RoundDropdownMenuItem(
-                            leadingIcon = { MenuItemIcon(Icons.Default.Search) },
-                            text = stringResource(R.string.search),
-                            onClick = {
-                                onIntent(ExploreIntent.OpenSearch(actionSource))
-                                sourceActionMenuUrl = null
-                                dismiss()
-                            }
-                        )
-                    }
-                    if (actionSource.hasLoginUrl) {
-                        item(key = "source_action_login") {
+                        item(key = "source_action_top") {
                             RoundDropdownMenuItem(
-                                leadingIcon = { MenuItemIcon(Icons.AutoMirrored.Filled.Login) },
-                                text = stringResource(R.string.login),
+                                leadingIcon = { MenuItemIcon(Icons.Default.VerticalAlignTop) },
+                                text = stringResource(R.string.to_top),
                                 onClick = {
-                                    onIntent(ExploreIntent.OpenLogin(actionSource))
+                                    onIntent(ExploreIntent.TopSource(actionSource))
+                                    sourceActionMenuUrl = null
+                                    dismiss()
+                                }
+                            )
+                        }
+                        item(key = "source_action_edit") {
+                            RoundDropdownMenuItem(
+                                leadingIcon = { MenuItemIcon(Icons.Default.Edit) },
+                                text = stringResource(R.string.edit),
+                                onClick = {
+                                    onIntent(ExploreIntent.OpenEdit(actionSource))
+                                    sourceActionMenuUrl = null
+                                    dismiss()
+                                }
+                            )
+                        }
+                        item(key = "source_action_search") {
+                            RoundDropdownMenuItem(
+                                leadingIcon = { MenuItemIcon(Icons.Default.Search) },
+                                text = stringResource(R.string.search),
+                                onClick = {
+                                    onIntent(ExploreIntent.OpenSearch(actionSource))
+                                    sourceActionMenuUrl = null
+                                    dismiss()
+                                }
+                            )
+                        }
+                        if (actionSource.hasLoginUrl) {
+                            item(key = "source_action_login") {
+                                RoundDropdownMenuItem(
+                                    leadingIcon = { MenuItemIcon(Icons.AutoMirrored.Filled.Login) },
+                                    text = stringResource(R.string.login),
+                                    onClick = {
+                                        onIntent(ExploreIntent.OpenLogin(actionSource))
+                                        sourceActionMenuUrl = null
+                                        dismiss()
+                                    }
+                                )
+                            }
+                        }
+                        item(key = "source_action_home") {
+                            RoundDropdownMenuItem(
+                                leadingIcon = { MenuItemIcon(Icons.Default.Dashboard) },
+                                text = "设为示例首页源",
+                                onClick = {
+                                    onIntent(ExploreIntent.SetSuiteDefaultSource(actionSource.bookSourceUrl))
+                                    sourceActionMenuUrl = null
+                                    dismiss()
+                                }
+                            )
+                        }
+                        item(key = "source_action_refresh") {
+                            RoundDropdownMenuItem(
+                                leadingIcon = { MenuItemIcon(Icons.Default.Refresh) },
+                                text = stringResource(R.string.refresh),
+                                onClick = {
+                                    onIntent(ExploreIntent.RefreshKinds(actionSource))
+                                    sourceActionMenuUrl = null
+                                    dismiss()
+                                }
+                            )
+                        }
+                        item(key = "source_action_delete") {
+                            RoundDropdownMenuItem(
+                                leadingIcon = {
+                                    MenuItemIcon(
+                                        Icons.Default.Delete,
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                },
+                                text = stringResource(R.string.delete),
+                                color = LegadoTheme.colorScheme.error,
+                                onClick = {
+                                    sourceToDeleteUrl = actionSource.bookSourceUrl
                                     sourceActionMenuUrl = null
                                     dismiss()
                                 }
                             )
                         }
                     }
-                    item(key = "source_action_home") {
-                        RoundDropdownMenuItem(
-                            leadingIcon = { MenuItemIcon(Icons.Default.Dashboard) },
-                            text = "设为示例首页源",
-                            onClick = {
-                                onIntent(ExploreIntent.SetSuiteDefaultSource(actionSource.bookSourceUrl))
-                                sourceActionMenuUrl = null
-                                dismiss()
-                            }
-                        )
+
+                    sourceGroupMenuOpen -> {
+                        item(key = "source_group_header") {
+                            PillHeaderDivider(title = "书源分类")
+                        }
+                        item(key = "source_group_back") {
+                            RoundDropdownMenuItem(
+                                leadingIcon = { MenuItemIcon(Icons.Default.ArrowBack) },
+                                text = "返回书源列表",
+                                onClick = {
+                                    sourceGroupMenuOpen = false
+                                    scope.launch { sourceMenuListState.scrollToItem(0) }
+                                }
+                            )
+                        }
+                        item(key = "source_group_all") {
+                            RoundDropdownMenuItem(
+                                leadingIcon = { MenuItemIcon(Icons.Default.Group) },
+                                text = stringResource(R.string.all),
+                                isSelected = state.selectedGroup.isEmpty(),
+                                onClick = {
+                                    onIntent(ExploreIntent.SetGroup(""))
+                                    sourceMenuQuery = ""
+                                    sourceGroupMenuOpen = false
+                                    scope.launch { sourceMenuListState.scrollToItem(0) }
+                                }
+                            )
+                        }
+                        items(
+                            items = state.groups,
+                            key = { "source_group_$it" }
+                        ) { group ->
+                            RoundDropdownMenuItem(
+                                leadingIcon = { MenuItemIcon(Icons.AutoMirrored.Outlined.Label) },
+                                text = group,
+                                isSelected = state.selectedGroup == group,
+                                onClick = {
+                                    onIntent(ExploreIntent.SetGroup(group))
+                                    sourceMenuQuery = ""
+                                    sourceGroupMenuOpen = false
+                                    scope.launch { sourceMenuListState.scrollToItem(0) }
+                                }
+                            )
+                        }
                     }
-                    item(key = "source_action_refresh") {
-                        RoundDropdownMenuItem(
-                            leadingIcon = { MenuItemIcon(Icons.Default.Refresh) },
-                            text = stringResource(R.string.refresh),
-                            onClick = {
-                                onIntent(ExploreIntent.RefreshKinds(actionSource))
-                                sourceActionMenuUrl = null
-                                dismiss()
-                            }
-                        )
-                    }
-                    item(key = "source_action_delete") {
-                        RoundDropdownMenuItem(
-                            leadingIcon = {
-                                MenuItemIcon(
-                                    Icons.Default.Delete,
-                                    tint = MaterialTheme.colorScheme.error
+
+                    else -> {
+                        item(key = "source_menu_header") {
+                            PillHeaderDivider(title = "选择首页源")
+                        }
+                        stickyHeader(key = "source_menu_search") {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(MaterialTheme.colorScheme.surface)
+                                    .padding(start = 12.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                OutlinedTextField(
+                                    value = sourceMenuQuery,
+                                    onValueChange = { sourceMenuQuery = it },
+                                    modifier = Modifier.weight(1f),
+                                    placeholder = { Text(stringResource(R.string.search)) },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Default.Search,
+                                            contentDescription = null
+                                        )
+                                    },
+                                    singleLine = true
                                 )
-                            },
-                            text = stringResource(R.string.delete),
-                            color = LegadoTheme.colorScheme.error,
-                            onClick = {
-                                sourceToDeleteUrl = actionSource.bookSourceUrl
-                                sourceActionMenuUrl = null
-                                dismiss()
+                                TopBarActionButton(
+                                    onClick = {
+                                        sourceGroupMenuOpen = true
+                                        scope.launch { sourceMenuListState.scrollToItem(0) }
+                                    },
+                                    imageVector = Icons.Default.Group,
+                                    contentDescription = state.selectedGroup.ifEmpty {
+                                        stringResource(R.string.all)
+                                    }
+                                )
                             }
-                        )
+                        }
+                        if (!currentSourceName.isNullOrBlank()) {
+                            item(key = "source_menu_current") {
+                                ListItem(
+                                    headlineContent = {
+                                        Text(
+                                            text = currentSourceName,
+                                            style = MaterialTheme.typography.labelLarge
+                                        )
+                                    },
+                                    supportingContent = {
+                                        Text("当前源")
+                                    },
+                                    colors = ListItemDefaults.colors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                                    )
+                                )
+                            }
+                        }
+                        items(
+                            items = filteredSourceMenuItems.filterNot {
+                                it.bookSourceUrl == state.enhance.selectedSuite?.defaultSourceUrl
+                            },
+                            key = { it.bookSourceUrl }
+                        ) { source ->
+                            RoundDropdownMenuItem(
+                                text = source.bookSourceName,
+                                onClick = {
+                                    sourceActionMenuUrl = null
+                                    onIntent(ExploreIntent.SetSuiteDefaultSource(source.bookSourceUrl))
+                                    dismiss()
+                                },
+                                onLongClick = {
+                                    sourceActionMenuUrl = source.bookSourceUrl
+                                    scope.launch { sourceMenuListState.scrollToItem(0) }
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -502,24 +571,22 @@ fun ExploreScreen(
                 )
             }
         },
-        dropDownMenuContent = { dismiss ->
-            // 普通列表和瀑布流统一使用同一套“书源分组”菜单。
-            // 在瀑布流模式下，选择分组只负责筛选左上角“发现”标题下拉菜单
-            // 中可见的书源名称；真正切换书源仍由左上角下拉菜单完成。
-            // 这样两个布局的右上角三点菜单内容和功能完全一致，也避免维护两份逻辑。
-            RoundDropdownMenuItem(
-                leadingIcon = { MenuItemIcon(Icons.Default.Group) },
-                text = stringResource(R.string.all),
-                onClick = { onIntent(ExploreIntent.SetGroup("")); dismiss() }
-            )
-            state.groups.forEach { group ->
+        dropDownMenuContent = if (state.layoutMode == 0) {
+            { dismiss ->
                 RoundDropdownMenuItem(
-                    leadingIcon = { MenuItemIcon(Icons.AutoMirrored.Outlined.Label) },
-                    text = group,
-                    onClick = { onIntent(ExploreIntent.SetGroup(group)); dismiss() }
+                    leadingIcon = { MenuItemIcon(Icons.Default.Group) },
+                    text = stringResource(R.string.all),
+                    onClick = { onIntent(ExploreIntent.SetGroup("")); dismiss() }
                 )
+                state.groups.forEach { group ->
+                    RoundDropdownMenuItem(
+                        leadingIcon = { MenuItemIcon(Icons.AutoMirrored.Outlined.Label) },
+                        text = group,
+                        onClick = { onIntent(ExploreIntent.SetGroup(group)); dismiss() }
+                    )
+                }
             }
-        },
+        } else null,
         contentWindowInsets = WindowInsets(0)
     ) { paddingValues ->
         if (state.layoutMode == 1) {
