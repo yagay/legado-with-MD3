@@ -50,7 +50,7 @@ import kotlinx.coroutines.launch
 class ExploreViewModel(
     application: Application,
     internal val exploreRepository: ExploreRepository,
-    private val exploreKindUseCase: ExploreKindUiUseCase,
+    internal val exploreKindUseCase: ExploreKindUiUseCase,
     private val shellSettingsGateway: io.legado.app.domain.gateway.AppShellSettingsGateway,
     internal val exploreBooksUseCase: io.legado.app.domain.usecase.ExploreBooksUseCase,
     private val customSettingsGateway: CustomSettingsGateway
@@ -137,15 +137,6 @@ class ExploreViewModel(
     }
 
 
-
-    private companion object {
-        val STATUS_SELECTOR_TITLES = setOf(
-            "全部", "完结", "连载", "完本", "在更", "已完结", "连载中", "Finished", "Loading"
-        )
-        val RANK_SELECTOR_TITLES = setOf(
-            "推荐", "评分", "热门", "周榜", "月榜", "总榜", "日榜", "本周", "本月", "本日"
-        )
-    }
 
 
     private fun observeGroups() {

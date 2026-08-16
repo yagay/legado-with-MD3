@@ -2,12 +2,13 @@ package io.legado.app.enhance.explore.vm
 
 import androidx.compose.runtime.Stable
 import androidx.lifecycle.viewModelScope
-import com.script.rhino.runScriptWithContext
 import io.legado.app.data.entities.SearchBook
 import io.legado.app.data.entities.rule.ExploreKind
 import io.legado.app.enhance.explore.builder.ModernExploreControlExtractor
 import io.legado.app.enhance.explore.builder.ModernExploreControlExtractor.SelectControl
 import io.legado.app.enhance.explore.builder.ModernExploreClassificationEngine
+import io.legado.app.enhance.explore.builder.hasModernChildren
+import io.legado.app.enhance.explore.builder.modernTargetUrl
 import io.legado.app.enhance.explore.model.ExploreMode
 import io.legado.app.enhance.explore.model.DiscoverySuite
 import io.legado.app.enhance.explore.model.DiscoverySuiteConfig
@@ -22,7 +23,6 @@ import io.legado.app.ui.main.explore.ExploreEffect
 import io.legado.app.ui.main.explore.ExploreIntent
 import io.legado.app.ui.main.explore.ExploreViewModel
 import io.legado.app.ui.main.explore.ExploreViewModel.DynamicSelectorUi
-import io.legado.app.ui.login.SourceLoginJsExtensions
 import kotlinx.collections.immutable.*
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.Job
@@ -330,9 +330,6 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
         if (value !in control.options) return
         if (vm.uiState.value.enhance.selectedWidgetTargets[widgetId] == value) return
         saveSelection(widgetId, value)
-        // Dynamic selects may rebuild the whole discovery page. Invalidate the previous
-        // platform/category request immediately so a slow old response cannot overwrite
-        // the newly selected platform.
         widgetRequestVersion++
         vm.updateUiState { state ->
             val selections = state.enhance.selectedWidgetTargets.toMutableMap().apply {
@@ -355,57 +352,19 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
         vm.viewModelScope.launch(IO) {
             try {
                 val source = vm.exploreRepository.getBookSource(defaultSourceUrl) ?: return@launch
-                val key = control.kind.title
                 val infoMap = getExploreInfoMap(defaultSourceUrl)
-                val action = control.kind.action?.trim()?.takeIf { it.isNotBlank() }
-                val actionJs = action?.let {
-                    when {
-                        it.startsWith("<js>") && it.endsWith("</js>") ->
-                            it.removePrefix("<js>").removeSuffix("</js>")
-                        it.startsWith("{{") && it.endsWith("}}") ->
-                            it.removePrefix("{{").removeSuffix("}}")
-                        else -> it
-                    }
-                }
-                // A number of dynamic sources use a display label that differs from the
-                // source-variable key, e.g. `平台` -> `发现页来源`.  The select action then
-                // persists that hidden key through setVariable().  Keep both keys in the
-                // discovery InfoMap so either style of action sees the newly selected value.
-                val variableKey = actionJs?.let(::extractSelectVariableKey)
-                sequenceOf(key, control.title, control.kind.viewName, variableKey)
-                    .filterNotNull()
-                    .map(String::trim)
-                    .filter(String::isNotEmpty)
-                    .distinct()
-                    .forEach { infoMap[it] = value }
+                infoMap[control.kind.title] = value
                 infoMap.saveNow()
 
-                if (actionJs != null) {
-                    runScriptWithContext {
-                        // When the action exposes a literal setVariable key, persist it first.
-                        // This mirrors the source's own helper and prevents a stale default
-                        // (commonly 番茄) from being read while the discovery page is rebuilt.
-                        if (!variableKey.isNullOrBlank()) {
-                            val escapedKey = variableKey
-                                .replace("\\", "\\\\")
-                                .replace("'", "\\'")
-                            val escapedValue = value
-                                .replace("\\", "\\\\")
-                                .replace("'", "\\'")
-                            source.evalJS("setVariable('$escapedKey','$escapedValue',false)") {
-                                put("java", SourceLoginJsExtensions(null, source))
-                                put("infoMap", infoMap)
-                            }
-                        }
-                        // Match legado:leg applyDiscoverSelectValue(): execute in the
-                        // BookSource JS scope so jsLib helpers (setVariable/BaseUrl/etc.)
-                        // and injected infoMap/java are the same ones used by discovery.
-                        source.evalJS(actionJs) {
-                            put("java", SourceLoginJsExtensions(null, source))
-                            put("infoMap", infoMap)
-                        }
-                    }
-                }
+                vm.exploreKindUseCase.executeAction(
+                    action = control.kind.action,
+                    title = control.kind.title,
+                    sourceUrl = defaultSourceUrl,
+                    infoMap = infoMap,
+                    activity = null,
+                    onRefreshKinds = {}
+                )
+
                 source.clearExploreKindsCache()
                 allSourceRawKinds = source.exploreKinds()
                 val classification = ModernExploreClassificationEngine.classify(
@@ -418,16 +377,6 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
                 rebuildSelectors(suite, defaultSourceUrl)
             } catch (_: Exception) {
             }
-        }
-    }
-
-    private fun extractSelectVariableKey(actionJs: String): String? {
-        val patterns = listOf(
-            Regex("""setVariable\s*\(\s*['\"]([^'\"]+)['\"]"""),
-            Regex("""source\.setVariable\s*\(\s*['\"]([^'\"]+)['\"]"""),
-        )
-        return patterns.firstNotNullOfOrNull { pattern ->
-            pattern.find(actionJs)?.groupValues?.getOrNull(1)?.trim()?.takeIf(String::isNotEmpty)
         }
     }
 
@@ -445,8 +394,8 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
         while (currentLevelItems.isNotEmpty() && steps++ < safetyLimit) {
             while (
                 currentLevelItems.size == 1 &&
-                currentLevelItems.first().targetUrl().isNullOrBlank() &&
-                currentLevelItems.first().hasChildren()
+                currentLevelItems.first().modernTargetUrl().isNullOrBlank() &&
+                currentLevelItems.first().hasModernChildren()
             ) {
                 val container = currentLevelItems.first()
                 inheritedTitle = cleanExploreTitle(container.title).ifBlank { inheritedTitle }
@@ -455,14 +404,14 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
             }
             if (currentLevelItems.isEmpty()) break
             val visibleItems = currentLevelItems.filter {
-                it.hasChildren() || !it.targetUrl().isNullOrBlank()
+                it.hasModernChildren() || !it.modernTargetUrl().isNullOrBlank()
             }
             if (visibleItems.isEmpty()) break
             val widgetId = "$DYNAMIC_LEVEL_PREFIX$level"
             val targets = visibleItems.map { kind ->
                 DiscoverySuiteWidgetTarget(
                     sourceUrl = defaultSourceUrl,
-                    tagUrl = kind.targetUrl().orEmpty(),
+                    tagUrl = kind.modernTargetUrl().orEmpty(),
                     title = kind.title
                 )
             }
@@ -488,7 +437,7 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
                 type = inferSelectorType(visibleItems)
             )
             val selectedItem = visibleItems.getOrNull(selectedIndex) ?: break
-            selectedItem.targetUrl()?.let { lastValidUrl = it }
+            selectedItem.modernTargetUrl()?.let { lastValidUrl = it }
             inheritedTitle = selectedItem.title
             currentLevelItems = selectedItem.children.orEmpty()
             level++
@@ -586,28 +535,21 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
         return count
     }
 
-    private fun inferSelectorTitle(level: Int, items: List<ExploreKind>, inheritedTitle: String?): String {
-        val cleanTitles = items.map { cleanExploreTitle(it.title) }
-        if (cleanTitles.any { it.contains("男频") || it.contains("女频") || it.contains("男生频道") || it.contains("女生频道") }) return "频道"
-        if (cleanTitles.count { it in STATUS_SELECTOR_TITLES } >= 2) return "状态"
-        if (cleanTitles.count { it in RANK_SELECTOR_TITLES || it.endsWith("榜") || it.contains("排行") } >= 2) return "榜单"
+    private fun inferSelectorTitle(
+        level: Int,
+        items: List<ExploreKind>,
+        inheritedTitle: String?
+    ): String {
+        // 现代布局不再根据名称猜测频道/状态/榜单等业务语义。
         val inherited = cleanExploreTitle(inheritedTitle.orEmpty())
-        if (inherited.isNotBlank()) {
-            when {
-                inherited.contains("排行") || inherited.endsWith("榜") -> return inherited
-                inherited in setOf("分类", "频道", "状态", "榜单", "标签", "类型") -> return inherited
-            }
-        }
-        return if (level == 0 && items.all { it.isGroupHeader() }) "分组" else "分类"
+        return inherited.takeIf { it.isNotBlank() } ?: "分类"
     }
 
-    private fun inferSelectorType(items: List<ExploreKind>): DynamicSelectorUi.SelectorType {
-        val titles = items.map { cleanExploreTitle(it.title) }
-        return if (titles.count { it in RANK_SELECTOR_TITLES || it.endsWith("榜") || it.contains("排行") } >= 2) {
-            DynamicSelectorUi.SelectorType.RankButtons
-        } else {
-            DynamicSelectorUi.SelectorType.TagBar
-        }
+    private fun inferSelectorType(
+        items: List<ExploreKind>
+    ): DynamicSelectorUi.SelectorType {
+        // RankButtons 仅由显式 DiscoverySuite widget 配置决定。
+        return DynamicSelectorUi.SelectorType.TagBar
     }
 
     private fun cleanExploreTitle(title: String): String = title
@@ -859,24 +801,9 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
     private fun dynamicTargetKey(target: DiscoverySuiteWidgetTarget): String =
         "${target.title}\u001F${target.tagUrl}"
 
-    private fun ExploreKind.hasChildren(): Boolean = !children.isNullOrEmpty()
-
-    private fun ExploreKind.targetUrl(): String? {
-        val actionTarget = if (type == ExploreKind.Type.url) action else null
-        return actionTarget?.trim()?.takeIf { it.isNotBlank() && !it.equals("null", true) }
-            ?: url?.trim()?.takeIf { it.isNotBlank() && !it.equals("null", true) }
-    }
-
-    private fun ExploreKind.isGroupHeader(): Boolean = targetUrl().isNullOrBlank() && !hasChildren()
 
     private companion object {
         const val DYNAMIC_LEVEL_PREFIX = "dynamic_level_"
         const val DYNAMIC_SELECT_PREFIX = "dynamic_select_"
-        val STATUS_SELECTOR_TITLES = setOf(
-            "全部", "完结", "连载", "完本", "在更", "已完成", "连载中", "Finished", "Loading"
-        )
-        val RANK_SELECTOR_TITLES = setOf(
-            "推荐", "评分", "热门", "周榜", "月榜", "总榜", "日榜", "本周", "本月", "本日"
-        )
     }
 }
