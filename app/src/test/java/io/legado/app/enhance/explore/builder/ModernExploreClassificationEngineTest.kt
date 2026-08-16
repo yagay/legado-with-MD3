@@ -26,18 +26,24 @@ class ModernExploreClassificationEngineTest {
     }
 
     @Test
-    fun `section detection adds presentation mode without rewriting kinds`() {
-        val kinds = listOf(
-            ExploreKind(title = "频道"),
-            ExploreKind(title = "分类一", url = "https://example.com/1"),
-            ExploreKind(title = "状态", type = ExploreKind.Type.select, chars = arrayOf("全部", "完结"))
+    fun `section grouping uses header boundaries and preserves child kinds`() {
+        val header = ExploreKind(title = "频道")
+        val url = ExploreKind(title = "分类一", url = "https://example.com/1")
+        val select = ExploreKind(
+            title = "状态",
+            type = ExploreKind.Type.select,
+            chars = arrayOf("全部", "完结")
         )
+        val kinds = listOf(header, url, select)
 
         val result = ModernExploreClassificationEngine.classify(kinds, "")
 
         assertEquals(ExploreMode.SECTION, result.mode)
-        assertEquals(kinds, result.kinds)
-        kinds.indices.forEach { index -> assertSame(kinds[index], result.kinds[index]) }
+        val section = result.kinds.single()
+        assertEquals("频道", section.title)
+        assertEquals(listOf(url, select), section.children)
+        assertSame(url, section.children.orEmpty()[0])
+        assertSame(select, section.children.orEmpty()[1])
     }
 
     @Test
