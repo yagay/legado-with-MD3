@@ -44,6 +44,7 @@ jobs:
             :app:testAppDebugUnitTest \
             --tests "com.script.upstream.bridge.UpstreamLegadoRuntimeTest" \
             --tests "io.legado.app.model.jsEngine.SourceJsEngineCompatibilityTest" \
+            --tests "io.legado.app.model.jsEngine.SourceJsEngineLifecycleTest" \
             --no-daemon \
             --no-configuration-cache
 
