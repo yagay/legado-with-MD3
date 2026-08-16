@@ -13,4 +13,6 @@
     <string name="item_background_opacity">Item background opacity</string>
     <string name="export_group_title">Export Group</string>
     <string name="export_group_summary">Select the book group to export</string>
+    <string name="source_filter_book_review">Book reviews</string>
+    <string name="source_filter_other_comment">Other comments</string>
 </resources>
