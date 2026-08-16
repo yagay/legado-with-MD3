@@ -9,7 +9,7 @@ import java.util.regex.Pattern
 object HtmlFormatter {
     private val nbspRegex = "(&nbsp;)+".toRegex()
     private val espRegex = "(&ensp;|&emsp;)".toRegex()
-    private val noPrintRegex = "(&thinsp;|&zwnj;|&zwj;|\u2009|\u200C|\u200D)".toRegex()
+    private val noPrintRegex = "(&thinsp;|&zwnj;|&zwj;|\\u2009|\\u200C|\\u200D)".toRegex()
     private val wrapHtmlRegex = "</?(?:div|p|br|hr|h\\d|article|dd|dl)[^>]*>".toRegex()
     private val commentRegex = "<!--[^>]*-->".toRegex() //注释
     private val notImgHtmlRegex = "</?(?!img)[a-zA-Z]+(?=[ >])[^<>]*>".toRegex()
@@ -22,6 +22,7 @@ object HtmlFormatter {
     private val indent2Regex = "^[\\n\\s]+".toRegex()
     private val lastRegex = "[\\n\\s]+$".toRegex()
     private const val PARAGRAPH_INDENT = "　　"
+    private const val USE_WEB_PREFIX = "<useweb>"
 
     //半角空白由 indent 正则处理, 这里去掉全角及特殊宽度空格
     private val blankChars = charArrayOf(
@@ -65,12 +66,18 @@ object HtmlFormatter {
 
     /**
      * Formats untrusted HTML for plain-text UI surfaces.
-     * Script and style elements must be removed with their contents before stripping tags.
-     * 各来源的段首缩进宽度不一, 先清空再统一补两个全角空格。
-     * 同时丢弃与书籍信息重复的字段行(书名/作者/最新章节等)。
+     *
+     * Book-info `<useweb>` is an explicit Legado rendering contract, so keep that
+     * wrapper intact for the dedicated book-info renderer. List/card callers go
+     * through [formatIntroText], which still converts it to safe plain text.
      */
     fun formatDisplayText(html: String?): String {
         if (html.isNullOrBlank()) return ""
+        if (html.startsWith(USE_WEB_PREFIX, ignoreCase = true)) return html
+        return formatPlainDisplayText(html)
+    }
+
+    private fun formatPlainDisplayText(html: String): String {
         val document = Jsoup.parseBodyFragment(html)
         document.outputSettings().prettyPrint(false)
         val body = document.body()
@@ -84,13 +91,29 @@ object HtmlFormatter {
             .joinToString("\n") { PARAGRAPH_INDENT + it }
     }
 
+    private fun extractUseWebBody(html: String): String {
+        if (!html.startsWith(USE_WEB_PREFIX, ignoreCase = true)) return html
+        val lastIndex = html.lastIndexOf("<")
+        return if (lastIndex >= USE_WEB_PREFIX.length) {
+            html.substring(USE_WEB_PREFIX.length, lastIndex)
+        } else {
+            html
+        }
+    }
+
     /**
      * 书架/列表用的简介: 在 [formatDisplayText] 之上再丢掉书源排版进简介的状态面板,
      * 即"📡 当前服务：xxx"这类图标开头的整行, 以及纯符号的分隔行。
      * 详情页不做这一步 —— 那里是书源和用户交互的地方(登录提示等), 状态面板有用。
      */
     fun formatIntroText(html: String?): String {
-        return formatDisplayText(html)
+        val displayText = when {
+            html.isNullOrBlank() -> ""
+            html.startsWith(USE_WEB_PREFIX, ignoreCase = true) ->
+                formatPlainDisplayText(extractUseWebBody(html))
+            else -> formatDisplayText(html)
+        }
+        return displayText
             .lineSequence()
             .map { it.trim(*blankChars) }
             .filterNot {
