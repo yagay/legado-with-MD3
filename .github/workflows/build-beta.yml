@@ -48,6 +48,7 @@ jobs:
             --tests "io.legado.app.model.jsEngine.AnalyzeUrlUpstreamCompatibilityTest" \
             --tests "io.legado.app.ui.main.explore.ExploreUpstreamReuseTest" \
             --tests "io.legado.app.enhance.explore.builder.ModernExploreClassificationEngineTest" \
+            --tests "io.legado.app.enhance.explore.builder.ModernExploreControlExtractorTest" \
             --no-daemon \
             --no-configuration-cache
 
