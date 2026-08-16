@@ -17,6 +17,7 @@ import io.legado.app.help.source.clearExploreKindsCache
 import io.legado.app.help.source.exploreKinds
 import io.legado.app.help.source.exploreKindsJson
 import io.legado.app.help.source.getExploreInfoMap
+import io.legado.app.model.analyzeRule.AnalyzeRule
 import io.legado.app.ui.main.explore.ExploreEffect
 import io.legado.app.ui.main.explore.ExploreIntent
 import io.legado.app.ui.main.explore.ExploreViewModel
@@ -314,12 +315,25 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
             try {
                 val source = vm.exploreRepository.getBookSource(defaultSourceUrl) ?: return@launch
                 val key = control.kind.title
+                val infoMap = getExploreInfoMap(defaultSourceUrl)
                 if (key.isNotBlank()) {
-                    getExploreInfoMap(defaultSourceUrl).apply {
-                        this[key] = value
-                        saveNow()
-                    }
+                    infoMap[key] = value
+                    infoMap.saveNow()
                 }
+                control.kind.action
+                    ?.trim()
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { action ->
+                        val actionRule = if (action.startsWith("<js>") || action.startsWith("{{")) {
+                            action
+                        } else {
+                            "<js>$action</js>"
+                        }
+                        AnalyzeRule(source = source, preUpdateJs = true)
+                            .setContent(actionRule, source.getKey())
+                            .put("infoMap", infoMap)
+                            .getString(actionRule)
+                    }
                 source.clearExploreKindsCache()
                 allSourceRawKinds = source.exploreKinds()
                 val classification = ModernExploreClassificationEngine.classify(
