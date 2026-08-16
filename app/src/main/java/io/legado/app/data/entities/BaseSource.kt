@@ -3,8 +3,6 @@ package io.legado.app.data.entities
 import android.webkit.JavascriptInterface
 import cn.hutool.crypto.symmetric.AES
 import com.script.ScriptBindings
-import com.script.buildScriptBindings
-import com.script.rhino.RhinoScriptEngine
 import io.legado.app.constant.AppConst
 import io.legado.app.constant.AppLog
 import io.legado.app.data.entities.rule.RowUi
@@ -14,8 +12,8 @@ import io.legado.app.help.JsExtensions
 import io.legado.app.help.crypto.SymmetricCryptoAndroid
 import io.legado.app.help.http.CookieStore
 import io.legado.app.help.source.clearExploreKindsCache
-import io.legado.app.help.source.getShareScope
 import io.legado.app.model.SharedJsScope.remove
+import io.legado.app.model.jsEngine.SourceJsEngineRouter
 import io.legado.app.utils.GSON
 import io.legado.app.utils.GSONStrict
 import io.legado.app.utils.fromJsonArray
@@ -328,26 +326,10 @@ interface BaseSource : JsExtensions {
     }
 
     /**
-     * 执行JS
+     * 执行JS。实际引擎由 SourceJsEngineRouter 按书源选择。
      */
     @Throws(Exception::class)
     fun evalJS(jsStr: String, bindingsConfig: ScriptBindings.() -> Unit = {}): Any? {
-        val bindings = buildScriptBindings { bindings ->
-            bindings["java"] = this
-            bindings["source"] = this
-            bindings["baseUrl"] = getKey()
-            bindings["cookie"] = CookieStore
-            bindings["cache"] = CacheManager
-            bindings.apply(bindingsConfig)
-        }
-        val sharedScope = getShareScope()
-        val scope = if (sharedScope == null) {
-            RhinoScriptEngine.getRuntimeScope(bindings)
-        } else {
-            bindings.apply {
-                prototype = sharedScope
-            }
-        }
-        return RhinoScriptEngine.eval(jsStr, scope)
+        return SourceJsEngineRouter.eval(this, jsStr, bindingsConfig)
     }
 }
