@@ -24,21 +24,6 @@ data class ExploreKind(
         const val select = "select"
     }
 
-    /**
-     * 只有“没有可执行目标”的项目才能作为逻辑分组标题。
-     *
-     * layout_flexBasisPercent=1 只是布局宽度（占满一行），不能当成层级标记。
-     * 很多书源会让可点击项目占满整行，如果把 basis=1 当 Header 会破坏层级。
-     */
-    fun isGroupHeader(): Boolean {
-        return url.isNullOrBlank() && action.isNullOrBlank()
-    }
-
-    fun targetUrl(): String? = action?.takeIf { it.isNotBlank() }
-        ?: url?.takeIf { it.isNotBlank() }
-
-    fun hasChildren(): Boolean = !children.isNullOrEmpty()
-
     fun style(): FlexChildStyle {
         return style ?: FlexChildStyle.defaultStyle
     }
