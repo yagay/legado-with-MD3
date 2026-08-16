@@ -11,6 +11,7 @@ import io.legado.app.help.config.SourceConfig
 import io.legado.app.help.coroutine.Coroutine
 import io.legado.app.model.AudioPlay
 import io.legado.app.model.ReadBook
+import io.legado.app.model.jsEngine.SourceJsEngineLifecycle
 import io.legado.app.utils.EncoderUtils
 import io.legado.app.utils.NetworkUtils
 import io.legado.app.utils.splitNotBlank
@@ -76,6 +77,7 @@ object SourceHelp {
     }
 
     private fun deleteBookSourceInternal(key: String) {
+        SourceJsEngineLifecycle.clearSource(BookSource::class.java, key)
         appDb.bookSourceDao.delete(key)
         appDb.cacheDao.deleteSourceVariables(key)
         SourceConfig.removeSource(key)
@@ -96,6 +98,7 @@ object SourceHelp {
     }
 
     private fun deleteRssSourceInternal(key: String) {
+        SourceJsEngineLifecycle.clearSource(RssSource::class.java, key)
         appDb.rssSourceDao.delete(key)
         appDb.rssArticleDao.delete(key)
         appDb.cacheDao.deleteSourceVariables(key)
