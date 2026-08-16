@@ -1,7 +1,6 @@
 package io.legado.app.enhance.explore.screen
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -14,9 +13,11 @@ import io.legado.app.domain.usecase.ExploreKindUiUseCase
 import io.legado.app.ui.widget.components.explore.ExploreKindMultiTypeItem
 
 /**
- * Packs non-category source-native controls into compact rows without changing behavior.
+ * Places source-native action controls in one compact row above the category rows.
+ *
+ * Width is derived from the visible label length, so short actions such as "登录"
+ * take less space while longer actions such as "刷新发现页" receive more room.
  * Category/url/select/tree rows are rendered elsewhere and are intentionally excluded.
- * Width is derived from visible label length instead of a fixed column count.
  */
 @Composable
 fun AdaptiveExploreControlRows(
@@ -27,64 +28,32 @@ fun AdaptiveExploreControlRows(
     onRefreshKinds: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val rows = remember(controls) { packAdaptiveControlRows(controls) }
+    if (controls.isEmpty()) return
 
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+    val weights = remember(controls) {
+        controls.map(::controlWidthUnits)
+    }
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        rows.forEach { row ->
-            Row(
+        controls.forEachIndexed { index, kind ->
+            ExploreKindMultiTypeItem(
+                kind = kind,
+                sourceUrl = sourceUrl,
+                onOpenUrl = { url -> onOpenUrl(kind, url) },
+                onRefreshKinds = onRefreshKinds,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                val weights = row.map(::controlWidthUnits)
-                row.forEachIndexed { index, kind ->
-                    ExploreKindMultiTypeItem(
-                        kind = kind,
-                        sourceUrl = sourceUrl,
-                        onOpenUrl = { url -> onOpenUrl(kind, url) },
-                        onRefreshKinds = onRefreshKinds,
-                        modifier = Modifier
-                            .weight(weights[index])
-                            .fillMaxWidth(),
-                        isMiuix = false,
-                        useCase = useCase,
-                    )
-                }
-            }
+                    .weight(weights[index])
+                    .fillMaxWidth(),
+                isMiuix = false,
+                useCase = useCase,
+            )
         }
     }
-}
-
-internal fun packAdaptiveControlRows(
-    controls: List<ExploreKind>,
-    maxUnitsPerRow: Float = 24f,
-): List<List<ExploreKind>> {
-    if (controls.isEmpty()) return emptyList()
-
-    val rows = mutableListOf<MutableList<ExploreKind>>()
-    var current = mutableListOf<ExploreKind>()
-    var currentUnits = 0f
-
-    fun flush() {
-        if (current.isNotEmpty()) rows += current
-        current = mutableListOf()
-        currentUnits = 0f
-    }
-
-    controls.forEach { kind ->
-        val units = controlWidthUnits(kind)
-        if (current.isNotEmpty() && currentUnits + units > maxUnitsPerRow) {
-            flush()
-        }
-        current += kind
-        currentUnits += units
-    }
-    flush()
-    return rows
 }
 
 internal fun controlWidthUnits(kind: ExploreKind): Float {
@@ -108,5 +77,5 @@ internal fun controlWidthUnits(kind: ExploreKind): Float {
         else -> 4f
     }
     val minimum = if (kind.type == ExploreKind.Type.text) 10f else 6f
-    return (textUnits + chromeUnits).coerceIn(minimum, 24f)
+    return (textUnits + chromeUnits).coerceAtLeast(minimum)
 }
