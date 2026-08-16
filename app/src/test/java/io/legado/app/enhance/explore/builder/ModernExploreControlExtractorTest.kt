@@ -41,6 +41,64 @@ class ModernExploreControlExtractorTest {
     }
 
     @Test
+    fun `qimao direct searchBook pattern hides only search pair`() {
+        val text = ExploreKind(title = "☃关键词💭：书名/作者", type = ExploreKind.Type.text)
+        val search = ExploreKind(
+            title = "🔍搜索",
+            type = ExploreKind.Type.button,
+            action = "java.searchBook(infoMap['☃关键词💭：书名/作者'] || '', source.getKey());saveKeys(infoMap)"
+        )
+        val login = ExploreKind(
+            title = "⚙登录",
+            type = ExploreKind.Type.button,
+            action = "java.open('login','http',null);saveKeys(infoMap)"
+        )
+        val refresh = ExploreKind(
+            title = "🔄刷新发现页",
+            type = ExploreKind.Type.button,
+            action = "java.refreshExplore()"
+        )
+
+        val control = ModernExploreControlExtractor.findSearchControl(listOf(text, search, login, refresh))!!
+
+        assertSame(text, control.textKind)
+        assertSame(search, control.buttonKind)
+        assertEquals(setOf(0, 1), control.hiddenSourceIndexes)
+    }
+
+    @Test
+    fun `fanqie wrapped exploreSearch works even with another text control`() {
+        val searchText = ExploreKind(
+            title = "搜索关键词",
+            type = ExploreKind.Type.text,
+            action = "setVariable('搜索关键词',(infoMap['搜索关键词'] || (infoMap.get && infoMap.get('搜索关键词'))))",
+            viewName = "搜索书名或作者"
+        )
+        val searchButton = ExploreKind(
+            title = "🔍搜索",
+            type = ExploreKind.Type.button,
+            action = "exploreSearch()"
+        )
+        val serverText = ExploreKind(
+            title = "服务器返回输入项",
+            type = ExploreKind.Type.text
+        )
+        val settings = ExploreKind(
+            title = "书源设置",
+            type = ExploreKind.Type.button,
+            action = "getHtmlSettings()"
+        )
+
+        val control = ModernExploreControlExtractor.findSearchControl(
+            listOf(searchText, searchButton, serverText, settings)
+        )!!
+
+        assertSame(searchText, control.textKind)
+        assertSame(searchButton, control.buttonKind)
+        assertEquals(setOf(0, 1), control.hiddenSourceIndexes)
+    }
+
+    @Test
     fun `single text plus refresh button is treated as embedded search`() {
         val text = ExploreKind(title = "任意参数", type = ExploreKind.Type.text)
         val button = ExploreKind(
