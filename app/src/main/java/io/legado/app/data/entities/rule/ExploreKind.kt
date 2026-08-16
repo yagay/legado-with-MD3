@@ -11,8 +11,7 @@ data class ExploreKind(
     val chars: Array<String?>? = null,
     val default: String? = null,
     var viewName: String? = null,
-    val style: FlexChildStyle? = null,
-    val children: List<ExploreKind>? = null
+    val style: FlexChildStyle? = null
 ) {
 
     @Suppress("ConstPropertyName")
