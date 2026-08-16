@@ -64,7 +64,7 @@ class ExploreKindUiUseCase(
         activity: AppCompatActivity?,
         onRefreshKinds: () -> Unit
     ) {
-        val actionText = action?.takeIf { it.isNotBlank() } ?: return
+        val actionText = normalizeActionJs(action?.takeIf { it.isNotBlank() } ?: return)
         val effectiveSourceUrl = sourceUrl ?: return
         val effectiveInfoMap = infoMap ?: return
         val source = getOrLoadBookSource(effectiveSourceUrl) ?: return
@@ -85,6 +85,14 @@ class ExploreKindUiUseCase(
         withContext(Dispatchers.IO) {
             evalButtonClick(actionText, source, effectiveInfoMap, title, sourceJsExtensions)
         }
+    }
+
+    private fun normalizeActionJs(action: String): String = when {
+        action.startsWith("<js>") && action.endsWith("</js>") ->
+            action.removePrefix("<js>").removeSuffix("</js>")
+        action.startsWith("{{") && action.endsWith("}}") ->
+            action.removePrefix("{{").removeSuffix("}}")
+        else -> action
     }
 
     private fun parseLiteralViewName(viewName: String?): String? {
