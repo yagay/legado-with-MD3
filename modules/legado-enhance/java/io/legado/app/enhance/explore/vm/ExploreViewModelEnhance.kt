@@ -200,9 +200,28 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
             } else {
                 ModernExploreControlExtractor.fromFlatKinds(allSourceRawKinds)
             }
+            initializeExploreDefaults(defaultSourceUrl)
             refreshNativeControls()
             rebuildSelectors(suite, defaultSourceUrl)
         }
+    }
+
+    private suspend fun initializeExploreDefaults(sourceUrl: String) {
+        val infoMap = getExploreInfoMap(sourceUrl)
+        var shouldSave = false
+        val kinds = if (allSourceMode == ExploreMode.TREE) {
+            collectOriginalKinds(allSourceKinds)
+        } else {
+            allSourceRawKinds
+        }
+        kinds.forEach { kind ->
+            val defaultValue = kind.default ?: return@forEach
+            if (infoMap[kind.title] == null) {
+                infoMap[kind.title] = defaultValue
+                shouldSave = true
+            }
+        }
+        if (shouldSave) infoMap.saveNow()
     }
 
     private fun refreshNativeControls() {
@@ -391,6 +410,7 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
                 } else {
                     ModernExploreControlExtractor.fromFlatKinds(allSourceRawKinds)
                 }
+                initializeExploreDefaults(defaultSourceUrl)
                 refreshNativeControls()
                 rebuildSelectors(suite, defaultSourceUrl)
             } catch (_: Exception) {
@@ -534,6 +554,18 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
         return allSourceRawKinds.indexOfFirst { kind ->
             cleanExploreTitle(kind.title) in optionTitles
         }.takeIf { it >= 0 } ?: Int.MAX_VALUE
+    }
+
+    private fun collectOriginalKinds(nodes: List<ExploreNode>): List<ExploreKind> {
+        val result = mutableListOf<ExploreKind>()
+        val stack = ArrayDeque<ExploreNode>()
+        nodes.forEach(stack::addLast)
+        while (stack.isNotEmpty()) {
+            val node = stack.removeFirst()
+            node.originalKind?.let(result::add)
+            node.children.forEach(stack::addLast)
+        }
+        return result
     }
 
     private fun countExploreNodes(nodes: List<ExploreNode>): Int {
