@@ -50,10 +50,9 @@ jobs:
           path.write_text(text, encoding='utf-8')
           PY
 
-          git checkout HEAD^ -- .github/workflows/build-beta.yml
           git diff --check
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app/src/main/java/io/legado/app/model/analyzeRule/AnalyzeRule.kt .github/workflows/build-beta.yml
+          git add app/src/main/java/io/legado/app/model/analyzeRule/AnalyzeRule.kt
           git commit -m "route AnalyzeRule JavaScript by source engine"
           git push origin HEAD:beta
