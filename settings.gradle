@@ -48,5 +48,6 @@ rootProject.name = 'legado'
 include ':app'
 include ':modules:book'
 include ':modules:rhino'
+include ':modules:rhino-upstream'
 include ':baselineprofile'
 project(':baselineprofile').projectDir = file('baselineProfile')
