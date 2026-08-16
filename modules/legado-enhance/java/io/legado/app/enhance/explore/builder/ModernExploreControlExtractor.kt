@@ -14,6 +14,7 @@ object ModernExploreControlExtractor {
     data class SelectControl(
         val kind: ExploreKind,
         val sourceIndex: Int,
+        val sourceKey: String,
         val title: String,
         val options: List<String>,
         val defaultValue: String?
@@ -35,7 +36,9 @@ object ModernExploreControlExtractor {
     )
 
     fun fromFlatKinds(kinds: List<ExploreKind>): List<SelectControl> =
-        kinds.mapIndexedNotNull { index, kind -> kind.toSelectControl(index) }
+        kinds.mapIndexedNotNull { index, kind ->
+            kind.toSelectControl(index, index.toString())
+        }
 
     /**
      * Explicit tree JSON can place select controls at any depth. Walk the whole
@@ -48,7 +51,9 @@ object ModernExploreControlExtractor {
         nodes.asReversed().forEach(stack::addLast)
         while (stack.isNotEmpty()) {
             val node = stack.removeLast()
-            node.originalKind?.toSelectControl(node.sourceIndex)?.let(result::add)
+            node.originalKind
+                ?.toSelectControl(node.sourceIndex, node.sourceKey)
+                ?.let(result::add)
             node.children.asReversed().forEach(stack::addLast)
         }
         return result
@@ -59,6 +64,18 @@ object ModernExploreControlExtractor {
      * Search recognition and hiding are intentionally performed in one pass so the UI cannot
      * observe a SearchControl whose original text/button pair was filtered by separate state.
      */
+    fun flattenOriginalKinds(nodes: List<ExploreNode>): List<ExploreKind> {
+        val result = mutableListOf<ExploreKind>()
+        val stack = ArrayDeque<ExploreNode>()
+        nodes.asReversed().forEach(stack::addLast)
+        while (stack.isNotEmpty()) {
+            val node = stack.removeLast()
+            node.originalKind?.let(result::add)
+            node.children.asReversed().forEach(stack::addLast)
+        }
+        return result
+    }
+
     fun extractNativeControls(kinds: List<ExploreKind>): NativeControlsResult {
         val searchControl = findSearchControl(kinds)
         val hiddenIndexes = searchControl?.hiddenSourceIndexes.orEmpty()
@@ -222,7 +239,10 @@ object ModernExploreControlExtractor {
         else -> action
     }
 
-    private fun ExploreKind.toSelectControl(sourceIndex: Int): SelectControl? {
+    private fun ExploreKind.toSelectControl(
+        sourceIndex: Int,
+        sourceKey: String,
+    ): SelectControl? {
         if (type != ExploreKind.Type.select) return null
         val values = chars.orEmpty()
             .filterNotNull()
@@ -232,6 +252,7 @@ object ModernExploreControlExtractor {
         return SelectControl(
             kind = this,
             sourceIndex = sourceIndex,
+            sourceKey = sourceKey,
             title = cleanTitle(title).ifBlank { title },
             options = values,
             defaultValue = default?.takeIf { it.isNotBlank() } ?: values.firstOrNull()

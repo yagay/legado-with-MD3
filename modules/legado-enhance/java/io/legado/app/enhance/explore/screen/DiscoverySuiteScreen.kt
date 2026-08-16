@@ -64,6 +64,14 @@ fun DiscoverySuiteScreen(
             return@Box
         }
 
+        if (mainBookWidget == null) {
+            EmptyMessage(
+                message = "该套件缺少书籍列表组件",
+                modifier = Modifier.fillMaxSize()
+            )
+            return@Box
+        }
+
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
@@ -263,7 +271,7 @@ fun DiscoverySuiteScreen(
                                 } else {
                                     LoadMoreFooter(
                                         isLoading = state.enhance.widgetLoading[widget.id] ?: false,
-                                        errorMsg = null,
+                                        errorMsg = state.enhance.widgetErrors[widget.id] ?: state.enhance.exploreError,
                                         onRetry = { onIntent(ExploreIntent.LoadMoreWidgetData(widget.id)) },
                                         isEnd = state.enhance.widgetIsEnd[widget.id] ?: false,
                                         autoLoad = true

@@ -15,6 +15,7 @@ data class ExploreNode(
     val originalKind: ExploreKind? = null,
     val level: Int = 0,
     val sourceIndex: Int = -1,
+    val sourceKey: String = sourceIndex.takeIf { it >= 0 }?.toString().orEmpty(),
 ) {
     val isLeaf: Boolean get() = children.isEmpty() && !url.isNullOrBlank()
     val isHeader: Boolean get() = url.isNullOrBlank() && children.isNotEmpty()

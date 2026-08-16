@@ -35,7 +35,9 @@ object ModernExploreClassificationEngine {
         }
 
         return Result(
-            nodes = flatKinds.mapIndexed { index, kind -> kind.toNode(sourceIndex = index) },
+            nodes = flatKinds.mapIndexed { index, kind ->
+                kind.toNode(sourceIndex = index, sourceKey = index.toString())
+            },
             mode = ExploreMode.FLAT
         )
     }
@@ -44,7 +46,14 @@ object ModernExploreClassificationEngine {
         if (json.isBlank()) return emptyList()
         return runCatching {
             GSON.fromJson(json, JsonArray::class.java)
-                .mapIndexedNotNull { index, element -> parseNode(element, level = 0, sourceIndex = index) }
+                .mapIndexedNotNull { index, element ->
+                    parseNode(
+                        element = element,
+                        level = 0,
+                        sourceIndex = index,
+                        sourceKey = index.toString(),
+                    )
+                }
         }.getOrDefault(emptyList())
     }
 
@@ -52,6 +61,7 @@ object ModernExploreClassificationEngine {
         element: JsonElement,
         level: Int,
         sourceIndex: Int,
+        sourceKey: String,
     ): ExploreNode? {
         if (!element.isJsonObject) return null
         val obj = element.asJsonObject
@@ -61,13 +71,19 @@ object ModernExploreClassificationEngine {
             ?.takeIf(JsonElement::isJsonArray)
             ?.asJsonArray
             ?.mapIndexedNotNull { index, child ->
-                parseNode(child, level = level + 1, sourceIndex = index)
+                parseNode(
+                    element = child,
+                    level = level + 1,
+                    sourceIndex = index,
+                    sourceKey = "$sourceKey.$index",
+                )
             }
             .orEmpty()
         return kind.toNode(
             children = children,
             level = level,
             sourceIndex = sourceIndex,
+            sourceKey = sourceKey,
         )
     }
 
@@ -85,6 +101,7 @@ object ModernExploreClassificationEngine {
                 children = currentChildren.toList(),
                 level = 0,
                 sourceIndex = indexed.index,
+                sourceKey = indexed.index.toString(),
             )
             currentChildren = mutableListOf()
         }
@@ -95,9 +112,9 @@ object ModernExploreClassificationEngine {
                 flushSection()
                 currentHeader = indexed
             } else if (currentHeader == null) {
-                result += kind.toNode(level = 0, sourceIndex = indexed.index)
+                result += kind.toNode(level = 0, sourceIndex = indexed.index, sourceKey = indexed.index.toString())
             } else {
-                currentChildren += kind.toNode(level = 1, sourceIndex = indexed.index)
+                currentChildren += kind.toNode(level = 1, sourceIndex = indexed.index, sourceKey = indexed.index.toString())
             }
         }
         flushSection()
@@ -111,6 +128,7 @@ object ModernExploreClassificationEngine {
         children: List<ExploreNode> = emptyList(),
         level: Int = 0,
         sourceIndex: Int = -1,
+        sourceKey: String = sourceIndex.takeIf { it >= 0 }?.toString().orEmpty(),
     ): ExploreNode = ExploreNode(
         title = title,
         url = modernTargetUrl(),
@@ -118,6 +136,7 @@ object ModernExploreClassificationEngine {
         originalKind = this,
         level = level,
         sourceIndex = sourceIndex,
+        sourceKey = sourceKey,
     )
 
     private fun isSectionHeader(kind: ExploreKind): Boolean =

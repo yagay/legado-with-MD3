@@ -49,6 +49,7 @@ jobs:
             --tests "io.legado.app.ui.main.explore.ExploreUpstreamReuseTest" \
             --tests "io.legado.app.enhance.explore.builder.ModernExploreClassificationEngineTest" \
             --tests "io.legado.app.enhance.explore.builder.ModernExploreControlExtractorTest" \
+            --tests "io.legado.app.enhance.explore.builder.ModernExploreTreeControlTest" \
             --tests "io.legado.app.enhance.explore.screen.AdaptiveExploreControlRowsTest" \
             --no-daemon \
             --no-configuration-cache
