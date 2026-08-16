@@ -64,6 +64,29 @@ class SourceJsEngineCompatibilityTest {
         assertEquals("lib:ok", source.evalJS("compatFromLib('ok')"))
     }
 
+    /**
+     * Real-source fixture reduced from supplied jsLib code that uses:
+     * const { java, source } = this
+     * inside a library function. This specifically verifies TeamLegado's dynamic top-level this
+     * semantics after the function has been defined in SharedJsScope and invoked from a child scope.
+     */
+    @Test
+    fun `real jsLib function receives runtime java and source through this`() {
+        val source = modernSource("jslib-runtime-this").apply {
+            jsLib = """
+                function compatRuntimeThis() {
+                    const { java, source } = this;
+                    return java.getKey() + '|' + source.getKey();
+                }
+            """.trimIndent()
+        }
+
+        assertEquals(
+            "${source.getKey()}|${source.getKey()}",
+            source.evalJS("compatRuntimeThis()")
+        )
+    }
+
     @Test
     fun `modern source keeps source global state between evaluations`() {
         val source = modernSource("global").apply {
