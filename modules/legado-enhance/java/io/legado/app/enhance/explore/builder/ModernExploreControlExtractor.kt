@@ -19,13 +19,6 @@ object ModernExploreControlExtractor {
         val defaultValue: String?
     )
 
-    /**
-     * 书源发现页中可由现代顶栏输入框接管的 text + button 组合。
-     *
-     * 优先匹配 button.action 明确读取 text.title 对应 InfoMap key 的组合。
-     * 对真实书源中常见的“单一 text + 刷新按钮”结构，允许 button 只负责刷新发现页；
-     * 但存在多个 text 输入框时不会使用这种宽松规则，避免把账号/密码/验证码表单误判成搜索。
-     */
     data class SearchControl(
         val textKind: ExploreKind,
         val buttonKind: ExploreKind,
@@ -39,7 +32,6 @@ object ModernExploreControlExtractor {
     fun fromFlatKinds(kinds: List<ExploreKind>): List<SelectControl> =
         kinds.mapIndexedNotNull { index, kind -> kind.toSelectControl(index) }
 
-    /** TREE 只提升根级、无子节点的 select 控件。 */
     fun fromTreeRoot(nodes: List<ExploreNode>): List<SelectControl> =
         nodes.mapNotNull { node ->
             val kind = node.originalKind ?: return@mapNotNull null
@@ -56,7 +48,7 @@ object ModernExploreControlExtractor {
         }
         if (textControls.isEmpty()) return null
 
-        // 1. Strong match: the button explicitly reads the corresponding InfoMap key.
+        // 1. Strong match: button explicitly reads this text's InfoMap key.
         kinds.forEachIndexed { buttonIndex, button ->
             if (button.type != ExploreKind.Type.button || button.action.isNullOrBlank()) return@forEachIndexed
             val matched = textControls
@@ -74,12 +66,11 @@ object ModernExploreControlExtractor {
             )
         }
 
-        // 2. Common source pattern: a single text stores its value in InfoMap, while the
-        // following button only asks Legado to rebuild/refresh the explore UI. With exactly
-        // one text input this remains structurally distinct from login/verification forms.
         if (textControls.size == 1) {
             val (textIndex, text) = textControls.single()
-            val buttonMatch = kinds
+
+            // 2. Common Legado pattern: button only asks the explore UI to refresh.
+            val refreshButton = kinds
                 .mapIndexedNotNull { index, kind ->
                     if (
                         index > textIndex &&
@@ -89,12 +80,37 @@ object ModernExploreControlExtractor {
                 }
                 .minByOrNull { (index, _) -> index }
 
-            if (buttonMatch != null) {
+            if (refreshButton != null) {
                 return SearchControl(
                     textKind = text,
-                    buttonKind = buttonMatch.second,
+                    buttonKind = refreshButton.second,
                     textSourceIndex = textIndex,
-                    buttonSourceIndex = buttonMatch.first,
+                    buttonSourceIndex = refreshButton.first,
+                )
+            }
+
+            // 3. Wrapped-function fallback: many shared sources hide the actual InfoMap/refresh
+            // work inside doSearch()/load()/run() helpers. If the non-category control block has
+            // only one text field and the next native control is a button, the pair is structural
+            // enough to reuse without guessing from its visible title. Multi-text forms never use
+            // this fallback, so account/password/captcha forms remain visible.
+            val nextNative = kinds
+                .mapIndexedNotNull { index, kind ->
+                    if (index <= textIndex) return@mapIndexedNotNull null
+                    if (
+                        kind.type == ExploreKind.Type.text ||
+                        kind.type == ExploreKind.Type.button ||
+                        kind.type == ExploreKind.Type.toggle
+                    ) index to kind else null
+                }
+                .minByOrNull { (index, _) -> index }
+
+            if (nextNative?.second?.type == ExploreKind.Type.button) {
+                return SearchControl(
+                    textKind = text,
+                    buttonKind = nextNative.second,
+                    textSourceIndex = textIndex,
+                    buttonSourceIndex = nextNative.first,
                 )
             }
         }
