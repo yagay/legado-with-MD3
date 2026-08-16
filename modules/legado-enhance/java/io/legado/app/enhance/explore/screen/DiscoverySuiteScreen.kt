@@ -95,10 +95,13 @@ fun DiscoverySuiteScreen(
                 }
             }
 
-            state.enhance.dynamicSelectors.forEach { selector ->
+            state.enhance.dynamicSelectors.forEachIndexed { index, selector ->
                 item(key = selector.id) {
                     ModernDiscoveryFilterBar(
-                        title = selector.title,
+                        title = dynamicSelectorDisplayTitle(
+                            selectors = state.enhance.dynamicSelectors,
+                            index = index,
+                        ),
                         targets = selector.targets,
                         selectedTargetTitle = selector.selectedTitle,
                         onTargetClick = { target ->
@@ -286,6 +289,20 @@ fun DiscoverySuiteScreen(
             }
         }
     }
+}
+
+internal fun dynamicSelectorDisplayTitle(
+    selectors: List<ExploreViewModel.DynamicSelectorUi>,
+    index: Int,
+): String {
+    val selector = selectors.getOrNull(index) ?: return "分类"
+    if (index <= 0) return selector.title
+
+    return selectors.getOrNull(index - 1)
+        ?.selectedTitle
+        ?.let(::cleanExplorePathPart)
+        ?.takeIf { it.isNotBlank() }
+        ?: selector.title
 }
 
 private fun buildExplorePathTitle(
