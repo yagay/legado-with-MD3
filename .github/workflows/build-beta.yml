@@ -19,136 +19,99 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          fetch-depth: 2
-
-      - name: Apply Rhino selector and diagnostics
+      - name: Apply source Rhino selector
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
 
+          def replace_once(path, old, new, marker):
+              p = Path(path); s = p.read_text(encoding='utf-8')
+              if marker not in s:
+                  if s.count(old) != 1: raise SystemExit(f'{path}: anchor mismatch')
+                  s = s.replace(old, new, 1)
+                  p.write_text(s, encoding='utf-8')
+
           # Contract
-          p = Path('app/src/main/java/io/legado/app/ui/book/source/edit/BookSourceEditContract.kt')
-          s = p.read_text(encoding='utf-8')
-          anchor = 'import io.legado.app.ui.widget.components.variable.VariableEditorUiState\n'
-          repl = anchor + 'import io.legado.app.model.jsEngine.SourceJsEngineMode\n'
-          if 'import io.legado.app.model.jsEngine.SourceJsEngineMode' not in s:
-              if s.count(anchor) != 1: raise SystemExit('contract import anchor mismatch')
-              s = s.replace(anchor, repl, 1)
-          anchor = '    val bookSourceType: Int = 0,\n'
-          repl = anchor + '    val jsEngineMode: SourceJsEngineMode = SourceJsEngineMode.LEGACY,\n'
-          if 'val jsEngineMode:' not in s:
-              if s.count(anchor) != 1: raise SystemExit('contract state anchor mismatch')
-              s = s.replace(anchor, repl, 1)
-          anchor = '    data class SetSourceType(val value: Int) : BookSourceEditIntent\n'
-          repl = anchor + '    data class SetJsEngineMode(val value: SourceJsEngineMode) : BookSourceEditIntent\n'
-          if 'data class SetJsEngineMode' not in s:
-              if s.count(anchor) != 1: raise SystemExit('contract intent anchor mismatch')
-              s = s.replace(anchor, repl, 1)
-          p.write_text(s, encoding='utf-8')
+          path='app/src/main/java/io/legado/app/ui/book/source/edit/BookSourceEditContract.kt'
+          replace_once(path,
+              'import io.legado.app.ui.widget.components.variable.VariableEditorUiState\n',
+              'import io.legado.app.ui.widget.components.variable.VariableEditorUiState\nimport io.legado.app.model.jsEngine.SourceJsEngineMode\n',
+              'import io.legado.app.model.jsEngine.SourceJsEngineMode')
+          replace_once(path,
+              '    val bookSourceType: Int = 0,\n',
+              '    val bookSourceType: Int = 0,\n    val jsEngineMode: SourceJsEngineMode = SourceJsEngineMode.LEGACY,\n',
+              'val jsEngineMode:')
+          replace_once(path,
+              '    data class SetSourceType(val value: Int) : BookSourceEditIntent\n',
+              '    data class SetSourceType(val value: Int) : BookSourceEditIntent\n    data class SetJsEngineMode(val value: SourceJsEngineMode) : BookSourceEditIntent\n',
+              'data class SetJsEngineMode')
 
           # ViewModel
-          p = Path('app/src/main/java/io/legado/app/ui/book/source/edit/BookSourceEditViewModel.kt')
-          s = p.read_text(encoding='utf-8')
-          anchor = 'import io.legado.app.model.SharedJsScope\n'
-          repl = anchor + 'import io.legado.app.model.jsEngine.SourceJsEngineMode\nimport io.legado.app.model.jsEngine.SourceJsEngineModeStore\n'
-          if 'import io.legado.app.model.jsEngine.SourceJsEngineModeStore' not in s:
-              if s.count(anchor) != 1: raise SystemExit('vm import anchor mismatch')
-              s = s.replace(anchor, repl, 1)
-          anchor = '    private var baselineJson = ""\n'
-          repl = anchor + '    private var baselineJsEngineMode = SourceJsEngineMode.LEGACY\n'
-          if 'baselineJsEngineMode' not in s:
-              if s.count(anchor) != 1: raise SystemExit('vm baseline anchor mismatch')
-              s = s.replace(anchor, repl, 1)
-          anchor = '            is BookSourceEditIntent.SetSourceType -> updateFlags { copy(bookSourceType = intent.value) }\n'
-          repl = anchor + '            is BookSourceEditIntent.SetJsEngineMode -> updateFlags { copy(jsEngineMode = intent.value) }\n'
-          if 'is BookSourceEditIntent.SetJsEngineMode' not in s:
-              if s.count(anchor) != 1: raise SystemExit('vm intent anchor mismatch')
-              s = s.replace(anchor, repl, 1)
-          anchor = '        if (asOriginal) baselineJson = GSON.toJson(source)\n        val tab = _uiState.value.selectedTab\n'
-          repl = '        if (asOriginal) baselineJson = GSON.toJson(source)\n        val jsEngineMode = SourceJsEngineModeStore.getMode(source.getKey())\n        if (asOriginal) baselineJsEngineMode = jsEngineMode\n        val tab = _uiState.value.selectedTab\n'
-          if 'val jsEngineMode = SourceJsEngineModeStore.getMode(source.getKey())' not in s:
-              if s.count(anchor) != 1: raise SystemExit('vm applySource anchor mismatch')
-              s = s.replace(anchor, repl, 1)
-          anchor = '            bookSourceType = source.bookSourceType,\n'
-          repl = anchor + '            jsEngineMode = jsEngineMode,\n'
-          if 'jsEngineMode = jsEngineMode' not in s:
-              if s.count(anchor) != 1: raise SystemExit('vm state mode anchor mismatch')
-              s = s.replace(anchor, repl, 1)
-          anchor = '    private fun isDirty(state: BookSourceEditUiState): Boolean =\n        GSON.toJson(currentSource(state)) != baselineJson\n'
-          repl = '    private fun isDirty(state: BookSourceEditUiState): Boolean =\n        GSON.toJson(currentSource(state)) != baselineJson ||\n            state.jsEngineMode != baselineJsEngineMode\n'
-          if 'state.jsEngineMode != baselineJsEngineMode' not in s:
-              if s.count(anchor) != 1: raise SystemExit('vm dirty anchor mismatch')
-              s = s.replace(anchor, repl, 1)
-          anchor = '            repository.insert(source)\n            concurrentRecordMap.remove(source.bookSourceUrl)\n                originalSource = source\n                baselineJson = GSON.toJson(source)\n'
-          repl = '''            repository.insert(source)\n            concurrentRecordMap.remove(source.bookSourceUrl)\n                val selectedJsEngineMode = _uiState.value.jsEngineMode\n                originalSource?.bookSourceUrl?.takeIf { it != source.bookSourceUrl }?.let {\n                    SourceJsEngineModeStore.clearMode(it)\n                }\n                SourceJsEngineModeStore.setMode(source.bookSourceUrl, selectedJsEngineMode)\n                originalSource = source\n                baselineJson = GSON.toJson(source)\n                baselineJsEngineMode = selectedJsEngineMode\n'''
-          if 'SourceJsEngineModeStore.setMode(source.bookSourceUrl, selectedJsEngineMode)' not in s:
-              if s.count(anchor) != 1: raise SystemExit('vm save anchor mismatch')
-              s = s.replace(anchor, repl, 1)
-          p.write_text(s, encoding='utf-8')
+          path='app/src/main/java/io/legado/app/ui/book/source/edit/BookSourceEditViewModel.kt'
+          replace_once(path,
+              'import io.legado.app.model.SharedJsScope\n',
+              'import io.legado.app.model.SharedJsScope\nimport io.legado.app.model.jsEngine.SourceJsEngineMode\nimport io.legado.app.model.jsEngine.SourceJsEngineModeStore\n',
+              'import io.legado.app.model.jsEngine.SourceJsEngineModeStore')
+          replace_once(path,
+              '    private var baselineJson = ""\n',
+              '    private var baselineJson = ""\n    private var baselineJsEngineMode = SourceJsEngineMode.LEGACY\n',
+              'baselineJsEngineMode')
+          replace_once(path,
+              '            is BookSourceEditIntent.SetSourceType -> updateFlags { copy(bookSourceType = intent.value) }\n',
+              '            is BookSourceEditIntent.SetSourceType -> updateFlags { copy(bookSourceType = intent.value) }\n            is BookSourceEditIntent.SetJsEngineMode -> updateFlags { copy(jsEngineMode = intent.value) }\n',
+              'is BookSourceEditIntent.SetJsEngineMode')
+          replace_once(path,
+              '        if (asOriginal) baselineJson = GSON.toJson(source)\n        val tab = _uiState.value.selectedTab\n',
+              '        if (asOriginal) baselineJson = GSON.toJson(source)\n        val jsEngineMode = SourceJsEngineModeStore.getMode(source.getKey())\n        if (asOriginal) baselineJsEngineMode = jsEngineMode\n        val tab = _uiState.value.selectedTab\n',
+              'val jsEngineMode = SourceJsEngineModeStore.getMode(source.getKey())')
+          replace_once(path,
+              '            bookSourceType = source.bookSourceType,\n',
+              '            bookSourceType = source.bookSourceType,\n            jsEngineMode = jsEngineMode,\n',
+              'jsEngineMode = jsEngineMode')
+          replace_once(path,
+              '    private fun isDirty(state: BookSourceEditUiState): Boolean =\n        GSON.toJson(currentSource(state)) != baselineJson\n',
+              '    private fun isDirty(state: BookSourceEditUiState): Boolean =\n        GSON.toJson(currentSource(state)) != baselineJson ||\n            state.jsEngineMode != baselineJsEngineMode\n',
+              'state.jsEngineMode != baselineJsEngineMode')
+          replace_once(path,
+              '            repository.insert(source)\n            concurrentRecordMap.remove(source.bookSourceUrl)\n                originalSource = source\n                baselineJson = GSON.toJson(source)\n',
+              '            repository.insert(source)\n            concurrentRecordMap.remove(source.bookSourceUrl)\n                val selectedJsEngineMode = _uiState.value.jsEngineMode\n                originalSource?.bookSourceUrl?.takeIf { it != source.bookSourceUrl }?.let {\n                    SourceJsEngineModeStore.clearMode(it)\n                }\n                SourceJsEngineModeStore.setMode(source.bookSourceUrl, selectedJsEngineMode)\n                originalSource = source\n                baselineJson = GSON.toJson(source)\n                baselineJsEngineMode = selectedJsEngineMode\n',
+              'SourceJsEngineModeStore.setMode(source.bookSourceUrl, selectedJsEngineMode)')
 
           # Screen
-          p = Path('app/src/main/java/io/legado/app/ui/book/source/edit/BookSourceEditScreen.kt')
-          s = p.read_text(encoding='utf-8')
-          anchor = 'import io.legado.app.R\n'
-          repl = anchor + 'import io.legado.app.model.jsEngine.SourceJsEngineMode\n'
-          if 'import io.legado.app.model.jsEngine.SourceJsEngineMode' not in s:
-              if s.count(anchor) != 1: raise SystemExit('screen import anchor mismatch')
-              s = s.replace(anchor, repl, 1)
-          anchor = '    var typeMenuExpanded by remember { mutableStateOf(false) }\n'
-          repl = anchor + '    var jsEngineMenuExpanded by remember { mutableStateOf(false) }\n'
-          if 'jsEngineMenuExpanded' not in s:
-              if s.count(anchor) != 1: raise SystemExit('screen state anchor mismatch')
-              s = s.replace(anchor, repl, 1)
-          anchor = '''        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {\n            SourceEditOptionCard(\n                title = stringResource(R.string.auto_save_cookie),\n                checked = state.enabledCookieJar,\n                modifier = Modifier.weight(1f),\n                onClick = { onIntent(BookSourceEditIntent.SetCookieJarEnabled(!state.enabledCookieJar)) },\n            )\n            SourceEditOptionCard(\n                title = stringResource(R.string.is_event_listener),\n                checked = state.eventListener,\n                modifier = Modifier.weight(1f),\n                onClick = { onIntent(BookSourceEditIntent.SetEventListener(!state.eventListener)) },\n            )\n            SourceEditOptionCard(\n                title = stringResource(R.string.custom_button),\n                checked = state.customButton,\n                modifier = Modifier.weight(1f),\n                onClick = { onIntent(BookSourceEditIntent.SetCustomButton(!state.customButton)) },\n            )\n        }\n'''
-          repl = anchor + '''        Box(modifier = Modifier.fillMaxWidth()) {\n            SourceEditOptionCard(\n                title = "JavaScript / Rhino",\n                subtitle = when (state.jsEngineMode) {\n                    SourceJsEngineMode.LEGACY -> "Legacy Rhino"\n                    SourceJsEngineMode.MODERN -> "Modern Rhino"\n                },\n                modifier = Modifier.fillMaxWidth(),\n                onClick = { jsEngineMenuExpanded = true },\n            )\n            RoundDropdownMenu(\n                expanded = jsEngineMenuExpanded,\n                onDismissRequest = { jsEngineMenuExpanded = false },\n            ) {\n                SourceJsEngineMode.entries.forEach { mode ->\n                    val title = when (mode) {\n                        SourceJsEngineMode.LEGACY -> "Legacy Rhino"\n                        SourceJsEngineMode.MODERN -> "Modern Rhino"\n                    }\n                    RoundDropdownMenuItem(\n                        text = title,\n                        isSelected = state.jsEngineMode == mode,\n                        onClick = {\n                            jsEngineMenuExpanded = false\n                            onIntent(BookSourceEditIntent.SetJsEngineMode(mode))\n                        },\n                    )\n                }\n            }\n        }\n'''
-          if 'title = "JavaScript / Rhino"' not in s:
-              if s.count(anchor) != 1: raise SystemExit('screen options anchor mismatch')
-              s = s.replace(anchor, repl, 1)
-          p.write_text(s, encoding='utf-8')
+          path='app/src/main/java/io/legado/app/ui/book/source/edit/BookSourceEditScreen.kt'
+          replace_once(path,
+              'import io.legado.app.R\n',
+              'import io.legado.app.R\nimport io.legado.app.model.jsEngine.SourceJsEngineMode\n',
+              'import io.legado.app.model.jsEngine.SourceJsEngineMode')
+          replace_once(path,
+              '    var typeMenuExpanded by remember { mutableStateOf(false) }\n',
+              '    var typeMenuExpanded by remember { mutableStateOf(false) }\n    var jsEngineMenuExpanded by remember { mutableStateOf(false) }\n',
+              'jsEngineMenuExpanded')
+          p=Path(path); s=p.read_text(encoding='utf-8')
+          marker='title = "JavaScript / Rhino"'
+          if marker not in s:
+              anchor='''        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {\n            SourceEditOptionCard(\n                title = stringResource(R.string.auto_save_cookie),\n                checked = state.enabledCookieJar,\n                modifier = Modifier.weight(1f),\n                onClick = { onIntent(BookSourceEditIntent.SetCookieJarEnabled(!state.enabledCookieJar)) },\n            )\n            SourceEditOptionCard(\n                title = stringResource(R.string.is_event_listener),\n                checked = state.eventListener,\n                modifier = Modifier.weight(1f),\n                onClick = { onIntent(BookSourceEditIntent.SetEventListener(!state.eventListener)) },\n            )\n            SourceEditOptionCard(\n                title = stringResource(R.string.custom_button),\n                checked = state.customButton,\n                modifier = Modifier.weight(1f),\n                onClick = { onIntent(BookSourceEditIntent.SetCustomButton(!state.customButton)) },\n            )\n        }\n'''
+              if s.count(anchor)!=1: raise SystemExit('screen option anchor mismatch')
+              extra='''        Box(modifier = Modifier.fillMaxWidth()) {\n            SourceEditOptionCard(\n                title = "JavaScript / Rhino",\n                subtitle = if (state.jsEngineMode == SourceJsEngineMode.LEGACY) "Legacy Rhino" else "Modern Rhino",\n                modifier = Modifier.fillMaxWidth(),\n                onClick = { jsEngineMenuExpanded = true },\n            )\n            RoundDropdownMenu(expanded = jsEngineMenuExpanded, onDismissRequest = { jsEngineMenuExpanded = false }) {\n                SourceJsEngineMode.entries.forEach { mode ->\n                    val title = if (mode == SourceJsEngineMode.LEGACY) "Legacy Rhino" else "Modern Rhino"\n                    RoundDropdownMenuItem(\n                        text = title,\n                        isSelected = state.jsEngineMode == mode,\n                        onClick = {\n                            jsEngineMenuExpanded = false\n                            onIntent(BookSourceEditIntent.SetJsEngineMode(mode))\n                        },\n                    )\n                }\n            }\n        }\n'''
+              s=s.replace(anchor,anchor+extra,1); p.write_text(s,encoding='utf-8')
 
-          # Router diagnostics: log selected engine without changing thrown exception type.
-          p = Path('app/src/main/java/io/legado/app/model/jsEngine/SourceJsEngine.kt')
-          s = p.read_text(encoding='utf-8')
-          anchor = 'import io.legado.app.data.entities.BaseSource\n'
-          repl = anchor + 'import io.legado.app.constant.AppLog\n'
-          if 'import io.legado.app.constant.AppLog' not in s:
-              if s.count(anchor) != 1: raise SystemExit('router import anchor mismatch')
-              s = s.replace(anchor, repl, 1)
-          old = '''        return when (SourceJsEngineModeStore.getMode(source.getKey())) {\n            SourceJsEngineMode.LEGACY -> LegacySourceJsEngine.eval(source, jsStr, bindingsConfig)\n            SourceJsEngineMode.MODERN -> {\n                val engine = modernEngine\n                    ?: error("Modern source JavaScript engine is not installed")\n                engine.eval(source, jsStr, bindingsConfig)\n            }\n        }\n'''
-          new = '''        val mode = SourceJsEngineModeStore.getMode(source.getKey())\n        return try {\n            when (mode) {\n                SourceJsEngineMode.LEGACY -> LegacySourceJsEngine.eval(source, jsStr, bindingsConfig)\n                SourceJsEngineMode.MODERN -> {\n                    val engine = modernEngine\n                        ?: error("Modern source JavaScript engine is not installed")\n                    engine.eval(source, jsStr, bindingsConfig)\n                }\n            }\n        } catch (error: Exception) {\n            AppLog.put("JavaScript [${mode.name}] ${source.getTag()}\\n$error", error)\n            throw error\n        }\n'''
+          # Router diagnostics
+          path='app/src/main/java/io/legado/app/model/jsEngine/SourceJsEngine.kt'
+          replace_once(path,
+              'import io.legado.app.data.entities.BaseSource\n',
+              'import io.legado.app.data.entities.BaseSource\nimport io.legado.app.constant.AppLog\n',
+              'import io.legado.app.constant.AppLog')
+          p=Path(path); s=p.read_text(encoding='utf-8')
           if 'JavaScript [${mode.name}]' not in s:
-              if s.count(old) != 1: raise SystemExit('router eval anchor mismatch')
-              s = s.replace(old, new, 1)
-          p.write_text(s, encoding='utf-8')
+              old='''        return when (SourceJsEngineModeStore.getMode(source.getKey())) {\n            SourceJsEngineMode.LEGACY -> LegacySourceJsEngine.eval(source, jsStr, bindingsConfig)\n            SourceJsEngineMode.MODERN -> ModernSourceJsEngine.eval(source, jsStr, bindingsConfig)\n        }\n'''
+              new='''        val mode = SourceJsEngineModeStore.getMode(source.getKey())\n        return try {\n            when (mode) {\n                SourceJsEngineMode.LEGACY -> LegacySourceJsEngine.eval(source, jsStr, bindingsConfig)\n                SourceJsEngineMode.MODERN -> ModernSourceJsEngine.eval(source, jsStr, bindingsConfig)\n            }\n        } catch (error: Exception) {\n            AppLog.put("JavaScript [${mode.name}] ${source.getTag()}\\n$error", error)\n            throw error\n        }\n'''
+              if s.count(old)!=1: raise SystemExit('router eval anchor mismatch')
+              s=s.replace(old,new,1); p.write_text(s,encoding='utf-8')
           PY
-
           git diff --check
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app/src/main/java/io/legado/app/ui/book/source/edit/BookSourceEditContract.kt \
-                  app/src/main/java/io/legado/app/ui/book/source/edit/BookSourceEditViewModel.kt \
-                  app/src/main/java/io/legado/app/ui/book/source/edit/BookSourceEditScreen.kt \
-                  app/src/main/java/io/legado/app/model/jsEngine/SourceJsEngine.kt
+          git add app/src/main/java/io/legado/app/ui/book/source/edit/BookSourceEditContract.kt app/src/main/java/io/legado/app/ui/book/source/edit/BookSourceEditViewModel.kt app/src/main/java/io/legado/app/ui/book/source/edit/BookSourceEditScreen.kt app/src/main/java/io/legado/app/model/jsEngine/SourceJsEngine.kt
           git commit -m "feat: add per-source Rhino selector and diagnostics"
           git push origin HEAD:beta
-
-      - name: Restore build workflow
-        if: always()
-        shell: bash
-        run: |
-          git fetch origin beta
-          git checkout origin/beta -- .github/workflows/build-beta.yml
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path('.github/workflows/build-beta.yml')
-          p.write_text('''name: Beta Build Verification\n\non:\n  push:\n    branches:\n      - beta\n    paths-ignore:\n      - '**/modules/web/**'\n  workflow_dispatch:\n\npermissions:\n  contents: read\n\nconcurrency:\n  group: beta-build-${{ github.ref }}\n  cancel-in-progress: true\n\njobs:\n  debug:\n    runs-on: ubuntu-latest\n    steps:\n      - name: Checkout\n        uses: actions/checkout@v5\n\n      - name: Set up JDK 21\n        uses: actions/setup-java@v5\n        with:\n          distribution: temurin\n          java-version: 21\n\n      - name: Set up Gradle\n        uses: gradle/actions/setup-gradle@v6\n\n      - name: Remove Aliyun mirrors (unreliable in CI)\n        run: |\n          sed -i '/maven.aliyun.com/d' settings.gradle\n\n      - name: Build Universal Debug APK\n        run: |\n          chmod +x gradlew\n          ./gradlew assembleAppDebug \\\n            -PenableAbiSplits=false \\\n            --no-daemon \\\n            --no-configuration-cache\n\n      - name: Upload Universal Debug APK artifact\n        uses: actions/upload-artifact@v4\n        with:\n          name: beta-debug-universal-apk\n          if-no-files-found: error\n          path: app/build/outputs/apk/app/debug/*.apk\n''', encoding='utf-8')
-          PY
-          if ! git diff --quiet -- .github/workflows/build-beta.yml; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add .github/workflows/build-beta.yml
-            git commit -m "ci: restore beta build workflow after Rhino selector"
-            git push origin HEAD:beta
-          fi
