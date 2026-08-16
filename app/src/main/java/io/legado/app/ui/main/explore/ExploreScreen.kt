@@ -218,9 +218,37 @@ fun ExploreScreen(
     }
     val sourceMenuListState = rememberLazyListState()
     var sourceMenuExpanded by rememberSaveable { mutableStateOf(false) }
+    val defaultSourceIndex = remember(filteredSourceMenuItems, state.enhance.selectedSuite?.defaultSourceUrl) {
+        filteredSourceMenuItems.indexOfFirst {
+            it.bookSourceUrl == state.enhance.selectedSuite?.defaultSourceUrl
+        }
+    }
     val sourceMenuTextStyle = MaterialTheme.typography.labelLarge
     val sourceMenuTextMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
+    val sourceMenuSearchOffsetPx = with(density) { 72.dp.roundToPx() }
+    LaunchedEffect(
+        sourceMenuExpanded,
+        defaultSourceIndex,
+        sourceActionMenuSource,
+        sourceGroupMenuOpen,
+        sourceMenuQuery,
+        sourceMenuSearchOffsetPx
+    ) {
+        if (
+            sourceMenuExpanded &&
+            sourceActionMenuSource == null &&
+            !sourceGroupMenuOpen &&
+            sourceMenuQuery.isBlank() &&
+            defaultSourceIndex >= 0
+        ) {
+            val menuPrefixCount = if (composeEngine) 3 else 2
+            sourceMenuListState.scrollToItem(
+                index = defaultSourceIndex + menuPrefixCount,
+                scrollOffset = -sourceMenuSearchOffsetPx
+            )
+        }
+    }
     val sourceMenuWidth = remember(sourceMenuItems, sourceMenuTextStyle, density) {
         val longestPx = sourceMenuItems.maxOfOrNull { source ->
             sourceMenuTextMeasurer.measure(
@@ -251,12 +279,12 @@ fun ExploreScreen(
         val rowCount = when {
             sourceActionCount > 0 -> sourceActionCount
             sourceGroupMenuOpen -> state.groups.size + 2
-            else -> filteredSourceMenuItems.size + 1
+            else -> filteredSourceMenuItems.size
         }
         val baseHeight = when {
             sourceActionCount > 0 -> 68
             sourceGroupMenuOpen -> 68
-            else -> 188
+            else -> 132
         }
         (baseHeight + rowCount * 56).dp
             .coerceIn(124.dp, sourceMenuMaxHeight)
@@ -470,32 +498,13 @@ fun ExploreScreen(
                                 )
                             }
                         }
-                        if (!currentSourceName.isNullOrBlank()) {
-                            item(key = "source_menu_current") {
-                                ListItem(
-                                    headlineContent = {
-                                        Text(
-                                            text = currentSourceName,
-                                            style = MaterialTheme.typography.labelLarge
-                                        )
-                                    },
-                                    supportingContent = {
-                                        Text("当前源")
-                                    },
-                                    colors = ListItemDefaults.colors(
-                                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                                    )
-                                )
-                            }
-                        }
                         items(
-                            items = filteredSourceMenuItems.filterNot {
-                                it.bookSourceUrl == state.enhance.selectedSuite?.defaultSourceUrl
-                            },
+                            items = filteredSourceMenuItems,
                             key = { it.bookSourceUrl }
                         ) { source ->
                             RoundDropdownMenuItem(
                                 text = source.bookSourceName,
+                                isSelected = source.bookSourceUrl == state.enhance.selectedSuite?.defaultSourceUrl,
                                 onClick = {
                                     sourceActionMenuUrl = null
                                     onIntent(ExploreIntent.SetSuiteDefaultSource(source.bookSourceUrl))
