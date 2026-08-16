@@ -1,0 +1,51 @@
+name: Beta Build Verification
+
+on:
+  push:
+    branches:
+      - beta
+    paths-ignore:
+      - '**/modules/web/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: beta-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Remove Aliyun mirrors (unreliable in CI)
+        run: |
+          sed -i '/maven.aliyun.com/d' settings.gradle
+
+      - name: Build Universal Debug APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleAppDebug \
+            -PenableAbiSplits=false \
+            --no-daemon \
+            --no-configuration-cache
+
+      - name: Upload Universal Debug APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: beta-debug-universal-apk
+          if-no-files-found: error
+          path: app/build/outputs/apk/app/debug/*.apk
