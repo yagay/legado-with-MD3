@@ -1,6 +1,7 @@
 package io.legado.app.enhance.explore.builder
 
 import io.legado.app.data.entities.rule.ExploreKind
+import io.legado.app.enhance.explore.model.ExploreNode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
@@ -121,6 +122,47 @@ class ModernExploreControlExtractorTest {
 
         assertNull(result.searchControl)
         assertEquals(listOf(toggle), result.visibleControls)
+    }
+
+    @Test
+    fun `tree extractor keeps select controls nested below categories`() {
+        val nestedSelect = ExploreKind(
+            title = "状态",
+            type = ExploreKind.Type.select,
+            chars = arrayOf("全部", "完结"),
+            default = "全部"
+        )
+        val nodes = listOf(
+            ExploreNode(
+                title = "频道",
+                url = null,
+                originalKind = ExploreKind(title = "频道"),
+                sourceIndex = 0,
+                children = listOf(
+                    ExploreNode(
+                        title = "男频",
+                        url = "https://example.com/male",
+                        originalKind = ExploreKind(title = "男频", url = "https://example.com/male"),
+                        sourceIndex = 0,
+                        children = listOf(
+                            ExploreNode(
+                                title = "状态",
+                                url = null,
+                                originalKind = nestedSelect,
+                                sourceIndex = 1,
+                            )
+                        )
+                    )
+                )
+            )
+        )
+
+        val controls = ModernExploreControlExtractor.fromTreeRoot(nodes)
+
+        assertEquals(1, controls.size)
+        assertSame(nestedSelect, controls.single().kind)
+        assertEquals(listOf("全部", "完结"), controls.single().options)
+        assertEquals("全部", controls.single().defaultValue)
     }
 
     @Test
