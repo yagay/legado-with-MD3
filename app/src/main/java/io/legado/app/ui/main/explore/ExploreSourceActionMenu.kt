@@ -22,6 +22,7 @@ import io.legado.app.ui.widget.components.menuItem.RoundDropdownMenuItem
 /**
  * Shared source-action menu used by both the upstream-style list header and the modern source picker.
  * The modern layout only chooses where this content is shown; source actions stay defined here once.
+ * Row count is derived from the same definition so popup sizing cannot drift from the rendered actions.
  */
 fun exploreSourceActionRowCount(source: BookSourcePart, includeBack: Boolean = false): Int =
     6 + (if (source.hasLoginUrl) 1 else 0) + (if (includeBack) 1 else 0)
