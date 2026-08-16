@@ -22,6 +22,7 @@ object HtmlFormatter {
     private val indent2Regex = "^[\\n\\s]+".toRegex()
     private val lastRegex = "[\\n\\s]+$".toRegex()
     private const val PARAGRAPH_INDENT = "　　"
+    private const val USE_WEB_PREFIX = "<useweb>"
 
     private val blankChars = charArrayOf(
         ' ', '\t', '\u00a0', '\u2002', '\u2003', '\u2009', '\u3000'
@@ -62,6 +63,11 @@ object HtmlFormatter {
 
     fun formatDisplayText(html: String?): String {
         if (html.isNullOrBlank()) return ""
+        if (html.startsWith(USE_WEB_PREFIX, ignoreCase = true)) return html
+        return formatPlainDisplayText(html)
+    }
+
+    private fun formatPlainDisplayText(html: String): String {
         val document = Jsoup.parseBodyFragment(html)
         document.outputSettings().prettyPrint(false)
         val body = document.body()
@@ -75,8 +81,24 @@ object HtmlFormatter {
             .joinToString("\n") { PARAGRAPH_INDENT + it }
     }
 
+    private fun extractUseWebBody(html: String): String {
+        if (!html.startsWith(USE_WEB_PREFIX, ignoreCase = true)) return html
+        val closing = html.lastIndexOf("</useweb>", ignoreCase = true)
+        return if (closing >= USE_WEB_PREFIX.length) {
+            html.substring(USE_WEB_PREFIX.length, closing)
+        } else {
+            html.removePrefix(USE_WEB_PREFIX)
+        }
+    }
+
     fun formatIntroText(html: String?): String {
-        return formatDisplayText(html)
+        val displayText = when {
+            html.isNullOrBlank() -> ""
+            html.startsWith(USE_WEB_PREFIX, ignoreCase = true) ->
+                formatPlainDisplayText(extractUseWebBody(html))
+            else -> formatDisplayText(html)
+        }
+        return displayText
             .lineSequence()
             .map { it.trim(*blankChars) }
             .filterNot {

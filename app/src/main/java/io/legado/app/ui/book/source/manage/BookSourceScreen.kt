@@ -885,6 +885,9 @@ private fun BookSourceGroupFilterSheet(
         stringResource(R.string.no_group) to BookSourceViewModel.FILTER_NO_GROUP,
         stringResource(R.string.enabled_explore) to BookSourceViewModel.FILTER_ENABLED_EXPLORE,
         stringResource(R.string.disabled_explore) to BookSourceViewModel.FILTER_DISABLED_EXPLORE,
+        stringResource(R.string.source_filter_book_review) to BookSourceViewModel.FILTER_BOOK_REVIEW,
+        stringResource(R.string.review) to BookSourceViewModel.FILTER_PARAGRAPH_REVIEW,
+        stringResource(R.string.source_filter_other_comment) to BookSourceViewModel.FILTER_OTHER_COMMENT,
     )
     val otherOptions = state.groups.map { group ->
         group to "${BookSourceViewModel.PREFIX_GROUP}$group"

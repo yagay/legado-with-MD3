@@ -1,5 +1,9 @@
 package io.legado.app.ui.widget.components.text
 
+import android.annotation.SuppressLint
+import android.graphics.Color as AndroidColor
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -8,8 +12,14 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -22,6 +32,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import kotlin.math.roundToInt
+
+private const val USE_WEB_PREFIX = "<useweb>"
 
 @Composable
 fun AnimatedText(
@@ -116,28 +131,80 @@ fun AnimatedTextLine(
         label = "LineAnimation",
         modifier = modifier
     ) { targetText ->
-        AppText(
-            text = targetText,
-            modifier = modifier,
-            style = style,
-            color = color,
-            softWrap = softWrap,
-            fontSize = fontSize,
-            fontStyle = fontStyle,
-            fontWeight = fontWeight,
-            fontFamily = fontFamily,
-            letterSpacing = letterSpacing,
-            textDecoration = textDecoration,
-            textAlign = textAlign,
-            lineHeight = lineHeight,
-            overflow = overflow,
-            maxLines = maxLines,
-            minLines = minLines,
-            onTextLayout = onTextLayout
-        )
+        if (targetText.startsWith(USE_WEB_PREFIX, ignoreCase = true)) {
+            UseWebText(targetText, modifier)
+        } else {
+            AppText(
+                text = targetText,
+                modifier = modifier,
+                style = style,
+                color = color,
+                softWrap = softWrap,
+                fontSize = fontSize,
+                fontStyle = fontStyle,
+                fontWeight = fontWeight,
+                fontFamily = fontFamily,
+                letterSpacing = letterSpacing,
+                textDecoration = textDecoration,
+                textAlign = textAlign,
+                lineHeight = lineHeight,
+                overflow = overflow,
+                maxLines = maxLines,
+                minLines = minLines,
+                onTextLayout = onTextLayout
+            )
+        }
     }
 }
 
+@SuppressLint("SetJavaScriptEnabled")
+@Composable
+private fun UseWebText(text: String, modifier: Modifier = Modifier) {
+    val html = remember(text) {
+        val closing = text.lastIndexOf("</useweb>", ignoreCase = true)
+        if (closing >= USE_WEB_PREFIX.length) {
+            text.substring(USE_WEB_PREFIX.length, closing)
+        } else {
+            text.removePrefix(USE_WEB_PREFIX)
+        }
+    }
+    var heightDp by remember(text) { mutableFloatStateOf(1f) }
+    AndroidView(
+        modifier = modifier.fillMaxWidth().height(heightDp.dp),
+        factory = { context ->
+            WebView(context).apply {
+                setBackgroundColor(AndroidColor.TRANSPARENT)
+                isVerticalScrollBarEnabled = false
+                isHorizontalScrollBarEnabled = false
+                isNestedScrollingEnabled = false
+                settings.javaScriptEnabled = true
+                settings.domStorageEnabled = true
+                settings.defaultTextEncodingName = "utf-8"
+                settings.useWideViewPort = false
+                settings.loadWithOverviewMode = false
+                webViewClient = object : WebViewClient() {
+                    override fun onPageFinished(view: WebView?, url: String?) {
+                        val currentView = view ?: return
+                        currentView.evaluateJavascript(
+                            "Math.max(document.body.scrollHeight, document.documentElement.scrollHeight).toString()"
+                        ) { result ->
+                            val cssHeight = result?.trim()?.trim('\"')?.toDoubleOrNull()
+                                ?: return@evaluateJavascript
+                            val density = currentView.resources.displayMetrics.density
+                            heightDp = ((cssHeight * density).roundToInt() / density).coerceAtLeast(1f)
+                        }
+                    }
+                }
+            }
+        },
+        update = { webView ->
+            if (webView.tag != html) {
+                webView.tag = html
+                webView.loadDataWithBaseURL(null, html, "text/html", "utf-8", null)
+            }
+        },
+    )
+}
 
 @Composable
 fun AdaptiveAnimatedText(
