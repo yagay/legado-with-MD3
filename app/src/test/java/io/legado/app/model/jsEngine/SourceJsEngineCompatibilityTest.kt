@@ -3,7 +3,11 @@ package io.legado.app.model.jsEngine
 import android.app.Application
 import com.google.gson.JsonParser
 import io.legado.app.data.entities.BookSource
+import io.legado.app.model.analyzeRule.AnalyzeRule
+import io.legado.app.model.analyzeRule.AnalyzeRule.Companion.setCoroutineContext
 import io.legado.app.utils.GSON
+import java.util.concurrent.CancellationException
+import kotlinx.coroutines.Job
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -154,6 +158,17 @@ class SourceJsEngineCompatibilityTest {
             "900150983cd24fb0d6963f7d28e17f72",
             source.evalJS("CryptoJS.MD5('abc').toString()")
         )
+    }
+
+    @Test
+    fun `AnalyzeRule propagates cancelled coroutine context into upstream Rhino`() {
+        val source = modernSource("cancelled-context")
+        val cancelledJob = Job().apply { cancel() }
+        val analyzeRule = AnalyzeRule(source = source).setCoroutineContext(cancelledJob)
+
+        assertThrows(CancellationException::class.java) {
+            analyzeRule.evalJS("1 + 2")
+        }
     }
 
     @Test
