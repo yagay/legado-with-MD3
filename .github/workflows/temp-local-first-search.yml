@@ -1,4 +1,5 @@
 name: Temporary local-first waterfall search fix
+# trigger
 on:
   push:
     branches: [ beta ]
