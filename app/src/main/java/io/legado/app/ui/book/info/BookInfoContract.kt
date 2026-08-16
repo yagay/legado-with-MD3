@@ -272,6 +272,7 @@ sealed interface BookInfoEffect {
     data class OpenSourceLogin(val sourceUrl: String) : BookInfoEffect
     data object OpenSelectBooksDir : BookInfoEffect
     data class OpenFile(val uri: Uri, val mimeType: String) : BookInfoEffect
+    data class PlayBookReviewAudio(val audioUrl: String, val source: BookSource) : BookInfoEffect
     data class RunSourceCallback(
         val event: String,
         val source: BookSource?,
