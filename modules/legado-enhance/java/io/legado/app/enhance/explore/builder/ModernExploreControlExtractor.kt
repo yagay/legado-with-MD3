@@ -37,12 +37,22 @@ object ModernExploreControlExtractor {
     fun fromFlatKinds(kinds: List<ExploreKind>): List<SelectControl> =
         kinds.mapIndexedNotNull { index, kind -> kind.toSelectControl(index) }
 
-    fun fromTreeRoot(nodes: List<ExploreNode>): List<SelectControl> =
-        nodes.mapNotNull { node ->
-            val kind = node.originalKind ?: return@mapNotNull null
-            if (node.children.isNotEmpty() || kind.type != ExploreKind.Type.select) null
-            else kind.toSelectControl(node.sourceIndex)
+    /**
+     * Explicit tree JSON can place select controls at any depth. Walk the whole
+     * tree instead of only the root so nested status/ranking controls are not
+     * silently lost in the waterfall layout.
+     */
+    fun fromTreeRoot(nodes: List<ExploreNode>): List<SelectControl> {
+        val result = mutableListOf<SelectControl>()
+        val stack = ArrayDeque<ExploreNode>()
+        nodes.asReversed().forEach(stack::addLast)
+        while (stack.isNotEmpty()) {
+            val node = stack.removeLast()
+            node.originalKind?.toSelectControl(node.sourceIndex)?.let(result::add)
+            node.children.asReversed().forEach(stack::addLast)
         }
+        return result
+    }
 
     /**
      * Produces the exact native-control list that the modern UI should render.
