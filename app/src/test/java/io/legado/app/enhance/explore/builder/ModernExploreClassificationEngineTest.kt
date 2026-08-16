@@ -43,6 +43,27 @@ class ModernExploreClassificationEngineTest {
     }
 
     @Test
+    fun `single direct explore url parsed as title is recovered`() {
+        val kind = ExploreKind(
+            title = "https://example.com/discover?page={{page}}",
+            type = ExploreKind.Type.url
+        )
+
+        val result = ModernExploreClassificationEngine.classify(listOf(kind), "")
+
+        assertEquals("https://example.com/discover?page={{page}}", result.nodes.single().url)
+    }
+
+    @Test
+    fun `ordinary header title is never treated as direct url`() {
+        val kind = ExploreKind(title = "频道", type = ExploreKind.Type.url)
+
+        val result = ModernExploreClassificationEngine.classify(listOf(kind), "")
+
+        assertEquals(null, result.nodes.single().url)
+    }
+
+    @Test
     fun `section grouping uses header boundaries and preserves original kinds`() {
         val header = ExploreKind(title = "频道")
         val url = ExploreKind(title = "分类一", url = "https://example.com/1")
