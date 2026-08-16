@@ -37,7 +37,10 @@ fun BookSource.hasParagraphReviewCapability(): Boolean {
 
 fun BookSource.hasOtherCommentCapability(): Boolean {
     val explicit = ruleReview?.run {
+        // reviewQuoteUrl is the legacy "fetch paragraph-review replies" endpoint.
+        // It is reply capability even when a source does not provide replyListRule.
         hasAny(
+            reviewQuoteUrl,
             replyListRule,
             replyIdRule,
             replyAvatarRule,
@@ -115,29 +118,55 @@ private fun BookSource.hasLegacyBookReviewProtocol(): Boolean {
     return fanqie || yousuu || douban || qq || jjwxc
 }
 
-/** Mirrors LegacyParagraphReviewResolver's aggregate paragraph-review protocol gate. */
+/**
+ * Detect old paragraph-review adapters from source-level JavaScript.
+ *
+ * Older sources are not fully uniform: some keep only the summary endpoint in
+ * jsLib and construct the detail endpoint dynamically, while newer scripts use
+ * getReviewSummary/getReviewDetail naming. Requiring two literal endpoint strings
+ * made valid paragraph-review sources disappear from the manager filter.
+ */
 private fun BookSource.hasLegacyParagraphReviewProtocol(): Boolean {
     if (ruleReview != null) return false
     val js = jsLib.orEmpty()
-    return js.contains("/get_para_review", ignoreCase = true) &&
-        js.contains("/para_review?book_id=", ignoreCase = true)
+    if (js.isBlank()) return false
+
+    val hasLegacyApi = js.contains("get_para_review", ignoreCase = true) ||
+        js.contains("para_review", ignoreCase = true)
+    val hasNativeJsPair = js.contains("getReviewSummary", ignoreCase = true) &&
+        js.contains("getReviewDetail", ignoreCase = true)
+    val hasParagraphPayload = js.contains("paraIndex", ignoreCase = true) &&
+        (js.contains("paraData", ignoreCase = true) ||
+            js.contains("paragraphIndex", ignoreCase = true))
+
+    return hasLegacyApi || hasNativeJsPair || hasParagraphPayload
 }
 
 /**
- * The two aggregate legacy adapters embed replies in the generated ReviewRule,
- * so they also belong in the "other comments" capability group.
+ * Legacy adapters can expose replies either through explicit reply endpoints or
+ * as embedded reply arrays. Detect the common source-level forms so databases
+ * created before ReviewRule persistence was fixed can still populate this group.
  */
 private fun BookSource.hasLegacyEmbeddedReplyProtocol(): Boolean {
     val content = ruleContent?.content.orEmpty()
     val searchBookUrl = ruleSearch?.bookUrl.orEmpty()
     val exploreBookUrl = ruleExplore?.bookUrl.orEmpty()
+    val js = jsLib.orEmpty()
+
     val fanqie = content.contains("/api/comment?book_id=") &&
         content.contains("data.data.comment") &&
         content.contains("user_info") &&
         content.contains("reply_count") &&
         (searchBookUrl.contains("/api/detail?book_id=") ||
             exploreBookUrl.contains("/api/detail?book_id="))
-    return fanqie || hasLegacyParagraphReviewProtocol()
+
+    val paragraphReplies = hasLegacyParagraphReviewProtocol() && (
+        js.contains("reply", ignoreCase = true) ||
+            js.contains("replies", ignoreCase = true) ||
+            js.contains("reply_count", ignoreCase = true)
+        )
+
+    return fanqie || paragraphReplies
 }
 
 private fun hasAny(vararg values: String?): Boolean =
