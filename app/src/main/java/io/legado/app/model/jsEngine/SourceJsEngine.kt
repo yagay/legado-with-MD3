@@ -8,6 +8,7 @@ import io.legado.app.data.entities.BaseSource
 import io.legado.app.help.CacheManager
 import io.legado.app.help.http.CookieStore
 import io.legado.app.help.source.getShareScope
+import kotlin.coroutines.CoroutineContext
 
 /**
  * Common source-JavaScript entry point. Parser/UI code should keep calling BaseSource.evalJS();
@@ -60,12 +61,18 @@ object SourceJsEngineRouter {
         source: BaseSource,
         jsStr: String,
         bindingsConfig: ScriptBindings.() -> Unit = {},
+        coroutineContext: CoroutineContext? = null,
     ): Any? {
         val mode = SourceJsEngineModeStore.getMode(source.getKey())
         return try {
             when (mode) {
                 SourceJsEngineMode.LEGACY -> LegacySourceJsEngine.eval(source, jsStr, bindingsConfig)
-                SourceJsEngineMode.MODERN -> UpstreamLegadoAdapter.eval(source, jsStr, bindingsConfig)
+                SourceJsEngineMode.MODERN -> UpstreamLegadoAdapter.eval(
+                    source,
+                    jsStr,
+                    bindingsConfig,
+                    coroutineContext,
+                )
             }
         } catch (error: Exception) {
             AppLog.put("JavaScript [${mode.name}] ${source.getTag()}\n$error", error)
