@@ -18,9 +18,7 @@ class ModernExploreControlExtractorTest {
             action = "<js>var q = infoMap.get('keyword'); java.refreshExplore()</js>"
         )
 
-        val control = ModernExploreControlExtractor.findSearchControl(
-            listOf(text, unrelated, button)
-        )!!
+        val control = ModernExploreControlExtractor.findSearchControl(listOf(text, unrelated, button))!!
 
         assertSame(text, control.textKind)
         assertSame(button, control.buttonKind)
@@ -74,6 +72,21 @@ class ModernExploreControlExtractorTest {
     }
 
     @Test
+    fun `single text followed by wrapped action button is supported`() {
+        val text = ExploreKind(title = "任意输入", type = ExploreKind.Type.text)
+        val button = ExploreKind(
+            title = "任意按钮",
+            type = ExploreKind.Type.button,
+            action = "doSearch()"
+        )
+
+        val control = ModernExploreControlExtractor.findSearchControl(listOf(text, button))
+
+        assertSame(text, control?.textKind)
+        assertSame(button, control?.buttonKind)
+    }
+
+    @Test
     fun `multiple text form is never inferred from refresh button alone`() {
         val account = ExploreKind(title = "账号", type = ExploreKind.Type.text)
         val password = ExploreKind(title = "密码", type = ExploreKind.Type.text)
@@ -83,15 +96,11 @@ class ModernExploreControlExtractorTest {
             action = "java.refreshExplore()"
         )
 
-        assertNull(
-            ModernExploreControlExtractor.findSearchControl(
-                listOf(account, password, button)
-            )
-        )
+        assertNull(ModernExploreControlExtractor.findSearchControl(listOf(account, password, button)))
     }
 
     @Test
-    fun `does not infer unrelated single text and button without refresh`() {
+    fun `explicit login action is excluded from single text fallback`() {
         val text = ExploreKind(title = "值", type = ExploreKind.Type.text)
         val button = ExploreKind(
             title = "动作",
@@ -103,14 +112,15 @@ class ModernExploreControlExtractorTest {
     }
 
     @Test
-    fun `does not pair a button with a different infoMap key`() {
+    fun `does not pair a button with a different infoMap key when not adjacent fallback`() {
         val text = ExploreKind(title = "keyword", type = ExploreKind.Type.text)
+        val toggle = ExploreKind(title = "开关", type = ExploreKind.Type.toggle)
         val button = ExploreKind(
             title = "动作",
             type = ExploreKind.Type.button,
             action = "var x = infoMap.get('anotherKey')"
         )
 
-        assertNull(ModernExploreControlExtractor.findSearchControl(listOf(text, button)))
+        assertNull(ModernExploreControlExtractor.findSearchControl(listOf(text, toggle, button)))
     }
 }
