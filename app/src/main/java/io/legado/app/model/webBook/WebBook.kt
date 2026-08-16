@@ -12,6 +12,7 @@ import io.legado.app.help.book.removeAllBookType
 import io.legado.app.help.coroutine.Coroutine
 import io.legado.app.help.http.StrResponse
 import io.legado.app.help.source.getBookType
+import io.legado.app.help.source.getExploreInfoMap
 import io.legado.app.model.Debug
 import io.legado.app.model.analyzeRule.AnalyzeRule
 import io.legado.app.model.analyzeRule.AnalyzeRule.Companion.setCoroutineContext
@@ -112,14 +113,16 @@ object WebBook {
         key: String? = null,
         isSearch: Boolean = false,
     ): ArrayList<SearchBook> {
+        val sourceUrl = bookSource.bookSourceUrl
         val analyzeUrl = AnalyzeUrl(
             mUrl = url,
             key = key,
             page = page,
-            baseUrl = bookSource.bookSourceUrl,
+            baseUrl = sourceUrl,
             source = bookSource,
             ruleData = ruleData,
-            coroutineContext = currentCoroutineContext()
+            coroutineContext = currentCoroutineContext(),
+            infoMap = getExploreInfoMap(sourceUrl)
         )
         var res = analyzeUrl.getStrResponseAwait()
         //检测书源是否已登录
@@ -161,13 +164,15 @@ object WebBook {
         page: Int? = 1,
         ruleData: RuleDataInterface = RuleData(),
     ): Pair<String, ArrayList<SearchBook>> {
+        val sourceUrl = bookSource.bookSourceUrl
         val analyzeUrl = AnalyzeUrl(
             mUrl = url,
             page = page,
-            baseUrl = bookSource.bookSourceUrl,
+            baseUrl = sourceUrl,
             source = bookSource,
             ruleData = ruleData,
-            coroutineContext = currentCoroutineContext()
+            coroutineContext = currentCoroutineContext(),
+            infoMap = getExploreInfoMap(sourceUrl)
         )
         var res = analyzeUrl.getStrResponseAwait()
         bookSource.loginCheckJs?.let { checkJs ->
@@ -198,14 +203,16 @@ object WebBook {
         url: String,
         page: Int? = 1,
     ): ArrayList<SearchBook> {
+        val sourceUrl = bookSource.bookSourceUrl
         val ruleData = RuleData()
         val analyzeUrl = AnalyzeUrl(
             mUrl = url,
             page = page,
-            baseUrl = bookSource.bookSourceUrl,
+            baseUrl = sourceUrl,
             source = bookSource,
             ruleData = ruleData,
-            coroutineContext = currentCoroutineContext()
+            coroutineContext = currentCoroutineContext(),
+            infoMap = getExploreInfoMap(sourceUrl)
         )
         var res = analyzeUrl.getStrResponseAwait()
         bookSource.loginCheckJs?.let { checkJs ->
@@ -293,18 +300,23 @@ object WebBook {
         bookSource: BookSource,
         book: Book,
         runPerJs: Boolean = false,
-        context: CoroutineContext = Dispatchers.IO
+        context: CoroutineContext = Dispatchers.IO,
+        isFromBookInfo: Boolean = false
     ): Coroutine<List<BookChapter>> {
         return Coroutine.async(scope, context) {
-            getChapterListAwait(bookSource, book, runPerJs).getOrThrow()
+            getChapterListAwait(bookSource, book, runPerJs, isFromBookInfo).getOrThrow()
         }
     }
 
-    suspend fun runPreUpdateJs(bookSource: BookSource, book: Book): Result<Unit> {
+    suspend fun runPreUpdateJs(
+        bookSource: BookSource,
+        book: Book,
+        isFromBookInfo: Boolean = false
+    ): Result<Unit> {
         return kotlin.runCatching {
             val preUpdateJs = bookSource.ruleToc?.preUpdateJs
             if (!preUpdateJs.isNullOrBlank()) {
-                AnalyzeRule(book, bookSource, true)
+                AnalyzeRule(book, bookSource, true, isFromBookInfo)
                     .setCoroutineContext(coroutineContext)
                     .evalJS(preUpdateJs)
             }
@@ -317,7 +329,8 @@ object WebBook {
     suspend fun getChapterListAwait(
         bookSource: BookSource,
         book: Book,
-        runPerJs: Boolean = false
+        runPerJs: Boolean = false,
+        isFromBookInfo: Boolean = false
     ): Result<List<BookChapter>> {
         if (!book.config.fixedType) {
             book.removeAllBookType()
@@ -325,7 +338,7 @@ object WebBook {
         }
         return kotlin.runCatching {
             if (runPerJs) {
-                runPreUpdateJs(bookSource, book).getOrThrow()
+                runPreUpdateJs(bookSource, book, isFromBookInfo).getOrThrow()
             }
             if (book.bookUrl == book.tocUrl && !book.tocHtml.isNullOrEmpty()) {
                 BookChapterList.analyzeChapterList(
@@ -333,7 +346,8 @@ object WebBook {
                     book = book,
                     baseUrl = book.tocUrl,
                     redirectUrl = book.tocUrl,
-                    body = book.tocHtml
+                    body = book.tocHtml,
+                    isFromBookInfo = isFromBookInfo
                 )
             } else {
                 val analyzeUrl = AnalyzeUrl(
@@ -356,7 +370,8 @@ object WebBook {
                     book = book,
                     baseUrl = book.tocUrl,
                     redirectUrl = res.url,
-                    body = res.body
+                    body = res.body,
+                    isFromBookInfo = isFromBookInfo
                 )
             }
         }.onFailure {
