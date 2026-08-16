@@ -7,6 +7,7 @@ import com.script.rhino.RhinoScriptEngine
 import io.legado.app.exception.NoStackTraceException
 import io.legado.app.help.http.newCallStrResponse
 import io.legado.app.help.http.okHttpClient
+import io.legado.app.model.jsEngine.UpstreamSharedJsScope
 import io.legado.app.utils.ACache
 import io.legado.app.utils.GSON
 import io.legado.app.utils.MD5Utils
@@ -82,6 +83,7 @@ object SharedJsScope {
         }
         val key = MD5Utils.md5Encode(jsLib)
         scopeMap.remove(key)
+        UpstreamSharedJsScope.remove(jsLib)
     }
 
 }
