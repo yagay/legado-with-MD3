@@ -21,18 +21,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Apply source-aware review audio once
+      - name: Apply remote review replies once
         run: |
-          if ! grep -q 'BookReviewAudioClick' app/src/main/java/io/legado/app/ui/book/info/BookInfoContract.kt; then
-            python3 .github/scripts/upgrade_book_review_audio.py
+          if ! grep -q 'LoadBookReviewReplies' app/src/main/java/io/legado/app/ui/book/info/BookInfoContract.kt; then
+            python3 .github/scripts/upgrade_book_review_replies.py
             git config user.name Jie
             git config user.email 1614094+yagay@users.noreply.github.com
             git add app/src/main/java/io/legado/app/ui/book/info/BookInfoContract.kt \
                     app/src/main/java/io/legado/app/ui/book/info/BookInfoViewModel.kt \
                     app/src/main/java/io/legado/app/ui/book/info/BookInfoScreen.kt \
-                    app/src/main/java/io/legado/app/ui/book/info/BookInfoReviewUi.kt \
-                    app/src/main/java/io/legado/app/ui/book/info/BookInfoRouteScreen.kt
-            git commit -m 'feat: match leg review audio playback'
+                    app/src/main/java/io/legado/app/ui/book/info/BookInfoReviewUi.kt
+            git commit -m 'feat: match leg remote review replies'
             git push
           fi
 
