@@ -9,6 +9,10 @@ import io.legado.app.enhance.explore.model.ExploreNode
  * A0/B0, B1, B2, A1/B0, B1, B2, A2/B0, B1, B2。
  * 只有标题重复模式与 URL 查询参数同时证明它是完整 A×B 笛卡尔积时才拆分；
  * 否则原样返回，避免对普通分类做业务语义猜测。
+ *
+ * 第一维仍属于当前真实分类，因此其行标题可以继承父分类名称；
+ * 第二维只是为了 URL 映射挂载在第一维之下，语义上是独立筛选维度，
+ * 通过一个单节点容器与父选择解耦，避免把“推荐/评分/热门”等选项名误当成下一行类别名。
  */
 internal object ModernExploreMatrixFactorizer {
 
@@ -55,21 +59,32 @@ internal object ModernExploreMatrixFactorizer {
             return (0 until blockCount).map { block ->
                 val start = block * blockSize
                 val head = items[start]
+                val independentLeaves = (0 until blockSize).map { offset ->
+                    val leaf = items[start + offset]
+                    leaf.copy(
+                        title = if (offset == 0) {
+                            defaultPositionTitle(parsed[start + offset].query[positionKey])
+                        } else {
+                            cleanDimensionTitle(leaf.title)
+                        },
+                        level = leaf.level + 2,
+                        sourceKey = "${leaf.sourceKey}.matrixB",
+                    )
+                }
                 ExploreNode(
                     title = cleanDimensionTitle(head.title),
                     url = null,
-                    children = (0 until blockSize).map { offset ->
-                        val leaf = items[start + offset]
-                        leaf.copy(
-                            title = if (offset == 0) {
-                                defaultPositionTitle(parsed[start + offset].query[positionKey])
-                            } else {
-                                cleanDimensionTitle(leaf.title)
-                            },
-                            level = leaf.level + 1,
-                            sourceKey = "${leaf.sourceKey}.matrixB",
+                    children = listOf(
+                        ExploreNode(
+                            title = "分类",
+                            url = null,
+                            children = independentLeaves,
+                            originalKind = null,
+                            level = head.level + 1,
+                            sourceIndex = head.sourceIndex,
+                            sourceKey = "${head.sourceKey}.matrixIndependent",
                         )
-                    },
+                    ),
                     originalKind = null,
                     level = head.level,
                     sourceIndex = head.sourceIndex,
