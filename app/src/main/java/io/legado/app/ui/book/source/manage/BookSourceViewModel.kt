@@ -663,9 +663,9 @@ private fun List<BookSourcePart>.filterFor(filter: String?, query: String): List
             null -> true; BookSourceViewModel.FILTER_ENABLED -> source.enabled; BookSourceViewModel.FILTER_DISABLED -> !source.enabled
             BookSourceViewModel.FILTER_LOGIN -> source.hasLoginUrl; BookSourceViewModel.FILTER_NO_GROUP -> source.bookSourceGroup.isNullOrBlank()
             BookSourceViewModel.FILTER_ENABLED_EXPLORE -> source.enabledExplore; BookSourceViewModel.FILTER_DISABLED_EXPLORE -> !source.enabledExplore
-            else -> filter.startsWith(BookSourceViewModel.PREFIX_GROUP) && source.bookSourceGroup?.split(
-                ","
-            )?.contains(filter.removePrefix(BookSourceViewModel.PREFIX_GROUP)) == true
+            else -> filter.startsWith(BookSourceViewModel.PREFIX_GROUP) && source.bookSourceGroup
+                ?.splitNotBlank(AppPattern.splitGroupRegex)
+                ?.contains(filter.removePrefix(BookSourceViewModel.PREFIX_GROUP)) == true
         }
         filterMatch && (query.isBlank() || listOf(
             source.bookSourceName,
