@@ -99,12 +99,8 @@ class ExploreRepositoryImpl(
     }
 
     override suspend fun getSourceExploreKinds(sourceUrl: String): List<ExploreKind> = withContext(IO) {
-        val source = appDb.bookSourceDao.getBookSource(sourceUrl) ?: return@withContext emptyList()
-        val flatKinds = source.exploreKinds()
-        ModernExploreClassificationEngine.classify(
-            flatKinds = flatKinds,
-            rawJson = source.exploreKindsJson()
-        ).kinds
+        val source = appDb.bookSourceDao.getBookSource(sourceUrl)
+        return@withContext source?.exploreKinds() ?: emptyList()
     }
 
     override suspend fun getSourceExploreTree(sourceUrl: String): ExploreTree = withContext(IO) {
