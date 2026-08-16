@@ -1,0 +1,134 @@
+name: One-shot Beta Compatibility Patch
+
+on:
+  push:
+    branches: [beta]
+    paths:
+      - '.github/beta-compat-trigger'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: beta
+          fetch-depth: 0
+
+      - name: Apply compatibility patches
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new, label):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              if old not in text:
+                  raise SystemExit(f'pattern not found: {label} in {path}')
+              p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          vm = 'modules/legado-enhance/java/io/legado/app/enhance/explore/vm/ExploreViewModelEnhance.kt'
+
+          replace_once(vm,
+          '''    val dynamicSelectors: ImmutableList<DynamicSelectorUi> = persistentListOf(),\n    val dynamicCategoryTargets:''',
+          '''    val dynamicSelectors: ImmutableList<DynamicSelectorUi> = persistentListOf(),\n    /** 原生 Legado text/button/toggle 控件，现代布局直接复用通用 ExploreKind 控件渲染。 */\n    val dynamicControls: ImmutableList<ExploreKind> = persistentListOf(),\n    /** 动态分类内部稳定身份；显示仍使用 title，避免同名分类命中第一个 URL。 */\n    val selectedWidgetKeys: ImmutableMap<String, String> = persistentMapOf(),\n    val dynamicCategoryTargets:''',
+          'enhance state controls/keys')
+
+          replace_once(vm,
+          '''                    dynamicSelectors = persistentListOf(),\n                    suiteSearchBooks = null,''',
+          '''                    dynamicSelectors = persistentListOf(),\n                    dynamicControls = persistentListOf(),\n                    selectedWidgetKeys = persistentMapOf(),\n                    suiteSearchBooks = null,''',
+          'refresh reset controls/keys')
+
+          replace_once(vm,
+          '''            allSourceKinds = classification.kinds\n            allSourceMode = classification.mode\n            allSourceControls = ModernExploreControlExtractor.fromFlatKinds(allSourceRawKinds)\n            rebuildSelectors(suite, defaultSourceUrl)''',
+          '''            allSourceKinds = classification.kinds\n            allSourceMode = classification.mode\n            allSourceControls = ModernExploreControlExtractor.fromFlatKinds(allSourceRawKinds)\n            val nativeControls = allSourceRawKinds.filter { kind ->\n                kind.type == ExploreKind.Type.text ||\n                    kind.type == ExploreKind.Type.button ||\n                    kind.type == ExploreKind.Type.toggle\n            }\n            vm.updateUiState { state ->\n                state.copy(enhance = state.enhance.copy(dynamicControls = nativeControls.toImmutableList()))\n            }\n            rebuildSelectors(suite, defaultSourceUrl)''',
+          'populate native controls')
+
+          replace_once(vm,
+          '''        if (!widgetId.startsWith(DYNAMIC_LEVEL_PREFIX)) return\n        val level = widgetId.removePrefix(DYNAMIC_LEVEL_PREFIX).toIntOrNull() ?: return\n        if (vm.uiState.value.enhance.selectedWidgetTargets[widgetId] == target.title) return\n        saveSelection(widgetId, target.title)\n        vm.updateUiState { state ->\n            val newSelections = state.enhance.selectedWidgetTargets.toMutableMap()\n            newSelections[widgetId] = target.title\n            newSelections.keys\n                .filter { key ->\n                    key.startsWith(DYNAMIC_LEVEL_PREFIX) &&\n                        (key.removePrefix(DYNAMIC_LEVEL_PREFIX).toIntOrNull() ?: -1) > level\n                }\n                .toList()\n                .forEach(newSelections::remove)\n            newSelections.remove("current_url")\n            state.copy(enhance = state.enhance.copy(selectedWidgetTargets = newSelections.toImmutableMap()))\n        }''',
+          '''        if (!widgetId.startsWith(DYNAMIC_LEVEL_PREFIX)) return\n        val level = widgetId.removePrefix(DYNAMIC_LEVEL_PREFIX).toIntOrNull() ?: return\n        val targetKey = dynamicTargetKey(target)\n        if (vm.uiState.value.enhance.selectedWidgetKeys[widgetId] == targetKey) return\n        saveSelection(widgetId, targetKey)\n        vm.updateUiState { state ->\n            val newSelections = state.enhance.selectedWidgetTargets.toMutableMap()\n            val newKeys = state.enhance.selectedWidgetKeys.toMutableMap()\n            newSelections[widgetId] = target.title\n            newKeys[widgetId] = targetKey\n            newSelections.keys\n                .filter { key ->\n                    key.startsWith(DYNAMIC_LEVEL_PREFIX) &&\n                        (key.removePrefix(DYNAMIC_LEVEL_PREFIX).toIntOrNull() ?: -1) > level\n                }\n                .toList()\n                .forEach { key ->\n                    newSelections.remove(key)\n                    newKeys.remove(key)\n                }\n            newSelections.remove("current_url")\n            state.copy(\n                enhance = state.enhance.copy(\n                    selectedWidgetTargets = newSelections.toImmutableMap(),\n                    selectedWidgetKeys = newKeys.toImmutableMap()\n                )\n            )\n        }''',
+          'stable selection on click')
+
+          replace_once(vm,
+          '''        val selectors = mutableListOf<DynamicSelectorUi>()\n        val config = DiscoverySuiteStore.load()''',
+          '''        val selectors = mutableListOf<DynamicSelectorUi>()\n        val selectorKeys = mutableMapOf<String, String>()\n        val config = DiscoverySuiteStore.load()''',
+          'selector keys accumulator')
+
+          replace_once(vm,
+          '''            val savedTitle = config.lastSelectedTargets["${defaultSourceUrl}_$widgetId"]\n            val stateSelected = vm.uiState.value.enhance.selectedWidgetTargets[widgetId]\n            val selectedTitle = stateSelected\n                ?.takeIf { title -> targets.any { it.title == title } }\n                ?: savedTitle?.takeIf { title -> targets.any { it.title == title } }\n                ?: targets.first().title\n            selectors += DynamicSelectorUi(\n                id = widgetId,\n                title = inferSelectorTitle(level, visibleItems, inheritedTitle),\n                targets = targets.toImmutableList(),\n                selectedTitle = selectedTitle,\n                type = inferSelectorType(visibleItems)\n            )\n            val selectedItem = visibleItems.firstOrNull { it.title == selectedTitle } ?: break''',
+          '''            val savedKey = config.lastSelectedTargets["${defaultSourceUrl}_$widgetId"]\n            val stateKey = vm.uiState.value.enhance.selectedWidgetKeys[widgetId]\n            val legacySelectedTitle = vm.uiState.value.enhance.selectedWidgetTargets[widgetId]\n            val selectedIndex = stateKey\n                ?.let { key -> targets.indexOfFirst { dynamicTargetKey(it) == key }.takeIf { it >= 0 } }\n                ?: savedKey?.let { key ->\n                    targets.indexOfFirst { dynamicTargetKey(it) == key }.takeIf { it >= 0 }\n                        ?: targets.indexOfFirst { it.title == key }.takeIf { it >= 0 }\n                }\n                ?: legacySelectedTitle?.let { title -> targets.indexOfFirst { it.title == title }.takeIf { it >= 0 } }\n                ?: 0\n            val selectedTarget = targets[selectedIndex]\n            val selectedTitle = selectedTarget.title\n            selectorKeys[widgetId] = dynamicTargetKey(selectedTarget)\n            selectors += DynamicSelectorUi(\n                id = widgetId,\n                title = inferSelectorTitle(level, visibleItems, inheritedTitle),\n                targets = targets.toImmutableList(),\n                selectedTitle = selectedTitle,\n                type = inferSelectorType(visibleItems)\n            )\n            val selectedItem = visibleItems.getOrNull(selectedIndex) ?: break''',
+          'stable selection rebuild')
+
+          replace_once(vm,
+          '''            state.copy(\n                enhance = state.enhance.copy(\n                    dynamicSelectors = orderedSelectors.toImmutableList(),\n                    selectedWidgetTargets = (preserved + finalSelections).toImmutableMap()\n                )\n            )''',
+          '''            val preservedKeys = state.enhance.selectedWidgetKeys\n                .filterKeys { key -> !key.startsWith(DYNAMIC_LEVEL_PREFIX) }\n            state.copy(\n                enhance = state.enhance.copy(\n                    dynamicSelectors = orderedSelectors.toImmutableList(),\n                    selectedWidgetTargets = (preserved + finalSelections).toImmutableMap(),\n                    selectedWidgetKeys = (preservedKeys + selectorKeys).toImmutableMap()\n                )\n            )''',
+          'persist rebuilt keys')
+
+          replace_once(vm,
+          '''    private fun ExploreKind.hasChildren(): Boolean = !children.isNullOrEmpty()''',
+          '''    private fun dynamicTargetKey(target: DiscoverySuiteWidgetTarget): String =\n        "${target.title}\\u001F${target.tagUrl}"\n\n    private fun ExploreKind.hasChildren(): Boolean = !children.isNullOrEmpty()''',
+          'target key helper')
+
+          screen = 'modules/legado-enhance/java/io/legado/app/enhance/explore/screen/DiscoverySuiteScreen.kt'
+          replace_once(screen,
+          '''import io.legado.app.domain.model.BookShelfState\nimport io.legado.app.enhance.explore.model.DiscoverySuiteWidgetType''',
+          '''import io.legado.app.domain.model.BookShelfState\nimport io.legado.app.domain.usecase.ExploreKindUiUseCase\nimport io.legado.app.enhance.explore.model.DiscoverySuiteWidgetType''',
+          'screen usecase import')
+          replace_once(screen,
+          '''import io.legado.app.ui.widget.components.explore.DiscoverySuiteHorizontalBooksWidget\nimport io.legado.app.ui.widget.components.progressIndicator.AppContainedLoadingIndicator''',
+          '''import io.legado.app.ui.widget.components.explore.DiscoverySuiteHorizontalBooksWidget\nimport io.legado.app.ui.widget.components.explore.ExploreKindMultiTypeItem\nimport io.legado.app.ui.widget.components.progressIndicator.AppContainedLoadingIndicator''',
+          'screen multitype import')
+          replace_once(screen,
+          '''import kotlinx.collections.immutable.persistentListOf\nimport kotlinx.coroutines.launch''',
+          '''import kotlinx.collections.immutable.persistentListOf\nimport kotlinx.coroutines.launch\nimport org.koin.compose.koinInject''',
+          'screen koin import')
+          replace_once(screen,
+          '''    val scope = rememberCoroutineScope()\n\n    val mainBookWidget''',
+          '''    val scope = rememberCoroutineScope()\n    val exploreKindUseCase: ExploreKindUiUseCase = koinInject()\n\n    val mainBookWidget''',
+          'screen inject usecase')
+          replace_once(screen,
+          '''        ) {\n            state.enhance.dynamicSelectors.forEach { selector ->''',
+          '''        ) {\n            state.enhance.dynamicControls.forEachIndexed { index, kind ->\n                item(key = "dynamic_native_${index}_${kind.type}_${kind.title}") {\n                    ExploreKindMultiTypeItem(\n                        kind = kind,\n                        sourceUrl = suite.defaultSourceUrl,\n                        onOpenUrl = { url ->\n                            onOpenExploreShow(kind.title, suite.defaultSourceUrl.orEmpty(), url)\n                        },\n                        onRefreshKinds = { onIntent(ExploreIntent.RefreshSuite) },\n                        modifier = Modifier\n                            .fillMaxWidth()\n                            .padding(horizontal = 8.dp, vertical = 2.dp),\n                        isMiuix = false,\n                        useCase = exploreKindUseCase\n                    )\n                }\n            }\n\n            state.enhance.dynamicSelectors.forEach { selector ->''',
+          'render native controls')
+
+          webbook = 'app/src/main/java/io/legado/app/model/webBook/WebBook.kt'
+          p = Path(webbook)
+          text = p.read_text(encoding='utf-8')
+
+          simple_block = '''        var res = analyzeUrl.getStrResponseAwait()\n        //检测书源是否已登录\n        bookSource.loginCheckJs?.let { checkJs ->\n            if (checkJs.isNotBlank()) {\n                res = analyzeUrl.evalJS(checkJs, res) as StrResponse\n            }\n        }'''
+          if simple_block not in text:
+              raise SystemExit('search login block missing')
+          text = text.replace(simple_block, '        val res = requestWithLoginCheck(analyzeUrl, bookSource)', 1)
+
+          simple_result_block = '''        var res = analyzeUrl.getStrResponseAwait()\n        //检测书源是否已登录\n        bookSource.loginCheckJs?.let { checkJs ->\n            if (checkJs.isNotBlank()) {\n                res = analyzeUrl.evalJS(checkJs, result = res) as StrResponse\n            }\n        }'''
+          count = text.count(simple_result_block)
+          if count < 4:
+              raise SystemExit(f'expected at least 4 result login blocks, got {count}')
+          text = text.replace(simple_result_block, '        val res = requestWithLoginCheck(analyzeUrl, bookSource)', 4)
+
+          content_block = '''            var res = analyzeUrl.getStrResponseAwait(\n                jsStr = bookSource.getContentRule().webJs,\n                sourceRegex = bookSource.getContentRule().sourceRegex\n            )\n            //检测书源是否已登录\n            bookSource.loginCheckJs?.let { checkJs ->\n                if (checkJs.isNotBlank()) {\n                    res = analyzeUrl.evalJS(checkJs, result = res) as StrResponse\n                }\n            }'''
+          if content_block not in text:
+              raise SystemExit('content login block missing')
+          text = text.replace(content_block, '''            val res = requestWithLoginCheck(\n                analyzeUrl = analyzeUrl,\n                bookSource = bookSource,\n                jsStr = bookSource.getContentRule().webJs,\n                sourceRegex = bookSource.getContentRule().sourceRegex\n            )''', 1)
+
+          marker = '''    /**\n     * 精准搜索\n     */'''
+          helper = '''    private suspend fun requestWithLoginCheck(\n        analyzeUrl: AnalyzeUrl,\n        bookSource: BookSource,\n        jsStr: String? = null,\n        sourceRegex: String? = null\n    ): StrResponse {\n        val checkJs = bookSource.loginCheckJs\n        return kotlin.runCatching {\n            analyzeUrl.getStrResponseAwait(jsStr = jsStr, sourceRegex = sourceRegex).let { response ->\n                if (!checkJs.isNullOrBlank()) {\n                    analyzeUrl.evalJS(checkJs, response) as StrResponse\n                } else {\n                    response\n                }\n            }\n        }.getOrElse { throwable ->\n            if (checkJs.isNullOrBlank()) throw throwable\n            val errResponse = analyzeUrl.getErrStrResponse(throwable)\n            try {\n                (analyzeUrl.evalJS(checkJs, errResponse) as StrResponse).also { response ->\n                    if (response.code() == 500) throw throwable\n                }\n            } catch (_: Throwable) {\n                throw throwable\n            }\n        }\n    }\n\n'''
+          if marker not in text:
+              raise SystemExit('precise search marker missing')
+          text = text.replace(marker, helper + marker, 1)
+          p.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Commit beta compatibility patches
+        shell: bash
+        run: |
+          rm -f .github/workflows/beta-compat-patch.yml .github/beta-compat-trigger
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "align beta source runtime with Legado semantics"
+          git push origin HEAD:beta
