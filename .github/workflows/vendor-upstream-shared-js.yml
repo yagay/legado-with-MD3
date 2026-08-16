@@ -20,7 +20,7 @@ jobs:
           rm -rf /tmp/legado-upstream
           git clone --depth=1 --filter=blob:none --sparse https://github.com/LegadoTeam/legado.git /tmp/legado-upstream
           git -C /tmp/legado-upstream sparse-checkout set \
-            app/src/main/java/io/legado/app/model/SharedJsScope.kt \
+            app/src/main/java/io/legado/app/model \
             app/src/main/assets/scripts
 
           mkdir -p app/src/main/assets/scripts
@@ -34,7 +34,6 @@ jobs:
           src = src.replace('import com.script.', 'import com.script.upstream.')
           src = src.replace('object SharedJsScope {', 'object UpstreamSharedJsScope {')
           src = src.replace('File(appCtx.cacheDir, "shareJs")', 'File(appCtx.cacheDir, "shareJsUpstream")')
-          # Debug moved out of the package when this copy is isolated under jsEngine.
           anchor = 'import io.legado.app.help.http.okHttpClient\n'
           if anchor not in src:
               raise SystemExit('SharedJsScope import anchor not found')
