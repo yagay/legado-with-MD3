@@ -307,6 +307,9 @@ class BookInfoViewModel(
             BookInfoIntent.BookReviewClick -> openBookReview()
             BookInfoIntent.LoadMoreBookReviews -> loadBookReviews(loadMore = true)
             is BookInfoIntent.BookReviewImageClick -> showDialog(BookInfoDialog.PhotoPreview(intent.imageUrl))
+            is BookInfoIntent.BookReviewAudioClick -> bookSource?.let { source ->
+                emitEffect(BookInfoEffect.PlayBookReviewAudio(intent.audioUrl, source))
+            }
             BookInfoIntent.RemarkClick -> showDialog(BookInfoDialog.EditRemark(currentBook?.remark))
             is BookInfoIntent.SaveCover -> {
                 saveCoverToGallery(intent.path)

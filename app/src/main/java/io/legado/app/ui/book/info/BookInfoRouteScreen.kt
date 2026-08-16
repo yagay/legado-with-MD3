@@ -12,6 +12,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
@@ -24,6 +27,9 @@ import io.legado.app.help.book.isAudio
 import io.legado.app.help.book.isImage
 import io.legado.app.help.book.isLocal
 import io.legado.app.model.SourceCallBack
+import io.legado.app.help.exoplayer.ExoPlayerHelper
+import io.legado.app.model.analyzeRule.AnalyzeUrl
+import io.legado.app.model.analyzeRule.AnalyzeUrl.Companion.getMediaItem
 import io.legado.app.ui.book.audio.AudioPlayActivity
 import io.legado.app.ui.book.info.edit.BookInfoEditActivity
 import io.legado.app.ui.book.toc.TocActivityResult
@@ -67,6 +73,18 @@ fun BookInfoRouteScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val showMangaUi by rememberUpdatedState(uiState.showMangaUi)
+    val reviewAudioPlayer = remember(activity) { ExoPlayerHelper.createHttpExoPlayer(activity) }
+    var currentReviewAudioUrl by remember { mutableStateOf<String?>(null) }
+
+    DisposableEffect(reviewAudioPlayer) {
+        onDispose {
+            runCatching {
+                reviewAudioPlayer.stop()
+                reviewAudioPlayer.clearMediaItems()
+                reviewAudioPlayer.release()
+            }
+        }
+    }
 
     val tocActivityResult = rememberLauncherForActivityResult(TocActivityResult()) {
         viewModel.onTocResult(it)
@@ -166,6 +184,22 @@ fun BookInfoRouteScreen(
                 }
 
                 is BookInfoEffect.OpenFile -> activity.openFileUri(effect.uri, effect.mimeType)
+                is BookInfoEffect.PlayBookReviewAudio -> {
+                    runCatching {
+                        if (currentReviewAudioUrl == effect.audioUrl) {
+                            if (reviewAudioPlayer.isPlaying) reviewAudioPlayer.pause() else reviewAudioPlayer.play()
+                        } else {
+                            currentReviewAudioUrl = effect.audioUrl
+                            val mediaItem = AnalyzeUrl(effect.audioUrl, source = effect.source).getMediaItem()
+                            reviewAudioPlayer.setMediaItem(mediaItem, true)
+                            reviewAudioPlayer.prepare()
+                            reviewAudioPlayer.playWhenReady = true
+                        }
+                    }.onFailure { error ->
+                        currentReviewAudioUrl = null
+                        context.toastOnUi(error.localizedMessage ?: "语音播放失败")
+                    }
+                }
                 is BookInfoEffect.RunSourceCallback -> {
                     runSourceCallback(activity, effect, viewModel, onOpenSearch)
                 }

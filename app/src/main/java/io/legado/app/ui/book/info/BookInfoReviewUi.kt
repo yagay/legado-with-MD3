@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.PlayCircleOutline
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -66,6 +67,7 @@ internal fun BookReviewSheet(
     onDismiss: () -> Unit,
     onLoadMore: () -> Unit,
     onImageClick: (String) -> Unit,
+    onAudioClick: (String) -> Unit,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
@@ -82,7 +84,7 @@ internal fun BookReviewSheet(
                 state.items.isEmpty() -> Text("暂无书评", modifier = Modifier.padding(vertical = 24.dp))
                 else -> LazyColumn {
                     items(state.items, key = { it.key }) { item ->
-                        BookReviewItem(item = item, onImageClick = onImageClick)
+                        BookReviewItem(item = item, onImageClick = onImageClick, onAudioClick = onAudioClick)
                     }
                     if (state.hasMore) {
                         item {
@@ -104,6 +106,7 @@ internal fun BookReviewSheet(
 private fun BookReviewItem(
     item: BookReviewItemUi,
     onImageClick: (String) -> Unit,
+    onAudioClick: (String) -> Unit,
 ) {
     var repliesExpanded by rememberSaveable(item.key) { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
@@ -142,6 +145,15 @@ private fun BookReviewItem(
                     .clickable { onImageClick(imageUrl) },
             )
         }
+        item.audioUrl?.takeIf { it.isNotBlank() }?.let { audioUrl ->
+            TextButton(
+                onClick = { onAudioClick(audioUrl) },
+                modifier = Modifier.padding(start = 34.dp, top = 2.dp),
+            ) {
+                Icon(Icons.Outlined.PlayCircleOutline, contentDescription = null)
+                Text("播放语音", modifier = Modifier.padding(start = 6.dp))
+            }
+        }
         val meta = buildList {
             item.likeCount?.takeIf { it > 0 }?.let { add("赞 $it") }
             item.replyCount?.takeIf { it > 0 }?.let { add("回复 $it") }
@@ -168,7 +180,7 @@ private fun BookReviewItem(
                 ) {
                     Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                         item.replies.forEach { reply ->
-                            ReviewReplyItem(reply, onImageClick)
+                            ReviewReplyItem(reply, onImageClick, onAudioClick)
                         }
                     }
                 }
@@ -178,7 +190,7 @@ private fun BookReviewItem(
 }
 
 @Composable
-private fun ReviewReplyItem(reply: BookReviewItemUi, onImageClick: (String) -> Unit) {
+private fun ReviewReplyItem(reply: BookReviewItemUi, onImageClick: (String) -> Unit, onAudioClick: (String) -> Unit) {
     Column(Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -205,6 +217,12 @@ private fun ReviewReplyItem(reply: BookReviewItemUi, onImageClick: (String) -> U
                     .clip(RoundedCornerShape(10.dp))
                     .clickable { onImageClick(imageUrl) },
             )
+        }
+        reply.audioUrl?.takeIf { it.isNotBlank() }?.let { audioUrl ->
+            TextButton(onClick = { onAudioClick(audioUrl) }, modifier = Modifier.padding(start = 22.dp)) {
+                Icon(Icons.Outlined.PlayCircleOutline, contentDescription = null)
+                Text("播放语音", modifier = Modifier.padding(start = 6.dp))
+            }
         }
     }
 }

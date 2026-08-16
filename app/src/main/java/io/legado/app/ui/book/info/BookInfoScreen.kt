@@ -442,6 +442,7 @@ private fun BookInfoScreenContent(
             onDismiss = { onIntent(BookInfoIntent.DismissSheet) },
             onLoadMore = { onIntent(BookInfoIntent.LoadMoreBookReviews) },
             onImageClick = { onIntent(BookInfoIntent.BookReviewImageClick(it)) },
+            onAudioClick = { onIntent(BookInfoIntent.BookReviewAudioClick(it)) },
         )
         is BookInfoSheet.WebFiles -> WebFileSheet(
             show = currentSheet is BookInfoSheet.WebFiles,
