@@ -320,13 +320,13 @@ private fun BookSourceOptions(
         Box(modifier = Modifier.fillMaxWidth()) {
             SourceEditOptionCard(
                 title = "JavaScript / Rhino",
-                subtitle = if (state.jsEngineMode == SourceJsEngineMode.LEGACY) "Legacy Rhino" else "Modern Rhino",
+                subtitle = if (state.jsEngineMode == SourceJsEngineMode.LEGACY) "Legacy Rhino" else "Upstream Rhino",
                 modifier = Modifier.fillMaxWidth(),
                 onClick = { jsEngineMenuExpanded = true },
             )
             RoundDropdownMenu(expanded = jsEngineMenuExpanded, onDismissRequest = { jsEngineMenuExpanded = false }) {
                 SourceJsEngineMode.entries.forEach { mode ->
-                    val title = if (mode == SourceJsEngineMode.LEGACY) "Legacy Rhino" else "Modern Rhino"
+                    val title = if (mode == SourceJsEngineMode.LEGACY) "Legacy Rhino" else "Upstream Rhino"
                     RoundDropdownMenuItem(
                         text = title,
                         isSelected = state.jsEngineMode == mode,
