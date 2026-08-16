@@ -14,11 +14,9 @@ import io.legado.app.domain.usecase.ExploreKindUiUseCase
 import io.legado.app.ui.widget.components.explore.ExploreKindMultiTypeItem
 
 /**
- * Packs source-native controls into compact rows without changing their behavior.
- *
- * Width is derived from visible text rather than a fixed column count: short labels
- * naturally share a row, while long labels receive more room. Text inputs stay on
- * their own row so editable content is never squeezed into a tiny cell.
+ * Packs non-category source-native controls into compact rows without changing behavior.
+ * Category/url/select/tree rows are rendered elsewhere and are intentionally excluded.
+ * Width is derived from visible label length instead of a fixed column count.
  */
 @Composable
 fun AdaptiveExploreControlRows(
@@ -49,7 +47,9 @@ fun AdaptiveExploreControlRows(
                         sourceUrl = sourceUrl,
                         onOpenUrl = { url -> onOpenUrl(kind, url) },
                         onRefreshKinds = onRefreshKinds,
-                        modifier = Modifier.weight(weights[index]).fillMaxWidth(),
+                        modifier = Modifier
+                            .weight(weights[index])
+                            .fillMaxWidth(),
                         isMiuix = false,
                         useCase = useCase,
                     )
@@ -76,13 +76,6 @@ internal fun packAdaptiveControlRows(
     }
 
     controls.forEach { kind ->
-        // Editable fields need usable typing space and should not be compressed beside buttons.
-        if (kind.type == ExploreKind.Type.text) {
-            flush()
-            rows += mutableListOf(kind)
-            return@forEach
-        }
-
         val units = controlWidthUnits(kind)
         if (current.isNotEmpty() && currentUnits + units > maxUnitsPerRow) {
             flush()
@@ -95,8 +88,6 @@ internal fun packAdaptiveControlRows(
 }
 
 internal fun controlWidthUnits(kind: ExploreKind): Float {
-    if (kind.type == ExploreKind.Type.text) return 24f
-
     val label = kind.viewName?.takeIf { it.isNotBlank() } ?: kind.title
     val textUnits = label.sumOf { ch ->
         when {
@@ -110,12 +101,12 @@ internal fun controlWidthUnits(kind: ExploreKind): Float {
         }
     }.toFloat()
 
-    // Reserve room for horizontal padding and the optional trailing type icon.
     val chromeUnits = when (kind.type) {
+        ExploreKind.Type.text -> 7f
         ExploreKind.Type.button,
-        ExploreKind.Type.toggle,
-        ExploreKind.Type.select -> 5f
+        ExploreKind.Type.toggle -> 5f
         else -> 4f
     }
-    return (textUnits + chromeUnits).coerceIn(6f, 24f)
+    val minimum = if (kind.type == ExploreKind.Type.text) 10f else 6f
+    return (textUnits + chromeUnits).coerceIn(minimum, 24f)
 }
