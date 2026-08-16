@@ -13,4 +13,6 @@
     <string name="item_background_opacity">项目背景图透明度</string>
     <string name="export_group_title">导出分组</string>
     <string name="export_group_summary">选择要一键导出的书籍分组</string>
+    <string name="source_filter_book_review">有书评</string>
+    <string name="source_filter_other_comment">其他评论</string>
 </resources>
