@@ -4,55 +4,48 @@ on:
   push:
     branches:
       - beta
+    paths-ignore:
+      - '**/modules/web/**'
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: beta-build-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  patch-analyze-rule:
+  debug:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
         with:
-          fetch-depth: 2
+          distribution: temurin
+          java-version: 21
 
-      - name: Apply exact AnalyzeRule modern-engine routing
-        shell: bash
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Remove Aliyun mirrors (unreliable in CI)
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
+          sed -i '/maven.aliyun.com/d' settings.gradle
 
-          path = Path('app/src/main/java/io/legado/app/model/analyzeRule/AnalyzeRule.kt')
-          text = path.read_text(encoding='utf-8')
+      - name: Build Universal Debug APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleAppDebug \
+            -PenableAbiSplits=false \
+            --no-daemon \
+            --no-configuration-cache
 
-          import_anchor = 'import io.legado.app.model.Debug\n'
-          import_block = (
-              'import io.legado.app.model.Debug\n'
-              'import io.legado.app.model.jsEngine.SourceJsEngineMode\n'
-              'import io.legado.app.model.jsEngine.SourceJsEngineModeStore\n'
-          )
-          if 'SourceJsEngineModeStore' not in text:
-              if text.count(import_anchor) != 1:
-                  raise SystemExit('AnalyzeRule import anchor mismatch')
-              text = text.replace(import_anchor, import_block, 1)
-
-          marker = '''    fun evalJS(jsStr: String, result: Any? = null): Any? {\n        val bindings = buildScriptBindings { bindings ->'''
-          replacement = '''    fun evalJS(jsStr: String, result: Any? = null): Any? {\n        if (source != null &&\n            SourceJsEngineModeStore.getMode(source.getKey()) == SourceJsEngineMode.MODERN\n        ) {\n            return source.evalJS(jsStr) {\n                put("java", this@AnalyzeRule)\n                put("source", source)\n                put("book", book)\n                put("result", result)\n                put("baseUrl", baseUrl)\n                put("chapter", chapter)\n                put("title", chapter?.title)\n                put("src", content)\n                put("nextChapterUrl", nextChapterUrl)\n                put("rssArticle", rssArticle)\n                put("fromBookInfo", isFromBookInfo)\n                localBindings["paraIndex"]?.let { put("paraIndex", it) }\n                localBindings["paraData"]?.let { put("paraData", it) }\n                localBindings["page"]?.let { put("page", it.toIntOrNull() ?: it) }\n            }\n        }\n        val bindings = buildScriptBindings { bindings ->'''
-          if marker not in text:
-              raise SystemExit('AnalyzeRule evalJS anchor mismatch')
-          text = text.replace(marker, replacement, 1)
-          path.write_text(text, encoding='utf-8')
-          PY
-
-          git diff --check
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app/src/main/java/io/legado/app/model/analyzeRule/AnalyzeRule.kt
-          git commit -m "route AnalyzeRule JavaScript by source engine"
-          git push origin HEAD:beta
+      - name: Upload Universal Debug APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: beta-debug-universal-apk
+          if-no-files-found: error
+          path: app/build/outputs/apk/app/debug/*.apk
