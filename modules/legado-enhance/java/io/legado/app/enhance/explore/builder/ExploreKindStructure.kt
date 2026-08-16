@@ -7,9 +7,10 @@ import io.legado.app.data.entities.rule.ExploreKind
  * 这些判断只服务 enhance，不向上游 ExploreKind 增加层级状态。
  */
 internal fun ExploreKind.modernTargetUrl(): String? {
-    val actionTarget = if (type == ExploreKind.Type.url) action else null
-    return actionTarget?.trim()?.takeIf { it.isNotBlank() && !it.equals("null", true) }
-        ?: url?.trim()?.takeIf { it.isNotBlank() && !it.equals("null", true) }
+    // Keep the same protocol semantics as the upstream ExploreKind URL item:
+    // a URL item opens kind.url. action belongs to native control execution and
+    // must never replace the list URL merely because both fields are present.
+    return url?.trim()?.takeIf { it.isNotBlank() && !it.equals("null", true) }
 }
 
 internal fun ExploreKind.isModernSectionHeader(): Boolean =
