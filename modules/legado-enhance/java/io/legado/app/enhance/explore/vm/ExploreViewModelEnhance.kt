@@ -209,18 +209,14 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
     }
 
     private fun refreshNativeControls() {
-        suiteSearchControl = ModernExploreControlExtractor.findSearchControl(allSourceRawKinds)
-        val hiddenIndexes = suiteSearchControl?.hiddenSourceIndexes.orEmpty()
-        val nativeControls = allSourceRawKinds.mapIndexedNotNull { index, kind ->
-            if (index in hiddenIndexes) return@mapIndexedNotNull null
-            kind.takeIf {
-                it.type == ExploreKind.Type.text ||
-                    it.type == ExploreKind.Type.button ||
-                    it.type == ExploreKind.Type.toggle
-            }
-        }
+        val result = ModernExploreControlExtractor.extractNativeControls(allSourceRawKinds)
+        suiteSearchControl = result.searchControl
         vm.updateUiState { state ->
-            state.copy(enhance = state.enhance.copy(dynamicControls = nativeControls.toImmutableList()))
+            state.copy(
+                enhance = state.enhance.copy(
+                    dynamicControls = result.visibleControls.toImmutableList()
+                )
+            )
         }
     }
 
