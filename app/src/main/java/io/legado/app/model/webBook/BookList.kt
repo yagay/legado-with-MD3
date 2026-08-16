@@ -227,7 +227,7 @@ object BookList {
             coroutineContext.ensureActive()
             Debug.log(bookSource.bookSourceUrl, "┌获取分类", log)
             try {
-                searchBook.kind = analyzeRule.getStringList(ruleKind)?.joinToString(",")?.take(1000)
+                searchBook.kind = analyzeRule.getStringList(ruleKind)?.joinToString(",")
                 Debug.log(bookSource.bookSourceUrl, "└${searchBook.kind ?: ""}", log)
             } catch (e: Exception) {
                 coroutineContext.ensureActive()
@@ -257,7 +257,7 @@ object BookList {
             coroutineContext.ensureActive()
             Debug.log(bookSource.bookSourceUrl, "┌获取简介", log)
             try {
-                searchBook.intro = HtmlFormatter.format(analyzeRule.getString(ruleIntro)).take(5000)
+                searchBook.intro = HtmlFormatter.formatIntro(analyzeRule.getString(ruleIntro))
                 Debug.log(bookSource.bookSourceUrl, "└${searchBook.intro}", log)
             } catch (e: Exception) {
                 coroutineContext.ensureActive()
