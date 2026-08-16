@@ -68,6 +68,7 @@ internal fun BookReviewSheet(
     onLoadMore: () -> Unit,
     onImageClick: (String) -> Unit,
     onAudioClick: (String) -> Unit,
+    onLoadReplies: (String) -> Unit,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
@@ -84,7 +85,7 @@ internal fun BookReviewSheet(
                 state.items.isEmpty() -> Text("暂无书评", modifier = Modifier.padding(vertical = 24.dp))
                 else -> LazyColumn {
                     items(state.items, key = { it.key }) { item ->
-                        BookReviewItem(item = item, onImageClick = onImageClick, onAudioClick = onAudioClick)
+                        BookReviewItem(item = item, onImageClick = onImageClick, onAudioClick = onAudioClick, onLoadReplies = onLoadReplies)
                     }
                     if (state.hasMore) {
                         item {
@@ -107,6 +108,7 @@ private fun BookReviewItem(
     item: BookReviewItemUi,
     onImageClick: (String) -> Unit,
     onAudioClick: (String) -> Unit,
+    onLoadReplies: (String) -> Unit,
 ) {
     var repliesExpanded by rememberSaveable(item.key) { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
@@ -165,12 +167,19 @@ private fun BookReviewItem(
                 modifier = Modifier.padding(start = 46.dp, top = 6.dp),
             )
         }
-        if (item.replies.isNotEmpty()) {
+        if (item.replies.isNotEmpty() || item.canLoadMoreReplies || item.repliesLoading) {
             TextButton(
-                onClick = { repliesExpanded = !repliesExpanded },
+                onClick = {
+                    val opening = !repliesExpanded
+                    repliesExpanded = opening
+                    if (opening && item.replies.isEmpty() && item.canLoadMoreReplies && !item.repliesLoading) {
+                        onLoadReplies(item.key)
+                    }
+                },
                 modifier = Modifier.padding(start = 34.dp),
             ) {
-                Text(if (repliesExpanded) "收起回复" else "展开 ${item.replies.size} 条回复")
+                val count = item.replyCount?.takeIf { it > 0 } ?: item.replies.size
+                Text(if (repliesExpanded) "收起回复" else "展开 $count 条回复")
             }
             if (repliesExpanded) {
                 Surface(
@@ -179,8 +188,19 @@ private fun BookReviewItem(
                     modifier = Modifier.fillMaxWidth().padding(start = 46.dp),
                 ) {
                     Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                        if (item.repliesLoading && item.replies.isEmpty()) {
+                            Text("正在加载回复…", style = MaterialTheme.typography.bodySmall)
+                        }
                         item.replies.forEach { reply ->
                             ReviewReplyItem(reply, onImageClick, onAudioClick)
+                        }
+                        if (item.canLoadMoreReplies && item.replies.isNotEmpty()) {
+                            TextButton(
+                                onClick = { onLoadReplies(item.key) },
+                                enabled = !item.repliesLoading,
+                            ) {
+                                Text(if (item.repliesLoading) "正在加载…" else "加载更多回复")
+                            }
                         }
                     }
                 }

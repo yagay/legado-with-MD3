@@ -207,6 +207,7 @@ class BookInfoViewModel(
     private var characterLoadJob: Job? = null
     private var bookReviewCountJob: Job? = null
     private var bookReviewLoadJob: Job? = null
+    private val bookReviewReplyJobs = mutableMapOf<String, Job>()
     private var currentBookReviewRule: ReviewRule? = null
     private var bookReviewPage = 0
     private var bookReviewNextPageUrl: String? = null
@@ -310,6 +311,7 @@ class BookInfoViewModel(
             is BookInfoIntent.BookReviewAudioClick -> bookSource?.let { source ->
                 emitEffect(BookInfoEffect.PlayBookReviewAudio(intent.audioUrl, source))
             }
+            is BookInfoIntent.LoadBookReviewReplies -> loadBookReviewReplies(intent.itemKey)
             BookInfoIntent.RemarkClick -> showDialog(BookInfoDialog.EditRemark(currentBook?.remark))
             is BookInfoIntent.SaveCover -> {
                 saveCoverToGallery(intent.path)
@@ -1440,6 +1442,8 @@ class BookInfoViewModel(
     private fun refreshBookReviewCapability(book: Book, source: BookSource?) {
         bookReviewCountJob?.cancel()
         bookReviewLoadJob?.cancel()
+        bookReviewReplyJobs.values.forEach(Job::cancel)
+        bookReviewReplyJobs.clear()
         bookReviewPage = 0
         bookReviewNextPageUrl = null
         val rule = ReviewCapabilityResolver.resolveBookReview(source, book)
@@ -1513,7 +1517,9 @@ class BookInfoViewModel(
                 }
                 bookReviewPage = page
                 bookReviewNextPageUrl = result.nextPageUrl?.takeIf { it.isNotBlank() }
-                val mapped = result.items.mapIndexed { index, item -> item.toBookReviewItemUi(page, index) }
+                val mapped = result.items.mapIndexed { index, item ->
+                    item.toBookReviewItemUi(page, index, result.hasReplyUrl)
+                }
                 _screenState.update { state ->
                     val merged = if (loadMore) state.bookReview.items + mapped else mapped
                     state.copy(bookReview = state.bookReview.copy(
@@ -1527,10 +1533,16 @@ class BookInfoViewModel(
         }
     }
 
-    private fun io.legado.app.model.analyzeRule.ReviewRuleParser.DetailItem.toBookReviewItemUi(page: Int, index: Int): BookReviewItemUi {
+    private fun io.legado.app.model.analyzeRule.ReviewRuleParser.DetailItem.toBookReviewItemUi(
+        page: Int,
+        index: Int,
+        hasReplyUrl: Boolean = false,
+    ): BookReviewItemUi {
+        val stableReviewId = id?.takeIf { it.isNotBlank() }
         val fallback = "$page:$index:${name.orEmpty()}:${content.orEmpty().hashCode()}"
         return BookReviewItemUi(
-            key = id?.takeIf { it.isNotBlank() } ?: fallback,
+            key = stableReviewId ?: fallback,
+            reviewId = stableReviewId,
             name = name.orEmpty(),
             avatarUrl = avatar,
             badges = badges,
@@ -1540,8 +1552,71 @@ class BookInfoViewModel(
             time = time,
             likeCount = likeCount,
             replyCount = replyCount,
-            replies = replies.mapIndexed { replyIndex, reply -> reply.toBookReviewItemUi(page, index * 1000 + replyIndex + 1) },
+            replies = replies.mapIndexed { replyIndex, reply ->
+                reply.toBookReviewItemUi(page, index * 1000 + replyIndex + 1)
+            },
+            canLoadMoreReplies = hasReplyUrl && stableReviewId != null &&
+                (replyCount ?: 0) > replies.size,
         )
+    }
+
+    private fun loadBookReviewReplies(itemKey: String) {
+        val source = bookSource ?: return
+        val book = currentBook ?: return
+        val rule = currentBookReviewRule ?: return
+        val item = _screenState.value.bookReview.items.firstOrNull { it.key == itemKey } ?: return
+        val reviewId = item.reviewId ?: return
+        if (!item.canLoadMoreReplies || item.repliesLoading || bookReviewReplyJobs[itemKey]?.isActive == true) return
+        val page = item.replyPage + 1
+        _screenState.update { state ->
+            state.copy(bookReview = state.bookReview.copy(items = state.bookReview.items.map { current ->
+                if (current.key == itemKey) current.copy(repliesLoading = true) else current
+            }))
+        }
+        val context = ReviewContext.BookReview(source, book)
+        val chapter = context.chapterForAnalyze()
+        val targetSource = source.getKey()
+        val targetBook = book.bookUrl
+        val targetRule = rule.hashCode()
+        bookReviewReplyJobs[itemKey] = viewModelScope.launch(IO) {
+            val result = runCatching {
+                ReviewLoader.loadReplies(
+                    ReviewLoader.ReplyRequest(
+                        source = source,
+                        book = book,
+                        chapter = chapter,
+                        paragraphIndex = -1,
+                        paragraphData = "",
+                        reviewId = reviewId,
+                        page = page,
+                        ruleHash = targetRule,
+                        ruleOverride = rule,
+                    ),
+                    coroutineContext,
+                )
+            }.getOrNull()
+            withContext(Main) {
+                bookReviewReplyJobs.remove(itemKey)
+                if (bookSource?.getKey() != targetSource || currentBook?.bookUrl != targetBook || currentBookReviewRule?.hashCode() != targetRule) return@withContext
+                _screenState.update { state ->
+                    state.copy(bookReview = state.bookReview.copy(items = state.bookReview.items.map { current ->
+                        if (current.key != itemKey) return@map current
+                        if (result == null) return@map current.copy(repliesLoading = false, canLoadMoreReplies = false)
+                        val mappedReplies = result.replies.mapIndexed { index, reply ->
+                            reply.toBookReviewItemUi(page, index)
+                        }
+                        val merged = (current.replies + mappedReplies).distinctBy { it.key }
+                        val total = current.replyCount ?: merged.size
+                        current.copy(
+                            replies = merged,
+                            repliesLoading = false,
+                            replyPage = page,
+                            canLoadMoreReplies = mappedReplies.isNotEmpty() && merged.size < total,
+                        )
+                    }))
+                }
+            }
+        }
     }
 
     private fun dismissSheet() {

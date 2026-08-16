@@ -443,6 +443,7 @@ private fun BookInfoScreenContent(
             onLoadMore = { onIntent(BookInfoIntent.LoadMoreBookReviews) },
             onImageClick = { onIntent(BookInfoIntent.BookReviewImageClick(it)) },
             onAudioClick = { onIntent(BookInfoIntent.BookReviewAudioClick(it)) },
+            onLoadReplies = { onIntent(BookInfoIntent.LoadBookReviewReplies(it)) },
         )
         is BookInfoSheet.WebFiles -> WebFileSheet(
             show = currentSheet is BookInfoSheet.WebFiles,

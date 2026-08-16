@@ -67,6 +67,7 @@ data class BookReviewUiState(
 @Stable
 data class BookReviewItemUi(
     val key: String,
+    val reviewId: String? = null,
     val name: String,
     val avatarUrl: String?,
     val badges: List<String>,
@@ -77,6 +78,9 @@ data class BookReviewItemUi(
     val likeCount: Int?,
     val replyCount: Int?,
     val replies: List<BookReviewItemUi> = emptyList(),
+    val repliesLoading: Boolean = false,
+    val replyPage: Int = 0,
+    val canLoadMoreReplies: Boolean = false,
 )
 
 @Stable
@@ -199,6 +203,7 @@ sealed interface BookInfoIntent {
     data object LoadMoreBookReviews : BookInfoIntent
     data class BookReviewImageClick(val imageUrl: String) : BookInfoIntent
     data class BookReviewAudioClick(val audioUrl: String) : BookInfoIntent
+    data class LoadBookReviewReplies(val itemKey: String) : BookInfoIntent
     data object RemarkClick : BookInfoIntent
     data class SaveCover(val path: String) : BookInfoIntent
     data class ConfirmDelete(val deleteOriginal: Boolean) : BookInfoIntent
