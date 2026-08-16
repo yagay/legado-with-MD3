@@ -42,6 +42,8 @@ data class EnhanceState(
     val selectedRankStatus: String? = null,
     val showCategorySheet: Boolean = false,
     val dynamicSelectors: ImmutableList<DynamicSelectorUi> = persistentListOf(),
+    val dynamicControls: ImmutableList<ExploreKind> = persistentListOf(),
+    val selectedWidgetKeys: ImmutableMap<String, String> = persistentMapOf(),
     val dynamicCategoryTargets: ImmutableList<DiscoverySuiteWidgetTarget> = persistentListOf(),
     val dynamicRankTargets: ImmutableList<ImmutableList<DiscoverySuiteWidgetTarget>> = persistentListOf(),
     val dynamicChannelTargets: ImmutableList<DiscoverySuiteWidgetTarget> = persistentListOf(),
@@ -160,6 +162,8 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
                     widgetPages = persistentMapOf(),
                     widgetIsEnd = persistentMapOf(),
                     dynamicSelectors = persistentListOf(),
+                    dynamicControls = persistentListOf(),
+                    selectedWidgetKeys = persistentMapOf(),
                     suiteSearchBooks = null,
                     suiteSearchLoading = false,
                     suiteSearchRemote = false
@@ -188,6 +192,14 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
             allSourceKinds = classification.kinds
             allSourceMode = classification.mode
             allSourceControls = ModernExploreControlExtractor.fromFlatKinds(allSourceRawKinds)
+            val nativeControls = allSourceRawKinds.filter { kind ->
+                kind.type == ExploreKind.Type.text ||
+                    kind.type == ExploreKind.Type.button ||
+                    kind.type == ExploreKind.Type.toggle
+            }
+            vm.updateUiState { state ->
+                state.copy(enhance = state.enhance.copy(dynamicControls = nativeControls.toImmutableList()))
+            }
             rebuildSelectors(suite, defaultSourceUrl)
         }
     }
@@ -282,20 +294,26 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
         }
         if (!widgetId.startsWith(DYNAMIC_LEVEL_PREFIX)) return
         val level = widgetId.removePrefix(DYNAMIC_LEVEL_PREFIX).toIntOrNull() ?: return
-        if (vm.uiState.value.enhance.selectedWidgetTargets[widgetId] == target.title) return
-        saveSelection(widgetId, target.title)
+        val targetKey = dynamicTargetKey(target)
+        if (vm.uiState.value.enhance.selectedWidgetKeys[widgetId] == targetKey) return
+        saveSelection(widgetId, targetKey)
         vm.updateUiState { state ->
             val newSelections = state.enhance.selectedWidgetTargets.toMutableMap()
+            val newKeys = state.enhance.selectedWidgetKeys.toMutableMap()
             newSelections[widgetId] = target.title
-            newSelections.keys
-                .filter { key ->
-                    key.startsWith(DYNAMIC_LEVEL_PREFIX) &&
-                        (key.removePrefix(DYNAMIC_LEVEL_PREFIX).toIntOrNull() ?: -1) > level
-                }
-                .toList()
-                .forEach(newSelections::remove)
+            newKeys[widgetId] = targetKey
+            newSelections.keys.filter { key ->
+                key.startsWith(DYNAMIC_LEVEL_PREFIX) &&
+                    (key.removePrefix(DYNAMIC_LEVEL_PREFIX).toIntOrNull() ?: -1) > level
+            }.toList().forEach { key ->
+                newSelections.remove(key)
+                newKeys.remove(key)
+            }
             newSelections.remove("current_url")
-            state.copy(enhance = state.enhance.copy(selectedWidgetTargets = newSelections.toImmutableMap()))
+            state.copy(enhance = state.enhance.copy(
+                selectedWidgetTargets = newSelections.toImmutableMap(),
+                selectedWidgetKeys = newKeys.toImmutableMap()
+            ))
         }
         vm.viewModelScope.launch(IO) { rebuildSelectors(suite, defaultSourceUrl) }
     }
@@ -415,6 +433,7 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
 
     private fun rebuildSelectors(suite: DiscoverySuite, defaultSourceUrl: String) {
         val selectors = mutableListOf<DynamicSelectorUi>()
+        val selectorKeys = mutableMapOf<String, String>()
         val config = DiscoverySuiteStore.load()
         if (allSourceKinds.isEmpty()) return
         var currentLevelItems = allSourceKinds
@@ -447,12 +466,20 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
                     title = kind.title
                 )
             }
-            val savedTitle = config.lastSelectedTargets["${defaultSourceUrl}_$widgetId"]
-            val stateSelected = vm.uiState.value.enhance.selectedWidgetTargets[widgetId]
-            val selectedTitle = stateSelected
-                ?.takeIf { title -> targets.any { it.title == title } }
-                ?: savedTitle?.takeIf { title -> targets.any { it.title == title } }
-                ?: targets.first().title
+            val savedKey = config.lastSelectedTargets["${defaultSourceUrl}_$widgetId"]
+            val stateKey = vm.uiState.value.enhance.selectedWidgetKeys[widgetId]
+            val legacyTitle = vm.uiState.value.enhance.selectedWidgetTargets[widgetId]
+            val selectedIndex = stateKey
+                ?.let { key -> targets.indexOfFirst { dynamicTargetKey(it) == key }.takeIf { it >= 0 } }
+                ?: savedKey?.let { key ->
+                    targets.indexOfFirst { dynamicTargetKey(it) == key }.takeIf { it >= 0 }
+                        ?: targets.indexOfFirst { it.title == key }.takeIf { it >= 0 }
+                }
+                ?: legacyTitle?.let { title -> targets.indexOfFirst { it.title == title }.takeIf { it >= 0 } }
+                ?: 0
+            val selectedTarget = targets[selectedIndex]
+            val selectedTitle = selectedTarget.title
+            selectorKeys[widgetId] = dynamicTargetKey(selectedTarget)
             selectors += DynamicSelectorUi(
                 id = widgetId,
                 title = inferSelectorTitle(level, visibleItems, inheritedTitle),
@@ -460,7 +487,7 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
                 selectedTitle = selectedTitle,
                 type = inferSelectorType(visibleItems)
             )
-            val selectedItem = visibleItems.firstOrNull { it.title == selectedTitle } ?: break
+            val selectedItem = visibleItems.getOrNull(selectedIndex) ?: break
             selectedItem.targetUrl()?.let { lastValidUrl = it }
             inheritedTitle = selectedItem.title
             currentLevelItems = selectedItem.children.orEmpty()
@@ -508,10 +535,13 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
         vm.updateUiState { state ->
             val preserved = state.enhance.selectedWidgetTargets
                 .filterKeys { key -> !key.startsWith(DYNAMIC_LEVEL_PREFIX) && key != "current_url" }
+            val preservedKeys = state.enhance.selectedWidgetKeys
+                .filterKeys { key -> !key.startsWith(DYNAMIC_LEVEL_PREFIX) }
             state.copy(
                 enhance = state.enhance.copy(
                     dynamicSelectors = orderedSelectors.toImmutableList(),
-                    selectedWidgetTargets = (preserved + finalSelections).toImmutableMap()
+                    selectedWidgetTargets = (preserved + finalSelections).toImmutableMap(),
+                    selectedWidgetKeys = (preservedKeys + selectorKeys).toImmutableMap()
                 )
             )
         }
@@ -825,6 +855,9 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
     fun clearSuiteSearchJob() {
         suiteSearchJob?.cancel()
     }
+
+    private fun dynamicTargetKey(target: DiscoverySuiteWidgetTarget): String =
+        "${target.title}\u001F${target.tagUrl}"
 
     private fun ExploreKind.hasChildren(): Boolean = !children.isNullOrEmpty()
 

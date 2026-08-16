@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.legado.app.data.entities.SearchBook
 import io.legado.app.domain.model.BookShelfState
+import io.legado.app.domain.usecase.ExploreKindUiUseCase
 import io.legado.app.enhance.explore.model.DiscoverySuiteWidgetType
 import io.legado.app.enhance.explore.ui.ModernDiscoveryFilterBar
 import io.legado.app.ui.main.explore.ExploreIntent
@@ -22,9 +23,11 @@ import io.legado.app.ui.widget.components.EmptyMessage
 import io.legado.app.ui.widget.components.LoadMoreFooter
 import io.legado.app.ui.widget.components.explore.DiscoverySuiteHeader
 import io.legado.app.ui.widget.components.explore.DiscoverySuiteHorizontalBooksWidget
+import io.legado.app.ui.widget.components.explore.ExploreKindMultiTypeItem
 import io.legado.app.ui.widget.components.progressIndicator.AppContainedLoadingIndicator
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -38,6 +41,7 @@ fun DiscoverySuiteScreen(
     val suite = state.enhance.selectedSuite
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
+    val exploreKindUseCase: ExploreKindUiUseCase = koinInject()
 
     val mainBookWidget = remember(suite) {
         suite?.widgets?.find {
@@ -69,6 +73,22 @@ fun DiscoverySuiteScreen(
                 bottom = paddingValues.calculateBottomPadding() + 80.dp
             )
         ) {
+            state.enhance.dynamicControls.forEachIndexed { index, kind ->
+                item(key = "dynamic_native_${index}_${kind.type}_${kind.title}") {
+                    ExploreKindMultiTypeItem(
+                        kind = kind,
+                        sourceUrl = suite.defaultSourceUrl,
+                        onOpenUrl = { url ->
+                            onOpenExploreShow(kind.title, suite.defaultSourceUrl.orEmpty(), url)
+                        },
+                        onRefreshKinds = { onIntent(ExploreIntent.RefreshSuite) },
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp),
+                        isMiuix = false,
+                        useCase = exploreKindUseCase
+                    )
+                }
+            }
+
             state.enhance.dynamicSelectors.forEach { selector ->
                 item(key = selector.id) {
                     ModernDiscoveryFilterBar(
