@@ -1566,7 +1566,9 @@ class BookInfoViewModel(
         val rule = currentBookReviewRule ?: return
         val item = _screenState.value.bookReview.items.firstOrNull { it.key == itemKey } ?: return
         val reviewId = item.reviewId ?: return
-        if (!item.canLoadMoreReplies || item.repliesLoading || bookReviewReplyJobs[itemKey]?.isActive == true) return
+        val expectedReplyCount = item.replyCount ?: 0
+        val hasUnloadedReplies = expectedReplyCount > item.replies.size || item.canLoadMoreReplies
+        if (!hasUnloadedReplies || item.repliesLoading || bookReviewReplyJobs[itemKey]?.isActive == true) return
         val page = item.replyPage + 1
         _screenState.update { state ->
             state.copy(bookReview = state.bookReview.copy(items = state.bookReview.items.map { current ->

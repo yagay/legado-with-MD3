@@ -156,30 +156,28 @@ private fun BookReviewItem(
                 Text("播放语音", modifier = Modifier.padding(start = 6.dp))
             }
         }
-        val meta = buildList {
-            item.likeCount?.takeIf { it > 0 }?.let { add("赞 $it") }
-            item.replyCount?.takeIf { it > 0 }?.let { add("回复 $it") }
-        }
-        if (meta.isNotEmpty()) {
+        val replyCount = item.replyCount?.takeIf { it > 0 }
+        item.likeCount?.takeIf { it > 0 }?.let { likeCount ->
             Text(
-                meta.joinToString("  "),
+                "赞 $likeCount",
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(start = 46.dp, top = 6.dp),
             )
         }
-        if (item.replies.isNotEmpty() || item.canLoadMoreReplies || item.repliesLoading) {
+        val hasReplyEntry = replyCount != null || item.replies.isNotEmpty() || item.canLoadMoreReplies || item.repliesLoading
+        if (hasReplyEntry) {
             TextButton(
                 onClick = {
                     val opening = !repliesExpanded
                     repliesExpanded = opening
-                    if (opening && item.replies.isEmpty() && item.canLoadMoreReplies && !item.repliesLoading) {
+                    if (opening && item.replies.isEmpty() && !item.repliesLoading) {
                         onLoadReplies(item.key)
                     }
                 },
                 modifier = Modifier.padding(start = 34.dp),
             ) {
-                val count = item.replyCount?.takeIf { it > 0 } ?: item.replies.size
-                Text(if (repliesExpanded) "收起回复" else "展开 $count 条回复")
+                val count = replyCount ?: item.replies.size
+                Text(if (repliesExpanded) "收起回复" else "回复 $count  ·  查看")
             }
             if (repliesExpanded) {
                 Surface(
@@ -190,6 +188,8 @@ private fun BookReviewItem(
                     Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                         if (item.repliesLoading && item.replies.isEmpty()) {
                             Text("正在加载回复…", style = MaterialTheme.typography.bodySmall)
+                        } else if (!item.repliesLoading && item.replies.isEmpty()) {
+                            Text("暂无可显示的回复内容", style = MaterialTheme.typography.bodySmall)
                         }
                         item.replies.forEach { reply ->
                             ReviewReplyItem(reply, onImageClick, onAudioClick)
