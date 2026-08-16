@@ -35,6 +35,14 @@ object ModernExploreControlExtractor {
         val visibleControls: List<ExploreKind>,
     )
 
+    /**
+     * Snapshot of the exact ExploreKind order used for the current modern discovery page.
+     * It lets the Compose layer interleave select/category rows with native button/text/toggle
+     * rows without changing the upstream ExploreKind model or teaching the UI source semantics.
+     */
+    @Volatile
+    private var sourceOrderSnapshot: List<ExploreKind> = emptyList()
+
     fun fromFlatKinds(kinds: List<ExploreKind>): List<SelectControl> =
         kinds.mapIndexedNotNull { index, kind ->
             kind.toSelectControl(index, index.toString())
@@ -77,6 +85,9 @@ object ModernExploreControlExtractor {
     }
 
     fun extractNativeControls(kinds: List<ExploreKind>): NativeControlsResult {
+        // refreshNativeControls() is invoked only after the active-source generation check,
+        // therefore this snapshot always belongs to the page that will be rendered next.
+        sourceOrderSnapshot = kinds.toList()
         val searchControl = findSearchControl(kinds)
         val hiddenIndexes = searchControl?.hiddenSourceIndexes.orEmpty()
         val visibleControls = kinds.mapIndexedNotNull { index, kind ->
@@ -91,6 +102,40 @@ object ModernExploreControlExtractor {
             searchControl = searchControl,
             visibleControls = visibleControls,
         )
+    }
+
+    /** Exact original position for a native control. Identity wins over structural equality. */
+    fun sourceIndexOf(kind: ExploreKind): Int {
+        val snapshot = sourceOrderSnapshot
+        val identityIndex = snapshot.indexOfFirst { it === kind }
+        if (identityIndex >= 0) return identityIndex
+        return snapshot.indexOf(kind)
+    }
+
+    /** Original position of a source-native select row. */
+    fun sourceIndexOfSelect(title: String): Int {
+        val normalized = cleanTitle(title)
+        if (normalized.isBlank()) return -1
+        return sourceOrderSnapshot.indexOfFirst { kind ->
+            kind.type == ExploreKind.Type.select && cleanTitle(kind.title) == normalized
+        }
+    }
+
+    /**
+     * Original position represented by a dynamic category/tree target.
+     * URL is authoritative because different branches often reuse the same visible title.
+     * Title matching is only a fallback for structural blank-URL headers and synthetic matrix
+     * dimension labels.
+     */
+    fun sourceIndexOfTarget(title: String, url: String?): Int {
+        val snapshot = sourceOrderSnapshot
+        if (!url.isNullOrBlank()) {
+            val urlIndex = snapshot.indexOfFirst { it.url == url }
+            if (urlIndex >= 0) return urlIndex
+        }
+        val normalized = cleanTitle(title)
+        if (normalized.isBlank()) return -1
+        return snapshot.indexOfFirst { kind -> cleanTitle(kind.title) == normalized }
     }
 
     fun findSearchControl(kinds: List<ExploreKind>): SearchControl? {
