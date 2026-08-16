@@ -29,6 +29,20 @@ class ModernExploreClassificationEngineTest {
     }
 
     @Test
+    fun `url kind keeps url when action is also present`() {
+        val kind = ExploreKind(
+            title = "分类",
+            url = "https://example.com/list",
+            type = ExploreKind.Type.url,
+            action = "someAction()"
+        )
+
+        val result = ModernExploreClassificationEngine.classify(listOf(kind), "")
+
+        assertEquals("https://example.com/list", result.nodes.single().url)
+    }
+
+    @Test
     fun `section grouping uses header boundaries and preserves original kinds`() {
         val header = ExploreKind(title = "频道")
         val url = ExploreKind(title = "分类一", url = "https://example.com/1")
