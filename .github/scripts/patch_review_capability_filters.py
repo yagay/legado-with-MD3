@@ -1,0 +1,97 @@
+from pathlib import Path
+
+p = Path('app/src/main/java/io/legado/app/ui/book/source/manage/BookSourceViewModel.kt')
+s = p.read_text()
+s = s.replace('import kotlinx.coroutines.flow.first\n', 'import kotlinx.coroutines.flow.first\nimport kotlinx.coroutines.flow.map\n')
+
+old = '''    private val sourceFilter = combine(searchKey, filter) { query, activeFilter ->
+        SourceFilter(query, activeFilter)
+    }
+'''
+new = '''    private val reviewCapabilityFilters = repository.flowAll()
+        .map {
+            val sources = repository.getAll()
+            ReviewCapabilityFilters(
+                bookReviewUrls = sources.asSequence()
+                    .filter { it.hasBookReviewCapability() }
+                    .map { it.bookSourceUrl }
+                    .toSet(),
+                paragraphReviewUrls = sources.asSequence()
+                    .filter { it.hasParagraphReviewCapability() }
+                    .map { it.bookSourceUrl }
+                    .toSet(),
+                otherCommentUrls = sources.asSequence()
+                    .filter { it.hasOtherCommentCapability() }
+                    .map { it.bookSourceUrl }
+                    .toSet(),
+            )
+        }
+        .flowOn(Dispatchers.IO)
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            ReviewCapabilityFilters(),
+        )
+
+    private val sourceFilter = combine(searchKey, filter, reviewCapabilityFilters) { query, activeFilter, reviewFilters ->
+        SourceFilter(query, activeFilter, reviewFilters)
+    }
+'''
+if old not in s:
+    raise SystemExit('sourceFilter target not found')
+s = s.replace(old, new, 1)
+
+old = '            sourceItems.filterFor(activeFilter.name, activeFilter.query)\n'
+new = '            sourceItems.filterFor(activeFilter.name, activeFilter.query, activeFilter.reviewFilters)\n'
+if old not in s:
+    raise SystemExit('filterFor call target not found')
+s = s.replace(old, new, 1)
+
+old = '''    private data class SourceFilter(
+        val query: String,
+        val name: String?,
+    )
+'''
+new = '''    private data class SourceFilter(
+        val query: String,
+        val name: String?,
+        val reviewFilters: ReviewCapabilityFilters,
+    )
+'''
+if old not in s:
+    raise SystemExit('SourceFilter target not found')
+s = s.replace(old, new, 1)
+
+old = '''private fun List<BookSourcePart>.filterFor(filter: String?, query: String): List<BookSourcePart> =
+    filter { source ->
+'''
+new = '''private data class ReviewCapabilityFilters(
+    val bookReviewUrls: Set<String> = emptySet(),
+    val paragraphReviewUrls: Set<String> = emptySet(),
+    val otherCommentUrls: Set<String> = emptySet(),
+)
+
+private fun List<BookSourcePart>.filterFor(
+    filter: String?,
+    query: String,
+    reviewFilters: ReviewCapabilityFilters,
+): List<BookSourcePart> =
+    filter { source ->
+'''
+if old not in s:
+    raise SystemExit('filterFor declaration target not found')
+s = s.replace(old, new, 1)
+
+s = s.replace(
+    'BookSourceViewModel.FILTER_BOOK_REVIEW -> source.getBookSource()?.hasBookReviewCapability() == true',
+    'BookSourceViewModel.FILTER_BOOK_REVIEW -> source.bookSourceUrl in reviewFilters.bookReviewUrls',
+)
+s = s.replace(
+    'BookSourceViewModel.FILTER_PARAGRAPH_REVIEW -> source.getBookSource()?.hasParagraphReviewCapability() == true',
+    'BookSourceViewModel.FILTER_PARAGRAPH_REVIEW -> source.bookSourceUrl in reviewFilters.paragraphReviewUrls',
+)
+s = s.replace(
+    'BookSourceViewModel.FILTER_OTHER_COMMENT -> source.getBookSource()?.hasOtherCommentCapability() == true',
+    'BookSourceViewModel.FILTER_OTHER_COMMENT -> source.bookSourceUrl in reviewFilters.otherCommentUrls',
+)
+p.write_text(s)
