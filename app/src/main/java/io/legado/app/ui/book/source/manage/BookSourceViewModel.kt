@@ -54,6 +54,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -121,8 +122,33 @@ class BookSourceViewModel(
         }
     }
 
-    private val sourceFilter = combine(searchKey, filter) { query, activeFilter ->
-        SourceFilter(query, activeFilter)
+    private val reviewCapabilityFilters = repository.flowAll()
+        .map {
+            val sources = repository.getAll()
+            ReviewCapabilityFilters(
+                bookReviewUrls = sources.asSequence()
+                    .filter { it.hasBookReviewCapability() }
+                    .map { it.bookSourceUrl }
+                    .toSet(),
+                paragraphReviewUrls = sources.asSequence()
+                    .filter { it.hasParagraphReviewCapability() }
+                    .map { it.bookSourceUrl }
+                    .toSet(),
+                otherCommentUrls = sources.asSequence()
+                    .filter { it.hasOtherCommentCapability() }
+                    .map { it.bookSourceUrl }
+                    .toSet(),
+            )
+        }
+        .flowOn(Dispatchers.IO)
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            ReviewCapabilityFilters(),
+        )
+
+    private val sourceFilter = combine(searchKey, filter, reviewCapabilityFilters) { query, activeFilter, reviewFilters ->
+        SourceFilter(query, activeFilter, reviewFilters)
     }
 
     private val sourceSort = combine(sort, sortAscending, groupByDomain) {
@@ -139,7 +165,7 @@ class BookSourceViewModel(
         sourceFilter,
     ) { sourceItems, local, activeFilter ->
         if (local == null) {
-            sourceItems.filterFor(activeFilter.name, activeFilter.query)
+            sourceItems.filterFor(activeFilter.name, activeFilter.query, activeFilter.reviewFilters)
         } else {
             val latestById = sourceItems.associateBy { it.bookSourceUrl }
             local.mapNotNull { latestById[it.bookSourceUrl] }
@@ -206,6 +232,7 @@ class BookSourceViewModel(
     private data class SourceFilter(
         val query: String,
         val name: String?,
+        val reviewFilters: ReviewCapabilityFilters,
     )
 
     private data class SourceSort(
@@ -695,15 +722,25 @@ private fun BookSourceCheckResult.displayMessage(application: Application): Stri
     }
 }
 
-private fun List<BookSourcePart>.filterFor(filter: String?, query: String): List<BookSourcePart> =
+private data class ReviewCapabilityFilters(
+    val bookReviewUrls: Set<String> = emptySet(),
+    val paragraphReviewUrls: Set<String> = emptySet(),
+    val otherCommentUrls: Set<String> = emptySet(),
+)
+
+private fun List<BookSourcePart>.filterFor(
+    filter: String?,
+    query: String,
+    reviewFilters: ReviewCapabilityFilters,
+): List<BookSourcePart> =
     filter { source ->
         val filterMatch = when (filter) {
             null -> true; BookSourceViewModel.FILTER_ENABLED -> source.enabled; BookSourceViewModel.FILTER_DISABLED -> !source.enabled
             BookSourceViewModel.FILTER_LOGIN -> source.hasLoginUrl; BookSourceViewModel.FILTER_NO_GROUP -> source.bookSourceGroup.isNullOrBlank()
             BookSourceViewModel.FILTER_ENABLED_EXPLORE -> source.enabledExplore; BookSourceViewModel.FILTER_DISABLED_EXPLORE -> !source.enabledExplore
-            BookSourceViewModel.FILTER_BOOK_REVIEW -> source.getBookSource()?.hasBookReviewCapability() == true
-            BookSourceViewModel.FILTER_PARAGRAPH_REVIEW -> source.getBookSource()?.hasParagraphReviewCapability() == true
-            BookSourceViewModel.FILTER_OTHER_COMMENT -> source.getBookSource()?.hasOtherCommentCapability() == true
+            BookSourceViewModel.FILTER_BOOK_REVIEW -> source.bookSourceUrl in reviewFilters.bookReviewUrls
+            BookSourceViewModel.FILTER_PARAGRAPH_REVIEW -> source.bookSourceUrl in reviewFilters.paragraphReviewUrls
+            BookSourceViewModel.FILTER_OTHER_COMMENT -> source.bookSourceUrl in reviewFilters.otherCommentUrls
             else -> filter.startsWith(BookSourceViewModel.PREFIX_GROUP) && source.bookSourceGroup?.split(
                 ","
             )?.contains(filter.removePrefix(BookSourceViewModel.PREFIX_GROUP)) == true
