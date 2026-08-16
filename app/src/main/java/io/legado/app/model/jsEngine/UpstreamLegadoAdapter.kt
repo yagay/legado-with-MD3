@@ -12,6 +12,7 @@ import io.legado.app.utils.MD5Utils
 import org.mozilla.javascript.ScriptableObject
 import org.mozilla.javascript.Undefined
 import org.mozilla.javascript.Wrapper
+import kotlin.coroutines.CoroutineContext
 
 /**
  * Stable boundary for the TeamLegado-compatible JavaScript runtime.
@@ -26,6 +27,13 @@ object UpstreamLegadoAdapter : SourceJsEngine {
         source: BaseSource,
         jsStr: String,
         bindingsConfig: ScriptBindings.() -> Unit,
+    ): Any? = eval(source, jsStr, bindingsConfig, null)
+
+    fun eval(
+        source: BaseSource,
+        jsStr: String,
+        bindingsConfig: ScriptBindings.() -> Unit,
+        coroutineContext: CoroutineContext?,
     ): Any? {
         val staging = buildScriptBindings { bindings ->
             bindings["java"] = source
@@ -48,9 +56,9 @@ object UpstreamLegadoAdapter : SourceJsEngine {
 
         val jsLib = source.jsLib?.takeIf { it.isNotBlank() }
         val sharedScope = if (jsLib != null) {
-            UpstreamSharedJsScope.getScope(jsLib, null)
+            UpstreamSharedJsScope.getScope(jsLib, coroutineContext)
         } else {
-            UpstreamSharedJsScope.getCryptoScope(source, null)
+            UpstreamSharedJsScope.getCryptoScope(source, coroutineContext)
         }
 
         val scope = if (sharedScope == null) {
@@ -66,7 +74,7 @@ object UpstreamLegadoAdapter : SourceJsEngine {
         }
 
         return UpstreamLegadoRuntime.toJvmValue(
-            UpstreamRhinoScriptEngine.eval(jsStr, scope)
+            UpstreamRhinoScriptEngine.eval(jsStr, scope, coroutineContext)
         )
     }
 
