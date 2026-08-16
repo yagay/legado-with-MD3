@@ -139,6 +139,64 @@ class ModernExploreClassificationEngineTest {
     }
 
     @Test
+    fun `legacy url matrix becomes independent rank and status dimensions`() {
+        val fullRow = FlexChildStyle(layout_flexGrow = 1f, layout_flexBasisPercent = 1f)
+        val quarterRow = FlexChildStyle(layout_flexGrow = 1f, layout_flexBasisPercent = 0.25f)
+        fun header(title: String) = ExploreKind(title = title, style = fullRow)
+        fun matrixItem(title: String, sort: Int, status: String) = ExploreKind(
+            title = title,
+            url = "https://example.com/list?gender=0&tags=7&creation_status=$status&sort=$sort&page={{page}}",
+            style = quarterRow,
+        )
+        fun simpleItem(title: String, id: String) = ExploreKind(
+            title = title,
+            url = "https://example.com/$id",
+            style = quarterRow,
+        )
+
+        val kinds = listOf(
+            ExploreKind(title = "我的书架", url = "https://example.com/bookshelf", style = fullRow),
+            header("༺ˇ»`ʚ男生频道ɞ´«ˇ༻"),
+            header("༺ 玄幻 ༻"),
+            matrixItem("[推荐]", 0, "ALL"),
+            matrixItem("完结", 0, "Finished"),
+            matrixItem("连载", 0, "Loading"),
+            matrixItem("[评分]", 1, "ALL"),
+            matrixItem("完结", 1, "Finished"),
+            matrixItem("连载", 1, "Loading"),
+            matrixItem("[热门]", 2, "ALL"),
+            matrixItem("完结", 2, "Finished"),
+            matrixItem("连载", 2, "Loading"),
+            header("༺ 神豪 ༻"),
+            simpleItem("[推荐]", "male-rich-recommend"),
+            simpleItem("完结", "male-rich-finished"),
+            simpleItem("连载", "male-rich-loading"),
+            header("༺ˇ»`ʚ女生频道ɞ´«ˇ༻"),
+            header("༺ 无敌 ༻"),
+            simpleItem("[推荐]", "female-invincible-recommend"),
+            simpleItem("完结", "female-invincible-finished"),
+            simpleItem("连载", "female-invincible-loading"),
+            header("༺ 种田 ༻"),
+            simpleItem("[推荐]", "female-farm-recommend"),
+            simpleItem("完结", "female-farm-finished"),
+            simpleItem("连载", "female-farm-loading"),
+        )
+
+        val result = ModernExploreClassificationEngine.classify(kinds, "")
+        val fantasy = result.nodes[1].children[0]
+
+        assertEquals(listOf("推荐", "评分", "热门"), fantasy.children.map { it.title })
+        fantasy.children.forEach { rank ->
+            assertEquals(listOf("全部", "完结", "连载"), rank.children.map { it.title })
+        }
+        assertEquals(
+            "https://example.com/list?gender=0&tags=7&creation_status=Finished&sort=1&page={{page}}",
+            fantasy.children[1].children[1].url
+        )
+        assertSame(kinds[8], fantasy.children[1].children[1].originalKind)
+    }
+
+    @Test
     fun `titles never infer a tree when source did not declare one`() {
         val kinds = listOf(
             ExploreKind(title = "男频", url = "https://example.com/male"),
