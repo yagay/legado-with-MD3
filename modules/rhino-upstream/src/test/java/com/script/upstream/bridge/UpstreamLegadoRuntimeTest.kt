@@ -88,7 +88,7 @@ class UpstreamLegadoRuntimeTest {
     @Test
     fun `real optional chaining match pattern works with present and null result`() {
         val script = """
-            let size = result?.match(/towan\('\\d+'\)/)?.[0];
+            let size = result?.match(/towan\('\d+'\)/)?.[0];
             size || '';
         """.trimIndent()
 
