@@ -3,8 +3,8 @@ package io.legado.app.model.jsEngine
 import com.script.ScriptBindings
 import com.script.buildScriptBindings
 import com.script.rhino.RhinoScriptEngine
-import io.legado.app.data.entities.BaseSource
 import io.legado.app.constant.AppLog
+import io.legado.app.data.entities.BaseSource
 import io.legado.app.help.CacheManager
 import io.legado.app.help.http.CookieStore
 import io.legado.app.help.source.getShareScope
@@ -21,7 +21,7 @@ interface SourceJsEngine {
     ): Any?
 }
 
-/** Existing MD3/Mozilla Rhino behaviour, kept equivalent at the binding/scope level. */
+/** Existing MD3/Mozilla Rhino behaviour. Keep this path frozen for legacy sources. */
 object LegacySourceJsEngine : SourceJsEngine {
     override fun eval(
         source: BaseSource,
@@ -48,7 +48,13 @@ object LegacySourceJsEngine : SourceJsEngine {
     }
 }
 
-/** Central per-source switch. Unconfigured sources always remain on LEGACY. */
+/**
+ * Central per-source switch. Unconfigured sources always remain on LEGACY.
+ *
+ * The persisted MODERN name is retained for backwards compatibility, but it now means the
+ * TeamLegado/upstream compatibility channel. All future upstream runtime work stays behind
+ * [UpstreamLegadoAdapter].
+ */
 object SourceJsEngineRouter {
     fun eval(
         source: BaseSource,
@@ -59,7 +65,7 @@ object SourceJsEngineRouter {
         return try {
             when (mode) {
                 SourceJsEngineMode.LEGACY -> LegacySourceJsEngine.eval(source, jsStr, bindingsConfig)
-                SourceJsEngineMode.MODERN -> ModernSourceJsEngine.eval(source, jsStr, bindingsConfig)
+                SourceJsEngineMode.MODERN -> UpstreamLegadoAdapter.eval(source, jsStr, bindingsConfig)
             }
         } catch (error: Exception) {
             AppLog.put("JavaScript [${mode.name}] ${source.getTag()}\n$error", error)
