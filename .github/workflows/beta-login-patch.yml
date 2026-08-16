@@ -1,0 +1,79 @@
+name: One-shot Login Compatibility Patch
+
+on:
+  push:
+    branches: [beta]
+    paths:
+      - '.github/beta-login-trigger'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: beta
+          fetch-depth: 0
+      - name: Align loginCheckJs failure handling
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+
+          p = Path('app/src/main/java/io/legado/app/model/webBook/WebBook.kt')
+          text = p.read_text(encoding='utf-8')
+
+          simple = re.compile(
+              r'(?P<i> +)var res = analyzeUrl\.getStrResponseAwait\(\)\n'
+              r'(?:(?P=i)//检测书源是否已登录\n)?'
+              r'(?P=i)bookSource\.loginCheckJs\?\.let \{ checkJs ->\n'
+              r'(?P=i)    if \(checkJs\.isNotBlank\(\)\) \{\n'
+              r'(?P=i)        res = analyzeUrl\.evalJS\(checkJs, (?:result = )?res\) as StrResponse\n'
+              r'(?P=i)    \}\n'
+              r'(?P=i)\}'
+          )
+          text, count = simple.subn(lambda m: f'{m.group("i")}val res = requestWithLoginCheck(analyzeUrl, bookSource)', text)
+          if count != 6:
+              raise SystemExit(f'expected 6 simple login blocks, got {count}')
+
+          content = re.compile(
+              r'(?P<i> +)var res = analyzeUrl\.getStrResponseAwait\(\n'
+              r'(?P=i)    jsStr = bookSource\.getContentRule\(\)\.webJs,\n'
+              r'(?P=i)    sourceRegex = bookSource\.getContentRule\(\)\.sourceRegex\n'
+              r'(?P=i)\)\n'
+              r'(?P=i)//检测书源是否已登录\n'
+              r'(?P=i)bookSource\.loginCheckJs\?\.let \{ checkJs ->\n'
+              r'(?P=i)    if \(checkJs\.isNotBlank\(\)\) \{\n'
+              r'(?P=i)        res = analyzeUrl\.evalJS\(checkJs, result = res\) as StrResponse\n'
+              r'(?P=i)    \}\n'
+              r'(?P=i)\}'
+          )
+          repl = '''            val res = requestWithLoginCheck(\n                analyzeUrl = analyzeUrl,\n                bookSource = bookSource,\n                jsStr = bookSource.getContentRule().webJs,\n                sourceRegex = bookSource.getContentRule().sourceRegex\n            )'''
+          text, count = content.subn(repl, text)
+          if count != 1:
+              raise SystemExit(f'expected content login block, got {count}')
+
+          marker = '''    /**\n     * 精准搜索\n     */'''
+          if marker not in text:
+              raise SystemExit('precise search marker missing')
+          helper = '''    /**\n     * 与当前 Legado 对齐：请求失败时也把错误包装成 StrResponse 交给 loginCheckJs，\n     * 允许书源自行处理 401/403/登录失效等响应；未处理的 500 继续抛原异常。\n     */\n    private suspend fun requestWithLoginCheck(\n        analyzeUrl: AnalyzeUrl,\n        bookSource: BookSource,\n        jsStr: String? = null,\n        sourceRegex: String? = null\n    ): StrResponse {\n        val checkJs = bookSource.loginCheckJs\n        return kotlin.runCatching {\n            analyzeUrl.getStrResponseAwait(jsStr = jsStr, sourceRegex = sourceRegex).let { response ->\n                if (!checkJs.isNullOrBlank()) {\n                    analyzeUrl.evalJS(checkJs, response) as StrResponse\n                } else {\n                    response\n                }\n            }\n        }.getOrElse { throwable ->\n            if (checkJs.isNullOrBlank()) throw throwable\n            val errResponse = analyzeUrl.getErrStrResponse(throwable)\n            try {\n                (analyzeUrl.evalJS(checkJs, errResponse) as StrResponse).also { response ->\n                    if (response.code() == 500) throw throwable\n                }\n            } catch (_: Throwable) {\n                throw throwable\n            }\n        }\n    }\n\n'''
+          text = text.replace(marker, helper + marker, 1)
+          p.write_text(text, encoding='utf-8')
+          PY
+      - name: Commit and clean one-shot patch files
+        shell: bash
+        run: |
+          rm -f \
+            .github/workflows/beta-login-patch.yml \
+            .github/beta-login-trigger \
+            .github/workflows/beta-compat-patch.yml \
+            .github/beta-compat-trigger
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "align loginCheckJs error response handling"
+          git push origin HEAD:beta
