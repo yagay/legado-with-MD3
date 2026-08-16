@@ -2,11 +2,8 @@ package io.legado.app.enhance.explore.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -25,6 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -34,17 +32,14 @@ import kotlin.math.roundToInt
 /**
  * 现代发现页分类行。
  *
- * 行为直接对齐 yagay/legado:master 的 DiscoverFilterHeader：
- * - 第一排按当前屏幕真实可用宽度动态测量，不固定显示数量；
- * - 全部放得下时不显示展开标志；
- * - 有溢出时为展开标志预留宽度后重新计算；
- * - 当前选中项隐藏在折叠区时优先前置，但超宽放不下时放弃前置；
- * - 展开项单独在下一排 FlowRow 展示；
+ * 所有由书源 url/select/tree 分类生成的 selector 都走这里：
+ * - 第一排先按真实文字宽度判断可以放多少项；
+ * - 同一排内再按文字实际宽度比例分配剩余空间，整排铺满；
+ * - 短文字占较少空间，长文字占较多空间，不缩小字体；
+ * - 当前选中项隐藏在折叠区时优先前置；
+ * - 展开区使用同一套按文字宽度比例分行逻辑；
  * - 点击任意选项后自动收起。
- *
- * 只复用分类交互/布局逻辑，颜色和字体继续使用 MD3 当前主题。
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ModernDiscoveryFilterBar(
     title: String,
@@ -65,8 +60,8 @@ fun ModernDiscoveryFilterBar(
         val textMeasurer = rememberTextMeasurer()
         val titleColumnWidth = 62.dp
         val markerWidth = 34.dp
-        val optionHorizontalPadding = 3.dp
-        val optionSpacing = 6.dp
+        val optionHorizontalPadding = 6.dp
+        val optionSpacing = 4.dp
         val optionStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp)
         val displayTitle = stripWrapSymbols(title)
         val displayOptions = targets.map { stripWrapSymbols(it.title) }
@@ -75,64 +70,73 @@ fun ModernDiscoveryFilterBar(
             (maxWidth - if (displayTitle.isBlank()) 0.dp else titleColumnWidth).toPx()
         }.roundToInt().coerceAtLeast(0)
         val markerWidthPx = with(density) { markerWidth.toPx() }.roundToInt()
+        val spacingPx = with(density) { optionSpacing.toPx() }.roundToInt()
+        val chipPaddingPx = with(density) { (optionHorizontalPadding * 2).toPx() }.roundToInt()
 
-        val layout = remember(
-            targets,
-            selectedTargetTitle,
-            contentWidthPx,
-            markerWidthPx,
-            textMeasurer,
-            optionStyle,
-            density
-        ) {
-            fun countFor(indices: List<Int>, widthPx: Int): Int {
-                val chipPaddingPx = with(density) {
-                    (optionHorizontalPadding * 2).toPx()
-                }.roundToInt()
-                val spacingPx = with(density) { optionSpacing.toPx() }.roundToInt()
-                var usedWidth = 0
-                var count = 0
-                for (index in indices) {
-                    val option = displayOptions.getOrNull(index).orEmpty()
-                    val textWidth = textMeasurer.measure(
-                        text = AnnotatedString(option),
-                        style = optionStyle,
-                        maxLines = 1
-                    ).size.width
-                    val chipWidth = textWidth + chipPaddingPx + if (count > 0) spacingPx else 0
-                    if (usedWidth + chipWidth > widthPx) break
-                    usedWidth += chipWidth
-                    count++
-                }
-                return count.coerceAtMost(targets.size)
-            }
-
-            val naturalIndices = targets.indices.toList()
-            val naturalCount = countFor(naturalIndices, contentWidthPx)
-            val needMarker = naturalCount < targets.size
-            val actualWidthPx = (contentWidthPx - if (needMarker) markerWidthPx else 0)
-                .coerceAtLeast(0)
-            val selectedIndex = targets.indexOfFirst { it.title == selectedTargetTitle }
-
-            if (selectedIndex in targets.indices && selectedIndex >= naturalCount) {
-                val candidate = listOf(selectedIndex) + targets.indices.filter { it != selectedIndex }
-                val candidateCount = countFor(candidate, actualWidthPx)
-                if (candidateCount > 0) {
-                    candidate to candidateCount
-                } else {
-                    naturalIndices to countFor(naturalIndices, actualWidthPx)
-                }
-            } else {
-                naturalIndices to countFor(naturalIndices, actualWidthPx)
+        val measuredWidths = remember(displayOptions, textMeasurer, optionStyle, chipPaddingPx) {
+            displayOptions.map { option ->
+                textMeasurer.measure(
+                    text = AnnotatedString(option),
+                    style = optionStyle,
+                    maxLines = 1
+                ).size.width + chipPaddingPx
             }
         }
 
-        val ordered = layout.first
-        val firstLineCount = layout.second
-        val validRange = targets.indices
-        val firstLine = ordered.take(firstLineCount).filter { it in validRange }
-        val restLine = ordered.drop(firstLineCount).filter { it in validRange }
+        fun countFor(indices: List<Int>, widthPx: Int): Int {
+            var used = 0
+            var count = 0
+            for (index in indices) {
+                val itemWidth = measuredWidths.getOrElse(index) { chipPaddingPx }
+                val required = itemWidth + if (count > 0) spacingPx else 0
+                if (used + required > widthPx) break
+                used += required
+                count++
+            }
+            return count
+        }
+
+        fun rowsFor(indices: List<Int>, widthPx: Int): List<List<Int>> {
+            if (indices.isEmpty()) return emptyList()
+            val rows = mutableListOf<MutableList<Int>>()
+            var current = mutableListOf<Int>()
+            var used = 0
+            indices.forEach { index ->
+                val itemWidth = measuredWidths.getOrElse(index) { chipPaddingPx }
+                    .coerceAtMost(widthPx.coerceAtLeast(1))
+                val required = itemWidth + if (current.isNotEmpty()) spacingPx else 0
+                if (current.isNotEmpty() && used + required > widthPx) {
+                    rows += current
+                    current = mutableListOf()
+                    used = 0
+                }
+                used += itemWidth + if (current.isNotEmpty()) spacingPx else 0
+                current += index
+            }
+            if (current.isNotEmpty()) rows += current
+            return rows
+        }
+
+        val naturalIndices = targets.indices.toList()
+        val naturalCount = countFor(naturalIndices, contentWidthPx)
+        val needMarker = naturalCount < targets.size
+        val firstLineWidthPx = (contentWidthPx - if (needMarker) markerWidthPx else 0).coerceAtLeast(0)
+        val selectedIndex = targets.indexOfFirst { it.title == selectedTargetTitle }
+
+        val ordered = remember(targets, selectedTargetTitle, naturalCount) {
+            if (selectedIndex in targets.indices && selectedIndex >= naturalCount) {
+                listOf(selectedIndex) + targets.indices.filter { it != selectedIndex }
+            } else {
+                naturalIndices
+            }
+        }
+        val firstLineCount = countFor(ordered, firstLineWidthPx)
+            .coerceAtLeast(if (ordered.isNotEmpty()) 1 else 0)
+            .coerceAtMost(targets.size)
+        val firstLine = ordered.take(firstLineCount)
+        val restLine = ordered.drop(firstLineCount)
         val expandable = restLine.isNotEmpty()
+        val expandedRows = rowsFor(restLine, with(density) { maxWidth.toPx() }.roundToInt())
 
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(
@@ -152,16 +156,20 @@ fun ModernDiscoveryFilterBar(
                     )
                 }
 
-                FlowRow(
+                Row(
                     modifier = Modifier.weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(optionSpacing),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                    maxLines = 1
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    firstLine.forEach { optionIndex ->
+                    firstLine.forEachIndexed { position, optionIndex ->
+                        val weight = measuredWidths.getOrElse(optionIndex) { chipPaddingPx }
+                            .coerceAtLeast(1)
+                            .toFloat()
                         ModernDiscoveryFilterOption(
                             target = targets[optionIndex],
-                            selected = optionIndex == targets.indexOfFirst { it.title == selectedTargetTitle },
+                            selected = optionIndex == selectedIndex,
+                            modifier = Modifier
+                                .weight(weight)
+                                .padding(start = if (position == 0) 0.dp else optionSpacing / 2, end = optionSpacing / 2),
                             onClick = {
                                 expanded = false
                                 onTargetClick(targets[optionIndex])
@@ -175,6 +183,7 @@ fun ModernDiscoveryFilterBar(
                         text = if (expanded) "︿" else "﹀",
                         color = MaterialTheme.colorScheme.primary,
                         fontSize = 18.sp,
+                        textAlign = TextAlign.Center,
                         modifier = Modifier
                             .width(markerWidth)
                             .clip(RoundedCornerShape(8.dp))
@@ -185,20 +194,29 @@ fun ModernDiscoveryFilterBar(
             }
 
             if (expanded && expandable) {
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(optionSpacing),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    restLine.forEach { optionIndex ->
-                        ModernDiscoveryFilterOption(
-                            target = targets[optionIndex],
-                            selected = optionIndex == targets.indexOfFirst { it.title == selectedTargetTitle },
-                            onClick = {
-                                expanded = false
-                                onTargetClick(targets[optionIndex])
-                            }
-                        )
+                expandedRows.forEach { rowIndices ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 1.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        rowIndices.forEachIndexed { position, optionIndex ->
+                            val weight = measuredWidths.getOrElse(optionIndex) { chipPaddingPx }
+                                .coerceAtLeast(1)
+                                .toFloat()
+                            ModernDiscoveryFilterOption(
+                                target = targets[optionIndex],
+                                selected = optionIndex == selectedIndex,
+                                modifier = Modifier
+                                    .weight(weight)
+                                    .padding(start = if (position == 0) 0.dp else optionSpacing / 2, end = optionSpacing / 2),
+                                onClick = {
+                                    expanded = false
+                                    onTargetClick(targets[optionIndex])
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -210,6 +228,7 @@ fun ModernDiscoveryFilterBar(
 private fun ModernDiscoveryFilterOption(
     target: DiscoverySuiteWidgetTarget,
     selected: Boolean,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     val background = if (selected) MaterialTheme.colorScheme.primary else androidx.compose.ui.graphics.Color.Transparent
@@ -219,7 +238,9 @@ private fun ModernDiscoveryFilterOption(
         color = foreground,
         style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
         maxLines = 1,
-        modifier = Modifier
+        overflow = TextOverflow.Ellipsis,
+        textAlign = TextAlign.Center,
+        modifier = modifier
             .clip(RoundedCornerShape(2.dp))
             .background(background)
             .clickable(onClick = onClick)
