@@ -26,32 +26,7 @@ jobs:
 
       - name: Apply Rhino import compile fix
         run: |
-          python3 <<'PY'
-          from pathlib import Path
-          path = Path('app/src/main/java/io/legado/app/ui/book/source/manage/BookSourceViewModel.kt')
-          text = path.read_text()
-          old = """            selectedItems.zip(sources).forEach { (wrapper, source) ->
-                pendingImportJsEngineModes[source.bookSourceUrl]?.let { mode ->
-                    SourceJsEngineModeStore.setMode(source.bookSourceUrl, mode)
-                } ?: if (wrapper.oldData?.bookSourceUrl != source.bookSourceUrl) {
-                    SourceJsEngineModeStore.clearMode(source.bookSourceUrl)
-                }
-            }
-"""
-          new = """            selectedItems.zip(sources).forEach { (wrapper, source) ->
-                val importedMode = pendingImportJsEngineModes[source.bookSourceUrl]
-                if (importedMode != null) {
-                    SourceJsEngineModeStore.setMode(source.bookSourceUrl, importedMode)
-                } else if (wrapper.oldData?.bookSourceUrl != source.bookSourceUrl) {
-                    SourceJsEngineModeStore.clearMode(source.bookSourceUrl)
-                }
-            }
-"""
-          if new not in text:
-              if old not in text:
-                  raise SystemExit('target Rhino import block not found')
-              path.write_text(text.replace(old, new, 1))
-          PY
+          python3 -c 'from pathlib import Path; p=Path("app/src/main/java/io/legado/app/ui/book/source/manage/BookSourceViewModel.kt"); s=p.read_text(); old="            selectedItems.zip(sources).forEach { (wrapper, source) ->\n                pendingImportJsEngineModes[source.bookSourceUrl]?.let { mode ->\n                    SourceJsEngineModeStore.setMode(source.bookSourceUrl, mode)\n                } ?: if (wrapper.oldData?.bookSourceUrl != source.bookSourceUrl) {\n                    SourceJsEngineModeStore.clearMode(source.bookSourceUrl)\n                }\n            }\n"; new="            selectedItems.zip(sources).forEach { (wrapper, source) ->\n                val importedMode = pendingImportJsEngineModes[source.bookSourceUrl]\n                if (importedMode != null) {\n                    SourceJsEngineModeStore.setMode(source.bookSourceUrl, importedMode)\n                } else if (wrapper.oldData?.bookSourceUrl != source.bookSourceUrl) {\n                    SourceJsEngineModeStore.clearMode(source.bookSourceUrl)\n                }\n            }\n"; assert old in s or new in s; p.write_text(s if new in s else s.replace(old,new,1))'
           if ! git diff --quiet; then
             git config user.name github-actions[bot]
             git config user.email 41898282+github-actions[bot]@users.noreply.github.com
