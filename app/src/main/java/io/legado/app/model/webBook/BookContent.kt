@@ -154,8 +154,8 @@ object BookContent {
             if (subContent.isNotBlank()) {
                 when {
                     book.isOnLineTxt -> appendContent(subContent)
-                    book.isAudio -> bookChapter.putLyric(subContent)
-                    book.isVideo -> bookChapter.putDanmaku(subContent)
+                    book.isAudio -> bookChapter.putVariable("lyric", subContent)
+                    book.isVideo -> bookChapter.putVariable("danmaku", subContent)
                 }
             }
         }
