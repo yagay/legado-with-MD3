@@ -69,13 +69,7 @@ object WebBook {
             ruleData = ruleData,
             coroutineContext = coroutineContext
         )
-        var res = analyzeUrl.getStrResponseAwait()
-        //检测书源是否已登录
-        bookSource.loginCheckJs?.let { checkJs ->
-            if (checkJs.isNotBlank()) {
-                res = analyzeUrl.evalJS(checkJs, res) as StrResponse
-            }
-        }
+        val res = requestWithLoginCheck(analyzeUrl, bookSource)
         checkRedirect(bookSource, res)
         return BookList.analyzeBookList(
             bookSource = bookSource,
@@ -124,13 +118,7 @@ object WebBook {
             coroutineContext = currentCoroutineContext(),
             infoMap = getExploreInfoMap(sourceUrl)
         )
-        var res = analyzeUrl.getStrResponseAwait()
-        //检测书源是否已登录
-        bookSource.loginCheckJs?.let { checkJs ->
-            if (checkJs.isNotBlank()) {
-                res = analyzeUrl.evalJS(checkJs, result = res) as StrResponse
-            }
-        }
+        val res = requestWithLoginCheck(analyzeUrl, bookSource)
         checkRedirect(bookSource, res)
         val listRuleData = when (ruleData) {
             is RuleData -> ruleData
@@ -174,12 +162,7 @@ object WebBook {
             coroutineContext = currentCoroutineContext(),
             infoMap = getExploreInfoMap(sourceUrl)
         )
-        var res = analyzeUrl.getStrResponseAwait()
-        bookSource.loginCheckJs?.let { checkJs ->
-            if (checkJs.isNotBlank()) {
-                res = analyzeUrl.evalJS(checkJs, result = res) as StrResponse
-            }
-        }
+        val res = requestWithLoginCheck(analyzeUrl, bookSource)
         checkRedirect(bookSource, res)
         val resolvedUrl = res.url
         val listRuleData = when (ruleData) {
@@ -214,12 +197,7 @@ object WebBook {
             coroutineContext = currentCoroutineContext(),
             infoMap = getExploreInfoMap(sourceUrl)
         )
-        var res = analyzeUrl.getStrResponseAwait()
-        bookSource.loginCheckJs?.let { checkJs ->
-            if (checkJs.isNotBlank()) {
-                res = analyzeUrl.evalJS(checkJs, result = res) as StrResponse
-            }
-        }
+        val res = requestWithLoginCheck(analyzeUrl, bookSource)
         checkRedirect(bookSource, res)
         return BookList.analyzeBookList(
             bookSource = bookSource,
@@ -272,13 +250,7 @@ object WebBook {
                 ruleData = book,
                 coroutineContext = coroutineContext
             )
-            var res = analyzeUrl.getStrResponseAwait()
-            //检测书源是否已登录
-            bookSource.loginCheckJs?.let { checkJs ->
-                if (checkJs.isNotBlank()) {
-                    res = analyzeUrl.evalJS(checkJs, result = res) as StrResponse
-                }
-            }
+            val res = requestWithLoginCheck(analyzeUrl, bookSource)
             checkRedirect(bookSource, res)
             BookInfo.analyzeBookInfo(
                 bookSource = bookSource,
@@ -357,13 +329,7 @@ object WebBook {
                     ruleData = book,
                     coroutineContext = coroutineContext
                 )
-                var res = analyzeUrl.getStrResponseAwait()
-                //检测书源是否已登录
-                bookSource.loginCheckJs?.let { checkJs ->
-                    if (checkJs.isNotBlank()) {
-                        res = analyzeUrl.evalJS(checkJs, result = res) as StrResponse
-                    }
-                }
+                val res = requestWithLoginCheck(analyzeUrl, bookSource)
                 checkRedirect(bookSource, res)
                 BookChapterList.analyzeChapterList(
                     bookSource = bookSource,
@@ -440,16 +406,12 @@ object WebBook {
                 chapter = bookChapter,
                 coroutineContext = coroutineContext
             )
-            var res = analyzeUrl.getStrResponseAwait(
+            val res = requestWithLoginCheck(
+                analyzeUrl = analyzeUrl,
+                bookSource = bookSource,
                 jsStr = bookSource.getContentRule().webJs,
                 sourceRegex = bookSource.getContentRule().sourceRegex
             )
-            //检测书源是否已登录
-            bookSource.loginCheckJs?.let { checkJs ->
-                if (checkJs.isNotBlank()) {
-                    res = analyzeUrl.evalJS(checkJs, result = res) as StrResponse
-                }
-            }
             checkRedirect(bookSource, res)
             BookContent.analyzeContent(
                 bookSource = bookSource,
@@ -461,6 +423,38 @@ object WebBook {
                 nextChapterUrl = nextChapterUrl,
                 needSave = needSave
             )
+        }
+    }
+
+    /**
+     * 与当前 Legado 对齐：请求失败时也把错误包装成 StrResponse 交给 loginCheckJs，
+     * 允许书源自行处理 401/403/登录失效等响应；未处理的 500 继续抛原异常。
+     */
+    private suspend fun requestWithLoginCheck(
+        analyzeUrl: AnalyzeUrl,
+        bookSource: BookSource,
+        jsStr: String? = null,
+        sourceRegex: String? = null
+    ): StrResponse {
+        val checkJs = bookSource.loginCheckJs
+        return kotlin.runCatching {
+            analyzeUrl.getStrResponseAwait(jsStr = jsStr, sourceRegex = sourceRegex).let { response ->
+                if (!checkJs.isNullOrBlank()) {
+                    analyzeUrl.evalJS(checkJs, response) as StrResponse
+                } else {
+                    response
+                }
+            }
+        }.getOrElse { throwable ->
+            if (checkJs.isNullOrBlank()) throw throwable
+            val errResponse = analyzeUrl.getErrStrResponse(throwable)
+            try {
+                (analyzeUrl.evalJS(checkJs, errResponse) as StrResponse).also { response ->
+                    if (response.code() == 500) throw throwable
+                }
+            } catch (_: Throwable) {
+                throw throwable
+            }
         }
     }
 
