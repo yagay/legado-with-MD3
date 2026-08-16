@@ -10,8 +10,6 @@ import io.legado.app.domain.usecase.BookShelfKey
 import io.legado.app.domain.usecase.ExploreBooksUseCase
 import io.legado.app.domain.usecase.ResolveBookShelfStateUseCase
 import io.legado.app.domain.usecase.SaveSearchBooksUseCase
-import io.legado.app.enhance.explore.model.ExploreTree
-import io.legado.app.enhance.explore.model.ExploreNode
 import io.legado.app.domain.gateway.CoverSettingsGateway
 import android.content.res.Configuration
 import io.legado.app.data.local.preferences.LocalPreferencesKeys
@@ -183,6 +181,80 @@ class ExploreShowViewModel(
         }
     }
 
+    private fun loadMore(isRefresh: Boolean = false, forceLoad: Boolean = false) {
+        if (_loadState.value.isLoading) return
+        if (_loadState.value.isEnd && !isRefresh && !forceLoad) return
+
+        val currentSourceUrl = sourceUrl ?: return
+        viewModelScope.launch {
+            if (isRefresh) {
+                page = 1
+                autoPageCount = 0
+                _rawBooks.value = emptyList()
+                _loadState.update { it.copy(isEnd = false, errorMsg = null) }
+            }
+
+            _loadState.update {
+                it.copy(
+                    isLoading = true,
+                    isRefreshing = isRefresh,
+                    errorMsg = null,
+                )
+            }
+
+            runCatching {
+                exploreBooksUseCase.execute(
+                    sourceUrl = currentSourceUrl,
+                    moduleUrl = exploreUrl,
+                    args = null,
+                    page = page,
+                )
+            }.onSuccess { result ->
+                if (result.books.isEmpty()) {
+                    _loadState.update {
+                        it.copy(
+                            isLoading = false,
+                            isRefreshing = false,
+                            isEnd = true,
+                        )
+                    }
+                    return@onSuccess
+                }
+
+                saveSearchBooksUseCase.execute(result.books)
+                val oldBooks = _rawBooks.value
+                val merged = if (page == 1) {
+                    result.books
+                } else {
+                    (oldBooks + result.books).distinctBy { it.bookUrl }
+                }
+                _rawBooks.value = merged
+                page += 1
+                _loadState.update {
+                    it.copy(
+                        isLoading = false,
+                        isRefreshing = false,
+                        isEnd = result.books.isEmpty() || merged.size == oldBooks.size,
+                    )
+                }
+
+                if (result.shouldAutoLoadNext && !_loadState.value.isEnd && autoPageCount < MAX_AUTO_PAGES) {
+                    autoPageCount += 1
+                    delay(AUTO_PAGE_DELAY_MS)
+                    loadMore()
+                }
+            }.onFailure { error ->
+                _loadState.update {
+                    it.copy(
+                        isLoading = false,
+                        isRefreshing = false,
+                        errorMsg = error.stackTraceStr,
+                    )
+                }
+            }
+        }
+    }
+
     private fun initData(incomingSourceUrl: String, incomingExploreUrl: String?) {
         if (initialized && sourceUrl == incomingSourceUrl && initialExploreUrl == incomingExploreUrl) {
             return
@@ -213,8 +285,7 @@ class ExploreShowViewModel(
     }
 
     private suspend fun loadKinds(sourceUrl: String) {
-        val tree = repository.getSourceExploreTree(sourceUrl)
-        _kindState.update { it.copy(kinds = tree.flattenOriginalKinds()) }
+        _kindState.update { it.copy(kinds = repository.getSourceExploreKinds(sourceUrl)) }
     }
 
     private fun switchKind(kind: ExploreKind) {
@@ -244,110 +315,13 @@ class ExploreShowViewModel(
 
     private fun loadGridCount() {
         viewModelScope.launch {
-            val isLandscape = appCtx.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-            val key = if (isLandscape) {
-                LocalPreferencesKeys.EXPLORE_LAYOUT_GRID_LANDSCAPE
-            } else {
-                LocalPreferencesKeys.EXPLORE_LAYOUT_GRID_PORTRAIT
-            }
-            val default = if (isLandscape) 7 else 3
-            val count = localPreferencesRepository.getPreference(key, default).first()
+            val defaultCount = if (appCtx.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) 7 else 3
+            val count = localPreferencesRepository.getPreference(LocalPreferencesKeys.EXPLORE_GRID_COUNT, defaultCount).first()
             _displayState.update { it.copy(gridCount = count) }
         }
     }
 
-    private fun saveGridCount(count: Int) {
-        val isLandscape = appCtx.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-        val key = if (isLandscape) {
-            LocalPreferencesKeys.EXPLORE_LAYOUT_GRID_LANDSCAPE
-        } else {
-            LocalPreferencesKeys.EXPLORE_LAYOUT_GRID_PORTRAIT
-        }
-        viewModelScope.launch {
-            localPreferencesRepository.updatePreference(key, count)
-        }
-        _displayState.update { it.copy(gridCount = count) }
-    }
-
-    private fun loadMore(isRefresh: Boolean = false, forceLoad: Boolean = false) {
-        val source = sourceUrl
-        val url = exploreUrl
-        val loadState = _loadState.value
-        if (source == null || loadState.isLoading || (loadState.isEnd && !isRefresh && !forceLoad)) return
-
-        _loadState.update {
-            it.copy(
-                isLoading = true,
-                isRefreshing = isRefresh,
-                isEnd = if (isRefresh || forceLoad) false else it.isEnd,
-                errorMsg = null,
-            )
-        }
-
-        viewModelScope.launch {
-            if (isRefresh) {
-                page = 1
-                autoPageCount = 0
-                _rawBooks.value = emptyList()
-            }
-
-            if (forceLoad) {
-                autoPageCount = 0
-            }
-
-            fetchPage(source, url)
-        }
-    }
-
-    private suspend fun fetchPage(sourceUrl: String, url: String?) {
-        kotlin.runCatching {
-            exploreBooksUseCase.execute(sourceUrl, url, args = null, page)
-        }.onSuccess { result ->
-            val currentList = _rawBooks.value
-            val existingUrls = currentList.map { it.bookUrl }.toSet()
-            val uniqueNewBooks = result.books
-                .filter { it.bookUrl !in existingUrls }
-                .distinctBy { it.bookUrl }
-
-            if (result.books.isNotEmpty()) {
-                saveSearchBooksUseCase.save(result.books)
-            }
-
-            if (uniqueNewBooks.isEmpty()) {
-                fetchNextAutoPageOrFinish(sourceUrl, url)
-            } else {
-                _rawBooks.value = currentList + uniqueNewBooks
-                page++
-                autoPageCount = 0
-                _loadState.update { it.copy(isEnd = false) }
-                finishLoading()
-            }
-        }.onFailure { throwable ->
-            _loadState.update { it.copy(errorMsg = throwable.stackTraceStr) }
-            finishLoading()
-        }
-    }
-
-    private suspend fun fetchNextAutoPageOrFinish(sourceUrl: String, url: String?) {
-        page++
-        autoPageCount++
-        if (autoPageCount >= MAX_AUTO_PAGES) {
-            _loadState.update { it.copy(isEnd = true) }
-            finishLoading()
-        } else {
-            delay(AUTO_PAGE_DELAY_MS)
-            fetchPage(sourceUrl, url)
-        }
-    }
-
-    private fun finishLoading() {
-        _loadState.update {
-            it.copy(
-                isLoading = false,
-                isRefreshing = false,
-            )
-        }
-    }
+    private fun toggleLayoutState(current: Int): Int = if (current == 0) 1 else 0
 
     private fun emitEffect(effect: ExploreShowEffect) {
         _effects.tryEmit(effect)
