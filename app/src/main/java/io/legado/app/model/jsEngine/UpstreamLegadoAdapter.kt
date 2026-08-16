@@ -3,6 +3,7 @@ package io.legado.app.model.jsEngine
 import com.script.ScriptBindings
 import com.script.buildScriptBindings
 import com.script.upstream.ScriptBindings as UpstreamScriptBindings
+import com.script.upstream.bridge.UpstreamLegadoRuntime
 import com.script.upstream.rhino.RhinoScriptEngine as UpstreamRhinoScriptEngine
 import io.legado.app.data.entities.BaseSource
 import io.legado.app.help.CacheManager
@@ -17,6 +18,7 @@ import org.mozilla.javascript.Wrapper
  *
  * Parser/business code keeps the legacy binding lambda contract while MODERN sources are executed
  * with the isolated TeamLegado runtime, SharedJsScope and source-level shared global semantics.
+ * HtmlUnit Rhino-specific return values are normalized before they leave this adapter.
  */
 object UpstreamLegadoAdapter : SourceJsEngine {
 
@@ -63,7 +65,9 @@ object UpstreamLegadoAdapter : SourceJsEngine {
             }
         }
 
-        return UpstreamRhinoScriptEngine.eval(jsStr, scope)
+        return UpstreamLegadoRuntime.toJvmValue(
+            UpstreamRhinoScriptEngine.eval(jsStr, scope)
+        )
     }
 
     private fun unwrapLegacyValue(value: Any?): Any? {
