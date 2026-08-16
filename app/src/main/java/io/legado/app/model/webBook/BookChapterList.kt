@@ -129,10 +129,9 @@ object BookChapterList {
 
         val formatJs = tocRule.formatJs
         if (!formatJs.isNullOrBlank()) {
-            Context.enter().use {
-                val bindings = ScriptBindings()
-                bindings["gInt"] = 0
-                list.forEachIndexed { index, bookChapter ->
+            val bindings = ScriptBindings()
+            bindings["gInt"] = 0
+            list.forEachIndexed { index, bookChapter ->
                     bindings["index"] = index + 1
                     bindings["chapter"] = bookChapter
                     bindings["title"] = bookChapter.title
@@ -145,9 +144,8 @@ object BookChapterList {
                         }?.toString()?.let {
                             bookChapter.title = it
                         }
-                    }.onFailure {
-                        Debug.log(book.origin, "格式化标题出错, ${it.localizedMessage}")
-                    }
+                }.onFailure {
+                    Debug.log(book.origin, "格式化标题出错, ${it.localizedMessage}")
                 }
             }
         }
