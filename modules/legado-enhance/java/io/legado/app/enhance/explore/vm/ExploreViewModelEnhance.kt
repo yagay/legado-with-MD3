@@ -7,9 +7,8 @@ import io.legado.app.data.entities.rule.ExploreKind
 import io.legado.app.enhance.explore.builder.ModernExploreControlExtractor
 import io.legado.app.enhance.explore.builder.ModernExploreControlExtractor.SelectControl
 import io.legado.app.enhance.explore.builder.ModernExploreClassificationEngine
-import io.legado.app.enhance.explore.builder.hasModernChildren
-import io.legado.app.enhance.explore.builder.modernTargetUrl
 import io.legado.app.enhance.explore.model.ExploreMode
+import io.legado.app.enhance.explore.model.ExploreNode
 import io.legado.app.enhance.explore.model.DiscoverySuite
 import io.legado.app.enhance.explore.model.DiscoverySuiteConfig
 import io.legado.app.enhance.explore.model.DiscoverySuiteStore
@@ -64,7 +63,7 @@ data class EnhanceState(
 
 class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
 
-    private var allSourceKinds: List<ExploreKind> = emptyList()
+    private var allSourceKinds: List<ExploreNode> = emptyList()
     private var allSourceRawKinds: List<ExploreKind> = emptyList()
     private var allSourceMode: ExploreMode = ExploreMode.FLAT
     private var allSourceControls: List<SelectControl> = emptyList()
@@ -187,11 +186,15 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
                     source?.exploreKindsJson().orEmpty()
                 )
             } catch (_: Exception) {
-                ModernExploreClassificationEngine.Result(allSourceRawKinds, ExploreMode.FLAT)
+                ModernExploreClassificationEngine.classify(allSourceRawKinds, "")
             }
-            allSourceKinds = classification.kinds
+            allSourceKinds = classification.nodes
             allSourceMode = classification.mode
-            allSourceControls = ModernExploreControlExtractor.fromFlatKinds(allSourceRawKinds)
+            allSourceControls = if (classification.mode == ExploreMode.TREE) {
+                ModernExploreControlExtractor.fromTreeRoot(classification.nodes)
+            } else {
+                ModernExploreControlExtractor.fromFlatKinds(allSourceRawKinds)
+            }
             val nativeControls = allSourceRawKinds.filter { kind ->
                 kind.type == ExploreKind.Type.text ||
                     kind.type == ExploreKind.Type.button ||
@@ -371,9 +374,13 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
                     allSourceRawKinds,
                     source.exploreKindsJson()
                 )
-                allSourceKinds = classification.kinds
+                allSourceKinds = classification.nodes
                 allSourceMode = classification.mode
-                allSourceControls = ModernExploreControlExtractor.fromFlatKinds(allSourceRawKinds)
+                allSourceControls = if (classification.mode == ExploreMode.TREE) {
+                ModernExploreControlExtractor.fromTreeRoot(classification.nodes)
+            } else {
+                ModernExploreControlExtractor.fromFlatKinds(allSourceRawKinds)
+            }
                 rebuildSelectors(suite, defaultSourceUrl)
             } catch (_: Exception) {
             }
@@ -394,8 +401,8 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
         while (currentLevelItems.isNotEmpty() && steps++ < safetyLimit) {
             while (
                 currentLevelItems.size == 1 &&
-                currentLevelItems.first().modernTargetUrl().isNullOrBlank() &&
-                currentLevelItems.first().hasModernChildren()
+                currentLevelItems.first().url.isNullOrBlank() &&
+                currentLevelItems.first().children.isNotEmpty()
             ) {
                 val container = currentLevelItems.first()
                 inheritedTitle = cleanExploreTitle(container.title).ifBlank { inheritedTitle }
@@ -404,14 +411,14 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
             }
             if (currentLevelItems.isEmpty()) break
             val visibleItems = currentLevelItems.filter {
-                it.hasModernChildren() || !it.modernTargetUrl().isNullOrBlank()
+                it.children.isNotEmpty() || !it.url.isNullOrBlank()
             }
             if (visibleItems.isEmpty()) break
             val widgetId = "$DYNAMIC_LEVEL_PREFIX$level"
             val targets = visibleItems.map { kind ->
                 DiscoverySuiteWidgetTarget(
                     sourceUrl = defaultSourceUrl,
-                    tagUrl = kind.modernTargetUrl().orEmpty(),
+                    tagUrl = kind.url.orEmpty(),
                     title = kind.title
                 )
             }
@@ -437,18 +444,13 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
                 type = inferSelectorType(visibleItems)
             )
             val selectedItem = visibleItems.getOrNull(selectedIndex) ?: break
-            selectedItem.modernTargetUrl()?.let { lastValidUrl = it }
+            selectedItem.url?.let { lastValidUrl = it }
             inheritedTitle = selectedItem.title
             currentLevelItems = selectedItem.children.orEmpty()
             level++
         }
 
-        val controlsForMode = if (allSourceMode == ExploreMode.TREE) {
-            ModernExploreControlExtractor.fromTreeRoot(allSourceRawKinds)
-        } else {
-            allSourceControls
-        }
-        controlsForMode.sortedBy { it.sourceIndex }.forEach { control ->
+        allSourceControls.sortedBy { it.sourceIndex }.forEach { control ->
             val widgetId = "$DYNAMIC_SELECT_PREFIX${control.sourceIndex}"
             val targets = control.options.map { value ->
                 DiscoverySuiteWidgetTarget(defaultSourceUrl, value, value)
@@ -523,21 +525,21 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
         }.takeIf { it >= 0 } ?: Int.MAX_VALUE
     }
 
-    private fun countExploreNodes(kinds: List<ExploreKind>): Int {
+    private fun countExploreNodes(nodes: List<ExploreNode>): Int {
         var count = 0
-        val stack = ArrayDeque<ExploreKind>()
-        kinds.forEach(stack::addLast)
+        val stack = ArrayDeque<ExploreNode>()
+        nodes.forEach(stack::addLast)
         while (stack.isNotEmpty()) {
             val node = stack.removeLast()
             count++
-            node.children.orEmpty().forEach(stack::addLast)
+            node.children.forEach(stack::addLast)
         }
         return count
     }
 
     private fun inferSelectorTitle(
         level: Int,
-        items: List<ExploreKind>,
+        items: List<ExploreNode>,
         inheritedTitle: String?
     ): String {
         // 现代布局不再根据名称猜测频道/状态/榜单等业务语义。
@@ -546,7 +548,7 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
     }
 
     private fun inferSelectorType(
-        items: List<ExploreKind>
+        items: List<ExploreNode>
     ): DynamicSelectorUi.SelectorType {
         // RankButtons 仅由显式 DiscoverySuite widget 配置决定。
         return DynamicSelectorUi.SelectorType.TagBar
