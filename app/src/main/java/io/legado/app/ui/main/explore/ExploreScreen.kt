@@ -269,7 +269,7 @@ fun ExploreScreen(
                     item(key = "source_menu_header") {
                         PillHeaderDivider(title = "选择首页源")
                     }
-                    stickyHeader(key = "source_menu_search") {
+                    item(key = "source_menu_search") {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
