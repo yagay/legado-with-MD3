@@ -45,7 +45,7 @@ object ModernExploreControlExtractor {
         }
         if (textControls.isEmpty()) return null
 
-        // 1. Strong match: button explicitly reads this text's InfoMap key.
+        // 1. Strongest match: button explicitly reads this text's InfoMap key.
         kinds.forEachIndexed { buttonIndex, button ->
             if (button.type != ExploreKind.Type.button || button.action.isNullOrBlank()) return@forEachIndexed
             val matched = textControls
@@ -58,10 +58,29 @@ object ModernExploreControlExtractor {
             return SearchControl(matched.second, button, matched.first, buttonIndex)
         }
 
+        // 2. Explicit search action: some sources hide the real search implementation in
+        // jsLib helpers such as exploreSearch()/doSearch(), while others call java.searchBook
+        // or java.open('search', ...) directly. Pair such a button with the nearest preceding
+        // text control even when the page contains other text fields returned dynamically.
+        kinds.forEachIndexed { buttonIndex, button ->
+            if (
+                button.type != ExploreKind.Type.button ||
+                !actionLooksLikeSearch(button.action.orEmpty())
+            ) return@forEachIndexed
+
+            val matched = textControls
+                .asSequence()
+                .filter { (textIndex, _) -> textIndex < buttonIndex }
+                .maxByOrNull { (textIndex, _) -> textIndex }
+                ?: return@forEachIndexed
+
+            return SearchControl(matched.second, button, matched.first, buttonIndex)
+        }
+
         if (textControls.size == 1) {
             val (textIndex, text) = textControls.single()
 
-            // 2. Common Legado pattern: button only asks the explore UI to refresh.
+            // 3. Common Legado pattern: button only asks the explore UI to refresh.
             val refreshButton = kinds
                 .mapIndexedNotNull { index, kind ->
                     if (
@@ -76,8 +95,7 @@ object ModernExploreControlExtractor {
                 return SearchControl(text, refreshButton.second, textIndex, refreshButton.first)
             }
 
-            // 3. Wrapped-function fallback: a single text followed by the next native button.
-            // This catches doSearch()/load()/run() wrappers whose body is not visible here.
+            // 4. Wrapped-function fallback: a single text followed by the next native button.
             // Explicit login/browser/form actions are excluded, and multi-text forms never enter
             // this branch, so account/password/captcha controls remain visible.
             val nextNative = kinds
@@ -118,6 +136,22 @@ object ModernExploreControlExtractor {
             if (propertyRead.containsMatchIn(js)) return true
         }
         return false
+    }
+
+    internal fun actionLooksLikeSearch(action: String): Boolean {
+        if (action.isBlank()) return false
+        val js = normalizeAction(action)
+
+        if (Regex("(?:java\\s*\\.\\s*)?searchBook\\s*\\(", RegexOption.IGNORE_CASE).containsMatchIn(js)) {
+            return true
+        }
+        if (Regex("(?:java\\s*\\.\\s*)?open\\s*\\(\\s*['\"]search['\"]", RegexOption.IGNORE_CASE).containsMatchIn(js)) {
+            return true
+        }
+        return Regex(
+            "\\b[A-Za-z_$][A-Za-z0-9_$]*search[A-Za-z0-9_$]*\\s*\\(",
+            RegexOption.IGNORE_CASE
+        ).containsMatchIn(js)
     }
 
     internal fun actionRefreshesExplore(action: String): Boolean {
