@@ -28,14 +28,14 @@ jobs:
 
           path = Path('app/src/main/java/io/legado/app/ui/book/info/BookInfoScreen.kt')
           text = path.read_text(encoding='utf-8')
-          old = '''            AnimatedTextLine(
-              text = book.displayIntro.orEmpty().ifBlank { stringResource(R.string.intro_show_null) },
-              style = LegadoTheme.typography.bodyMedium,
-            )'''
-          new = '''            BookIntroContent(
-              text = book.displayIntro.orEmpty().ifBlank { stringResource(R.string.intro_show_null) },
-              baseUrl = book.bookUrl,
-            )'''
+          old = '''        AnimatedTextLine(
+            text = book.displayIntro.orEmpty().ifBlank { stringResource(R.string.intro_show_null) },
+            style = LegadoTheme.typography.bodyMedium,
+        )'''
+          new = '''        BookIntroContent(
+            text = book.displayIntro.orEmpty().ifBlank { stringResource(R.string.intro_show_null) },
+            baseUrl = book.bookUrl,
+        )'''
           count = text.count(old)
           if count != 1:
               raise SystemExit(f'Expected exactly one intro block, found {count}')
