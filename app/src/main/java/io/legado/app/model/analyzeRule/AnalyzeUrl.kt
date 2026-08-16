@@ -38,6 +38,9 @@ import io.legado.app.help.http.postForm
 import io.legado.app.help.http.postJson
 import io.legado.app.help.http.postMultipart
 import io.legado.app.help.source.getShareScope
+import io.legado.app.model.jsEngine.SourceJsEngineMode
+import io.legado.app.model.jsEngine.SourceJsEngineModeStore
+import io.legado.app.model.jsEngine.SourceJsEngineRouter
 import io.legado.app.utils.EncoderUtils
 import io.legado.app.utils.GSON
 import io.legado.app.utils.GSONStrict
@@ -365,6 +368,31 @@ class AnalyzeUrl(
      * 执行JS
      */
     fun evalJS(jsStr: String, result: Any? = null): Any? {
+        if (source != null &&
+            SourceJsEngineModeStore.getMode(source.getKey()) == SourceJsEngineMode.MODERN
+        ) {
+            return SourceJsEngineRouter.eval(
+                source,
+                jsStr,
+                {
+                    put("java", this@AnalyzeUrl)
+                    put("baseUrl", baseUrl)
+                    put("page", extraParams["page"]?.let { value ->
+                        if (value is String) value.toIntOrNull() ?: value else value
+                    } ?: page)
+                    extraParams["paraIndex"]?.let { put("paraIndex", it) }
+                    extraParams["paraData"]?.let { put("paraData", it) }
+                    put("key", key)
+                    put("speakText", speakText)
+                    put("speakSpeed", speakSpeed)
+                    put("book", ruleData as? Book)
+                    put("source", source)
+                    put("result", result)
+                    put("infoMap", infoMap)
+                },
+                coroutineContext,
+            )
+        }
         val bindings = buildScriptBindings { bindings ->
             bindings["java"] = this
             bindings["baseUrl"] = baseUrl
