@@ -2,7 +2,6 @@ package io.legado.app.model.webBook
 
 import android.text.TextUtils
 import com.script.ScriptBindings
-import com.script.rhino.RhinoScriptEngine
 import io.legado.app.R
 import io.legado.app.constant.AppPattern
 import io.legado.app.data.appDb
@@ -25,7 +24,6 @@ import io.legado.app.utils.isTrue
 import io.legado.app.utils.mapAsync
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.flow
-import org.mozilla.javascript.Context
 import splitties.init.appCtx
 import kotlin.coroutines.coroutineContext
 
@@ -138,8 +136,13 @@ object BookChapterList {
                     bindings["index"] = index + 1
                     bindings["chapter"] = bookChapter
                     bindings["title"] = bookChapter.title
-                    RhinoScriptEngine.runCatching {
-                        eval(formatJs, bindings)?.toString()?.let {
+                    runCatching {
+                        bookSource.evalJS(formatJs) {
+                            put("gInt", bindings["gInt"])
+                            put("index", bindings["index"])
+                            put("chapter", bindings["chapter"])
+                            put("title", bindings["title"])
+                        }?.toString()?.let {
                             bookChapter.title = it
                         }
                     }.onFailure {
