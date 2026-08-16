@@ -29,6 +29,11 @@ object ModernExploreControlExtractor {
             get() = setOf(textSourceIndex, buttonSourceIndex)
     }
 
+    data class NativeControlsResult(
+        val searchControl: SearchControl?,
+        val visibleControls: List<ExploreKind>,
+    )
+
     fun fromFlatKinds(kinds: List<ExploreKind>): List<SelectControl> =
         kinds.mapIndexedNotNull { index, kind -> kind.toSelectControl(index) }
 
@@ -38,6 +43,28 @@ object ModernExploreControlExtractor {
             if (node.children.isNotEmpty() || kind.type != ExploreKind.Type.select) null
             else kind.toSelectControl(node.sourceIndex)
         }
+
+    /**
+     * Produces the exact native-control list that the modern UI should render.
+     * Search recognition and hiding are intentionally performed in one pass so the UI cannot
+     * observe a SearchControl whose original text/button pair was filtered by separate state.
+     */
+    fun extractNativeControls(kinds: List<ExploreKind>): NativeControlsResult {
+        val searchControl = findSearchControl(kinds)
+        val hiddenIndexes = searchControl?.hiddenSourceIndexes.orEmpty()
+        val visibleControls = kinds.mapIndexedNotNull { index, kind ->
+            if (index in hiddenIndexes) return@mapIndexedNotNull null
+            kind.takeIf {
+                it.type == ExploreKind.Type.text ||
+                    it.type == ExploreKind.Type.button ||
+                    it.type == ExploreKind.Type.toggle
+            }
+        }
+        return NativeControlsResult(
+            searchControl = searchControl,
+            visibleControls = visibleControls,
+        )
+    }
 
     fun findSearchControl(kinds: List<ExploreKind>): SearchControl? {
         val textControls = kinds.mapIndexedNotNull { index, kind ->
