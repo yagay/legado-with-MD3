@@ -6,7 +6,8 @@ import io.legado.app.enhance.explore.model.FilterGroup
 import kotlinx.collections.immutable.toImmutableList
 
 /**
- * 发现页筛选行构建器
+ * 发现页筛选行构建器。
+ * 只消费 enhance 的结构判断，不向上游 ExploreKind 增加辅助协议。
  */
 object ExploreFilterBuilder {
 
@@ -15,43 +16,35 @@ object ExploreFilterBuilder {
         var currentHeader: String? = null
         var currentNodes = mutableListOf<ExploreNode>()
 
-        list.forEach { item ->
-            val url = item.action ?: item.url
-            val isHeader = item.isGroupHeader()
+        fun flush() {
+            val header = currentHeader ?: return
+            result += FilterGroup(
+                title = header,
+                nodes = currentNodes.toImmutableList()
+            )
+            currentNodes = mutableListOf()
+        }
 
-            if (isHeader) {
-                if (currentHeader != null) {
-                    result.add(FilterGroup(
-                        title = currentHeader!!,
-                        nodes = currentNodes.toImmutableList()
-                    ))
-                    currentNodes = mutableListOf()
-                }
+        list.forEach { item ->
+            if (item.isModernSectionHeader()) {
+                flush()
                 currentHeader = item.title
             } else {
                 val node = ExploreNode(
                     title = item.title,
-                    url = url,
+                    url = item.modernTargetUrl(),
                     originalKind = item,
                     level = result.size
                 )
 
-                if (currentHeader != null) {
-                    currentNodes.add(node)
-                } else {
+                if (currentHeader == null) {
                     currentHeader = "分类"
-                    currentNodes.add(node)
                 }
+                currentNodes += node
             }
         }
 
-        if (currentHeader != null) {
-            result.add(FilterGroup(
-                title = currentHeader!!,
-                nodes = currentNodes.toImmutableList()
-            ))
-        }
-
+        flush()
         return result
     }
 }
