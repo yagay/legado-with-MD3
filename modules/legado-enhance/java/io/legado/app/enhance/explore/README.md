@@ -11,12 +11,12 @@
 5. 动态分类默认使用通用 TagBar；RankButtons 等特殊外观只能由显式 `DiscoverySuite` widget 配置决定。
 6. 动态控件值写入 `InfoMap` 后，action 统一通过共享 `ExploreKindUiUseCase` 执行；增强 ViewModel 不直接创建登录 JS bridge。
 7. `ExploreRepository` 只负责上游数据访问，不返回或依赖 enhance 自己的树模型。
-8. 发现页原生搜索控件必须在最终 `exploreKinds()` 运行时结果上识别；搜索配对与可见 `text / button / toggle` 过滤由同一个提取结果原子完成，避免识别状态和 UI 控件列表不同步。
+8. 发现页原生搜索控件必须在最终 `exploreKinds()` 运行时结果上识别并从现代布局隐藏；右上角搜索不执行这些内嵌控件的 action，而是始终先过滤当前已加载书籍，再在书源存在标准 `searchUrl` 时继续远程搜索并合并去重结果。
 
 ## 主要组件
 
 - `builder/ModernExploreClassificationEngine.kt`：仅识别显式 TREE、结构化 SECTION 与 FLAT，不猜语义。
-- `builder/ModernExploreControlExtractor.kt`：从最终运行时 `ExploreKind` 中识别 select/原生控件及可复用搜索组合，并一次性返回顶部搜索接管后仍应显示的 native controls。
+- `builder/ModernExploreControlExtractor.kt`：从最终运行时 `ExploreKind` 中识别 select/原生控件及搜索组合，并一次性返回隐藏搜索相关控件后仍应显示的 native controls。
 - `builder/ExploreKindStructure.kt`：现代布局自己的结构辅助函数，避免把布局辅助方法塞进核心 `ExploreKind`。
 - `builder/ExploreTreeBuilder.kt` / `ExploreFilterBuilder.kt`：把已确定的展示结构转换为 enhance UI 模型。
 - `vm/ExploreViewModelEnhance.kt`：维护现代布局选择、搜索、分页和展示状态；书源动作调用共享运行时。
