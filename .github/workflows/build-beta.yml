@@ -36,6 +36,7 @@ jobs:
           sed -i '/maven.aliyun.com/d' settings.gradle
 
       - name: Run JavaScript compatibility tests
+        timeout-minutes: 30
         run: |
           chmod +x gradlew
           ./gradlew \
