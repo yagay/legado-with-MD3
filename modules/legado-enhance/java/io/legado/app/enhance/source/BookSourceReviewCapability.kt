@@ -6,14 +6,13 @@ import io.legado.app.data.entities.BookSource
  * Detect review capabilities without changing the upstream BookSource model or
  * persisting synthetic source groups.
  *
- * Capability detection intentionally ignores ReviewRule.enabled. That flag
- * controls whether review behavior is currently enabled at runtime, while this
- * filter answers whether the source has the corresponding rules configured at
- * all. Imported sources may omit enabled and therefore deserialize it as false.
+ * ReviewRule.enabled also carries the legacy top-level `enabledReview` flag.
+ * The Gson compatibility adapter migrates that flag while importing old
+ * Legado book sources, so it remains available after Room persistence.
  */
 fun BookSource.hasBookReviewCapability(): Boolean =
     ruleReview?.run {
-        hasAny(
+        enabled || hasAny(
             reviewSummaryUrl,
             summaryListRule,
             summaryParagraphIndexRule,
