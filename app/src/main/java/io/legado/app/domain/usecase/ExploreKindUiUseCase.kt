@@ -72,9 +72,15 @@ class ExploreKindUiUseCase(
             activity = activity,
             source = source,
             callback = object : SourceLoginJsExtensions.Callback {
-                override fun upUiData(data: Map<String, Any?>?) = Unit
-                override fun reUiView(deltaUp: Boolean) = onRefreshKinds()
-            }
+                override fun upUiData(data: Map<String, Any?>?) {
+                    onRefreshKinds()
+                }
+
+                override fun reUiView(deltaUp: Boolean) {
+                    onRefreshKinds()
+                }
+            },
+            allowOpenLogin = true
         )
         withContext(Dispatchers.IO) {
             evalButtonClick(actionText, source, effectiveInfoMap, title, sourceJsExtensions)
@@ -103,11 +109,11 @@ class ExploreKindUiUseCase(
         withContext(Dispatchers.IO) {
             val source = getOrLoadBookSource(sourceUrl) ?: return@withContext null
             runScriptWithContext {
-            source.evalJS(jsStr) {
-                put("infoMap", infoMap)
-            }?.toString()
+                source.evalJS(jsStr) {
+                    put("infoMap", infoMap)
+                }?.toString()
+            }
         }
-    }
 
     private suspend fun evalButtonClick(
         jsStr: String,
