@@ -1,0 +1,29 @@
+name: Patch Rhino label
+
+on:
+  push:
+    branches: [beta]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: beta
+          fetch-depth: 0
+      - name: Rename UI label only
+        run: |
+          sed -i 's/Modern Rhino/Upstream Rhino/g' app/src/main/java/io/legado/app/ui/book/source/edit/BookSourceEditScreen.kt
+      - name: Commit patch
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add app/src/main/java/io/legado/app/ui/book/source/edit/BookSourceEditScreen.kt
+          git commit -m "chore: label upstream Rhino runtime"
+          git push origin HEAD:beta
