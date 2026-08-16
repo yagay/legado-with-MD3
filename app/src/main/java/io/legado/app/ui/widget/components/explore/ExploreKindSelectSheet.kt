@@ -106,16 +106,29 @@ fun ExploreKindSelectSheet(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                            .animateItem()
+                            .padding(vertical = 4.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         rowItems.forEach { (kind, span) ->
+                            val isSelected = kind.title in selectedTitles
                             ExploreKindMultiTypeItem(
+                                modifier = Modifier
+                                    .weight(span.toFloat())
+                                    .animateItem(),
                                 kind = kind,
                                 sourceUrl = sourceUrl,
-                                onOpenUrl = {
+                                activity = activity,
+                                onOpenUrl = { url ->
+                                    if (!multiple) {
+                                        onSelected(listOf(kind.copy(url = url)))
+                                        onDismissRequest()
+                                    }
+                                },
+                                isSelected = isSelected,
+                                onClick = {
                                     if (multiple) {
-                                        selectedTitles = if (kind.title in selectedTitles) {
+                                        selectedTitles = if (isSelected) {
                                             selectedTitles - kind.title
                                         } else {
                                             selectedTitles + kind.title
@@ -125,21 +138,17 @@ fun ExploreKindSelectSheet(
                                         onDismissRequest()
                                     }
                                 },
-                                modifier = Modifier.weight(span.toFloat()),
+                                backgroundColor = LegadoTheme.colorScheme.surface.copy(alpha = 0.5f),
                                 isMiuix = isMiuix,
-                                useCase = useCase,
-                                activity = activity,
-                                onRefreshKinds = {
-                                    if (!sourceUrl.isNullOrBlank()) {
-                                        kinds = emptyList()
-                                    }
-                                }
+                                useCase = useCase
                             )
                         }
 
                         val totalSpan = rowItems.sumOf { it.second }
                         if (totalSpan < 6) {
-                            Spacer(modifier = Modifier.weight((6 - totalSpan).toFloat()))
+                            Spacer(
+                                modifier = Modifier.weight((6 - totalSpan).toFloat())
+                            )
                         }
                     }
                 }
