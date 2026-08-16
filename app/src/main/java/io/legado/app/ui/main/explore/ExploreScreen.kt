@@ -24,18 +24,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.automirrored.outlined.Label
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Dashboard
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.VerticalAlignTop
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -59,15 +54,12 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.legado.app.R
@@ -237,43 +229,20 @@ fun ExploreScreen(
             sourceMenuListState.scrollToItem(defaultSourceIndex + menuPrefixCount)
         }
     }
-    val sourceMenuTextStyle = MaterialTheme.typography.labelLarge
-    val sourceMenuTextMeasurer = rememberTextMeasurer()
-    val density = LocalDensity.current
-    val sourceMenuWidth = remember(sourceMenuItems, sourceMenuTextStyle, density) {
-        val longestPx = sourceMenuItems.maxOfOrNull { source ->
-            sourceMenuTextMeasurer.measure(
-                text = AnnotatedString(source.bookSourceName),
-                style = sourceMenuTextStyle,
-                maxLines = 1
-            ).size.width
-        } ?: 0
-        with(density) { longestPx.toDp() + 88.dp }
-            .coerceIn(190.dp, 360.dp)
-    }
     val configuration = LocalConfiguration.current
     val sourceMenuMaxHeight = remember(configuration.screenHeightDp) {
-        // Match the effective maximum height used by the standard top-right
-        // DropdownMenu: keep the same 48dp vertical safety margin on both
-        // sides of the window, instead of using a fixed 420dp cap.
         (configuration.screenHeightDp.dp - 96.dp).coerceAtLeast(124.dp)
     }
-    val sourceActionCount = remember(sourceActionMenuSource) {
-        sourceActionMenuSource?.let { source ->
-            // Back + top + edit + search + optional login + set-home + refresh + delete
-            7 + if (source.hasLoginUrl) 1 else 0
-        } ?: 0
+    val sourceActionRowCount = remember(sourceActionMenuSource) {
+        sourceActionMenuSource?.let { exploreSourceActionRowCount(it, includeBack = true) } ?: 0
     }
-    val sourceMenuHeight = remember(filteredSourceMenuItems.size, sourceActionCount, sourceMenuMaxHeight) {
-        // Source list mode includes header + search field; action-menu mode keeps its original sizing.
-        val rowCount = if (sourceActionCount > 0) sourceActionCount else filteredSourceMenuItems.size
-        val baseHeight = if (sourceActionCount > 0) 68 else 132
-        (baseHeight + rowCount * 56).dp
-            .coerceIn(124.dp, sourceMenuMaxHeight)
+    val sourceMenuHeight = remember(filteredSourceMenuItems.size, sourceActionRowCount, sourceMenuMaxHeight) {
+        val rowCount = if (sourceActionRowCount > 0) sourceActionRowCount else filteredSourceMenuItems.size
+        val baseHeight = if (sourceActionRowCount > 0) 68 else 132
+        (baseHeight + rowCount * 56).dp.coerceIn(124.dp, sourceMenuMaxHeight)
     }
-    val sourcePopupWidth = remember(sourceMenuWidth, sourceActionMenuSource) {
-        if (sourceActionMenuSource != null) maxOf(sourceMenuWidth, 240.dp) else sourceMenuWidth
-    }
+    // Fixed width avoids the visible resize flash while long names remain single-line in menu items.
+    val sourcePopupWidth = 280.dp
 
     ListScaffold(
         title = stringResource(R.string.discovery),
@@ -344,99 +313,21 @@ fun ExploreScreen(
                         )
                     }
                 } else {
-                    item(key = "source_action_header_${actionSource.bookSourceUrl}") {
-                        PillHeaderDivider(title = actionSource.bookSourceName)
-                    }
-                    item(key = "source_action_back") {
-                        RoundDropdownMenuItem(
-                            leadingIcon = { MenuItemIcon(Icons.Default.ArrowBack) },
-                            text = "返回书源列表",
-                            onClick = { sourceActionMenuUrl = null }
-                        )
-                    }
-                    item(key = "source_action_top") {
-                        RoundDropdownMenuItem(
-                            leadingIcon = { MenuItemIcon(Icons.Default.VerticalAlignTop) },
-                            text = stringResource(R.string.to_top),
-                            onClick = {
-                                onIntent(ExploreIntent.TopSource(actionSource))
+                    item(key = "source_action_menu_${actionSource.bookSourceUrl}") {
+                        ExploreSourceActionMenuContent(
+                            source = actionSource,
+                            onTop = { onIntent(ExploreIntent.TopSource(actionSource)) },
+                            onEdit = { onIntent(ExploreIntent.OpenEdit(actionSource)) },
+                            onSearch = { onIntent(ExploreIntent.OpenSearch(actionSource)) },
+                            onLogin = { onIntent(ExploreIntent.OpenLogin(actionSource)) },
+                            onSetHomeSource = { onIntent(ExploreIntent.SetSuiteDefaultSource(actionSource.bookSourceUrl)) },
+                            onRefresh = { onIntent(ExploreIntent.RefreshKinds(actionSource)) },
+                            onDelete = { sourceToDeleteUrl = actionSource.bookSourceUrl },
+                            onDismiss = {
                                 sourceActionMenuUrl = null
                                 dismiss()
-                            }
-                        )
-                    }
-                    item(key = "source_action_edit") {
-                        RoundDropdownMenuItem(
-                            leadingIcon = { MenuItemIcon(Icons.Default.Edit) },
-                            text = stringResource(R.string.edit),
-                            onClick = {
-                                onIntent(ExploreIntent.OpenEdit(actionSource))
-                                sourceActionMenuUrl = null
-                                dismiss()
-                            }
-                        )
-                    }
-                    item(key = "source_action_search") {
-                        RoundDropdownMenuItem(
-                            leadingIcon = { MenuItemIcon(Icons.Default.Search) },
-                            text = stringResource(R.string.search),
-                            onClick = {
-                                onIntent(ExploreIntent.OpenSearch(actionSource))
-                                sourceActionMenuUrl = null
-                                dismiss()
-                            }
-                        )
-                    }
-                    if (actionSource.hasLoginUrl) {
-                        item(key = "source_action_login") {
-                            RoundDropdownMenuItem(
-                                leadingIcon = { MenuItemIcon(Icons.AutoMirrored.Filled.Login) },
-                                text = stringResource(R.string.login),
-                                onClick = {
-                                    onIntent(ExploreIntent.OpenLogin(actionSource))
-                                    sourceActionMenuUrl = null
-                                    dismiss()
-                                }
-                            )
-                        }
-                    }
-                    item(key = "source_action_home") {
-                        RoundDropdownMenuItem(
-                            leadingIcon = { MenuItemIcon(Icons.Default.Dashboard) },
-                            text = "设为示例首页源",
-                            onClick = {
-                                onIntent(ExploreIntent.SetSuiteDefaultSource(actionSource.bookSourceUrl))
-                                sourceActionMenuUrl = null
-                                dismiss()
-                            }
-                        )
-                    }
-                    item(key = "source_action_refresh") {
-                        RoundDropdownMenuItem(
-                            leadingIcon = { MenuItemIcon(Icons.Default.Refresh) },
-                            text = stringResource(R.string.refresh),
-                            onClick = {
-                                onIntent(ExploreIntent.RefreshKinds(actionSource))
-                                sourceActionMenuUrl = null
-                                dismiss()
-                            }
-                        )
-                    }
-                    item(key = "source_action_delete") {
-                        RoundDropdownMenuItem(
-                            leadingIcon = {
-                                MenuItemIcon(
-                                    Icons.Default.Delete,
-                                    tint = MaterialTheme.colorScheme.error
-                                )
                             },
-                            text = stringResource(R.string.delete),
-                            color = LegadoTheme.colorScheme.error,
-                            onClick = {
-                                sourceToDeleteUrl = actionSource.bookSourceUrl
-                                sourceActionMenuUrl = null
-                                dismiss()
-                            }
+                            onBack = { sourceActionMenuUrl = null },
                         )
                     }
                 }
@@ -841,49 +732,16 @@ fun ExploreSourceHeader(
                     }
                 }
                 RoundDropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                    PillHeaderDivider(title = item.bookSourceName)
-                    RoundDropdownMenuItem(
-                        leadingIcon = { MenuItemIcon(Icons.Default.VerticalAlignTop) },
-                        text = stringResource(R.string.to_top),
-                        onClick = { onTop(); showMenu = false }
-                    )
-                    RoundDropdownMenuItem(
-                        leadingIcon = { MenuItemIcon(Icons.Default.Edit) },
-                        text = stringResource(R.string.edit),
-                        onClick = { onEdit(); showMenu = false }
-                    )
-                    RoundDropdownMenuItem(
-                        leadingIcon = { MenuItemIcon(Icons.Default.Search) },
-                        text = stringResource(R.string.search),
-                        onClick = { onSearch(); showMenu = false }
-                    )
-                    if (item.hasLoginUrl) {
-                        RoundDropdownMenuItem(
-                            leadingIcon = { MenuItemIcon(Icons.AutoMirrored.Filled.Login) },
-                            text = stringResource(R.string.login),
-                            onClick = { onLogin(); showMenu = false }
-                        )
-                    }
-                    RoundDropdownMenuItem(
-                        leadingIcon = { MenuItemIcon(Icons.Default.Dashboard) },
-                        text = "设为示例首页源",
-                        onClick = { onSetHomeSource(); showMenu = false }
-                    )
-                    RoundDropdownMenuItem(
-                        leadingIcon = { MenuItemIcon(Icons.Default.Refresh) },
-                        text = stringResource(R.string.refresh),
-                        onClick = { onRefresh(); showMenu = false }
-                    )
-                    RoundDropdownMenuItem(
-                        leadingIcon = {
-                            MenuItemIcon(
-                                Icons.Default.Delete,
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                        },
-                        text = stringResource(R.string.delete),
-                        color = LegadoTheme.colorScheme.error,
-                        onClick = { onDelete(); showMenu = false }
+                    ExploreSourceActionMenuContent(
+                        source = item,
+                        onTop = onTop,
+                        onEdit = onEdit,
+                        onSearch = onSearch,
+                        onLogin = onLogin,
+                        onSetHomeSource = onSetHomeSource,
+                        onRefresh = onRefresh,
+                        onDelete = onDelete,
+                        onDismiss = { showMenu = false },
                     )
                 }
             }
