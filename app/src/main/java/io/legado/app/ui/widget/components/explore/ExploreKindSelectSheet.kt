@@ -26,8 +26,6 @@ import androidx.compose.ui.unit.dp
 import io.legado.app.R
 import io.legado.app.data.entities.rule.ExploreKind
 import io.legado.app.data.repository.ExploreRepository
-import io.legado.app.enhance.explore.model.ExploreTree
-import io.legado.app.enhance.explore.model.ExploreNode
 import io.legado.app.domain.usecase.ExploreKindUiUseCase
 import io.legado.app.ui.theme.LegadoTheme
 import io.legado.app.ui.theme.ThemeResolver
@@ -59,7 +57,7 @@ fun ExploreKindSelectSheet(
 
     LaunchedEffect(show, sourceUrl) {
         if (show && !sourceUrl.isNullOrBlank()) {
-            kinds = repository.getSourceExploreTree(sourceUrl).flattenOriginalKinds()
+            kinds = repository.getSourceExploreKinds(sourceUrl)
         }
     }
 
@@ -108,29 +106,16 @@ fun ExploreKindSelectSheet(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .animateItem()
-                            .padding(vertical = 4.dp),
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         rowItems.forEach { (kind, span) ->
-                            val isSelected = kind.title in selectedTitles
                             ExploreKindMultiTypeItem(
-                                modifier = Modifier
-                                    .weight(span.toFloat())
-                                    .animateItem(),
                                 kind = kind,
                                 sourceUrl = sourceUrl,
-                                activity = activity,
-                                onOpenUrl = { url ->
-                                    if (!multiple) {
-                                        onSelected(listOf(kind.copy(url = url)))
-                                        onDismissRequest()
-                                    }
-                                },
-                                isSelected = isSelected,
-                                onClick = {
+                                onOpenUrl = {
                                     if (multiple) {
-                                        selectedTitles = if (isSelected) {
+                                        selectedTitles = if (kind.title in selectedTitles) {
                                             selectedTitles - kind.title
                                         } else {
                                             selectedTitles + kind.title
@@ -140,17 +125,21 @@ fun ExploreKindSelectSheet(
                                         onDismissRequest()
                                     }
                                 },
-                                backgroundColor = LegadoTheme.colorScheme.surface.copy(alpha = 0.5f),
+                                modifier = Modifier.weight(span.toFloat()),
                                 isMiuix = isMiuix,
-                                useCase = useCase
+                                useCase = useCase,
+                                activity = activity,
+                                onRefreshKinds = {
+                                    if (!sourceUrl.isNullOrBlank()) {
+                                        kinds = emptyList()
+                                    }
+                                }
                             )
                         }
 
                         val totalSpan = rowItems.sumOf { it.second }
                         if (totalSpan < 6) {
-                            Spacer(
-                                modifier = Modifier.weight((6 - totalSpan).toFloat())
-                            )
+                            Spacer(modifier = Modifier.weight((6 - totalSpan).toFloat()))
                         }
                     }
                 }
