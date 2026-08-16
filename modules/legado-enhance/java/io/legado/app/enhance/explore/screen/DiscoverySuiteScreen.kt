@@ -13,8 +13,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.legado.app.data.entities.SearchBook
+import io.legado.app.data.entities.rule.ExploreKind
 import io.legado.app.domain.model.BookShelfState
 import io.legado.app.domain.usecase.ExploreKindUiUseCase
+import io.legado.app.enhance.explore.builder.ModernExploreControlExtractor
 import io.legado.app.enhance.explore.model.DiscoverySuiteWidgetType
 import io.legado.app.enhance.explore.ui.ModernDiscoveryFilterBar
 import io.legado.app.ui.main.explore.ExploreIntent
@@ -49,6 +51,15 @@ fun DiscoverySuiteScreen(
                 it.type == DiscoverySuiteWidgetType.HorizontalBooks.type
         }
     }
+    val orderedExploreRows = remember(
+        state.enhance.dynamicSelectors,
+        state.enhance.dynamicControls,
+    ) {
+        buildOrderedExploreRows(
+            selectors = state.enhance.dynamicSelectors,
+            controls = state.enhance.dynamicControls,
+        )
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (suite == null) {
@@ -80,36 +91,41 @@ fun DiscoverySuiteScreen(
                 bottom = paddingValues.calculateBottomPadding() + 80.dp
             )
         ) {
-            if (state.enhance.dynamicControls.isNotEmpty()) {
-                item(key = "dynamic_native_controls") {
-                    AdaptiveExploreControlRows(
-                        controls = state.enhance.dynamicControls,
-                        sourceUrl = suite.defaultSourceUrl,
-                        useCase = exploreKindUseCase,
-                        onOpenUrl = { kind, url ->
-                            onOpenExploreShow(kind.title, suite.defaultSourceUrl.orEmpty(), url)
-                        },
-                        onRefreshKinds = { onIntent(ExploreIntent.RefreshSuite) },
-                        modifier = Modifier.padding(vertical = 2.dp),
-                    )
-                }
-            }
-
-            state.enhance.dynamicSelectors.forEach { selector ->
-                item(key = selector.id) {
-                    ModernDiscoveryFilterBar(
-                        title = selector.title,
-                        targets = selector.targets,
-                        selectedTargetTitle = selector.selectedTitle,
-                        onTargetClick = { target ->
-                            onIntent(
-                                ExploreIntent.SelectWidgetTarget(
-                                    selector.id,
-                                    target
-                                )
+            orderedExploreRows.forEach { row ->
+                when (row) {
+                    is OrderedExploreRow.NativeControls -> {
+                        item(key = row.key) {
+                            AdaptiveExploreControlRows(
+                                controls = row.controls,
+                                sourceUrl = suite.defaultSourceUrl,
+                                useCase = exploreKindUseCase,
+                                onOpenUrl = { kind, url ->
+                                    onOpenExploreShow(kind.title, suite.defaultSourceUrl.orEmpty(), url)
+                                },
+                                onRefreshKinds = { onIntent(ExploreIntent.RefreshSuite) },
+                                modifier = Modifier.padding(vertical = 2.dp),
                             )
                         }
-                    )
+                    }
+
+                    is OrderedExploreRow.Selector -> {
+                        val selector = row.selector
+                        item(key = selector.id) {
+                            ModernDiscoveryFilterBar(
+                                title = selector.title,
+                                targets = selector.targets,
+                                selectedTargetTitle = selector.selectedTitle,
+                                onTargetClick = { target ->
+                                    onIntent(
+                                        ExploreIntent.SelectWidgetTarget(
+                                            selector.id,
+                                            target
+                                        )
+                                    )
+                                }
+                            )
+                        }
+                    }
                 }
             }
 
@@ -286,6 +302,120 @@ fun DiscoverySuiteScreen(
             }
         }
     }
+}
+
+private sealed interface OrderedExploreRow {
+    data class Selector(
+        val selector: ExploreViewModel.DynamicSelectorUi,
+    ) : OrderedExploreRow
+
+    data class NativeControls(
+        val key: String,
+        val controls: List<ExploreKind>,
+    ) : OrderedExploreRow
+}
+
+private sealed interface OrderedExploreAtom {
+    val sourceIndex: Int
+    val fallbackOrder: Int
+
+    data class Selector(
+        override val sourceIndex: Int,
+        override val fallbackOrder: Int,
+        val selector: ExploreViewModel.DynamicSelectorUi,
+    ) : OrderedExploreAtom
+
+    data class NativeControl(
+        override val sourceIndex: Int,
+        override val fallbackOrder: Int,
+        val control: ExploreKind,
+    ) : OrderedExploreAtom
+}
+
+/**
+ * Rebuild the mixed source declaration order after enhance has separated select/category rows
+ * from native text/button/toggle controls. This mirrors the default Explore screen's ordering
+ * while still allowing the modern layout to recover SECTION/TREE hierarchy and URL matrices.
+ */
+private fun buildOrderedExploreRows(
+    selectors: List<ExploreViewModel.DynamicSelectorUi>,
+    controls: List<ExploreKind>,
+): List<OrderedExploreRow> {
+    if (selectors.isEmpty() && controls.isEmpty()) return emptyList()
+
+    val atoms = buildList<OrderedExploreAtom> {
+        selectors.forEachIndexed { index, selector ->
+            add(
+                OrderedExploreAtom.Selector(
+                    sourceIndex = sourceIndexOfSelector(selector),
+                    fallbackOrder = index * 2,
+                    selector = selector,
+                )
+            )
+        }
+        controls.forEachIndexed { index, control ->
+            add(
+                OrderedExploreAtom.NativeControl(
+                    sourceIndex = ModernExploreControlExtractor.sourceIndexOf(control),
+                    fallbackOrder = index * 2 + 1,
+                    control = control,
+                )
+            )
+        }
+    }.sortedWith(
+        compareBy<OrderedExploreAtom>(
+            { if (it.sourceIndex >= 0) it.sourceIndex else Int.MAX_VALUE },
+            { it.fallbackOrder },
+        )
+    )
+
+    val rows = mutableListOf<OrderedExploreRow>()
+    var pendingControls = mutableListOf<ExploreKind>()
+    var pendingIndexes = mutableListOf<Int>()
+
+    fun flushControls() {
+        if (pendingControls.isEmpty()) return
+        rows += OrderedExploreRow.NativeControls(
+            key = "dynamic_native_${pendingIndexes.joinToString("_")}",
+            controls = pendingControls.toList(),
+        )
+        pendingControls = mutableListOf()
+        pendingIndexes = mutableListOf()
+    }
+
+    atoms.forEach { atom ->
+        when (atom) {
+            is OrderedExploreAtom.Selector -> {
+                flushControls()
+                rows += OrderedExploreRow.Selector(atom.selector)
+            }
+
+            is OrderedExploreAtom.NativeControl -> {
+                pendingControls += atom.control
+                pendingIndexes += atom.sourceIndex.takeIf { it >= 0 } ?: atom.fallbackOrder
+            }
+        }
+    }
+    flushControls()
+    return rows
+}
+
+private fun sourceIndexOfSelector(selector: ExploreViewModel.DynamicSelectorUi): Int {
+    if (selector.id.startsWith("dynamic_select_")) {
+        val selectIndex = ModernExploreControlExtractor.sourceIndexOfSelect(selector.title)
+        if (selectIndex >= 0) return selectIndex
+    }
+
+    return selector.targets.asSequence()
+        .map { target ->
+            ModernExploreControlExtractor.sourceIndexOfTarget(
+                title = target.title,
+                url = target.tagUrl,
+            )
+        }
+        .filter { it >= 0 }
+        .minOrNull()
+        ?: -1
 }
 
 private fun buildExplorePathTitle(
