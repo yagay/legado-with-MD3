@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import io.legado.app.data.entities.SearchBook
 import io.legado.app.data.entities.rule.ExploreKind
 import io.legado.app.enhance.explore.builder.ModernExploreControlExtractor
+import io.legado.app.enhance.explore.builder.ModernExploreControlExtractor.SearchControl
 import io.legado.app.enhance.explore.builder.ModernExploreControlExtractor.SelectControl
 import io.legado.app.enhance.explore.builder.ModernExploreClassificationEngine
 import io.legado.app.enhance.explore.model.ExploreMode
@@ -27,6 +28,7 @@ import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Stable
 data class EnhanceState(
@@ -67,6 +69,8 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
     private var allSourceRawKinds: List<ExploreKind> = emptyList()
     private var allSourceMode: ExploreMode = ExploreMode.FLAT
     private var allSourceControls: List<SelectControl> = emptyList()
+    private var suiteSearchControl: SearchControl? = null
+    private var lastEmbeddedSearchQuery: String? = null
     private var suiteSearchJob: Job? = null
     /** Invalidates stale waterfall loads whenever a dynamic control/source changes. */
     private var widgetRequestVersion: Long = 0L
@@ -80,6 +84,8 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
                 allSourceRawKinds = emptyList()
                 allSourceMode = ExploreMode.FLAT
                 allSourceControls = emptyList()
+                suiteSearchControl = null
+                lastEmbeddedSearchQuery = null
                 refreshSuite()
             }
             is ExploreIntent.SetSuiteDefaultSource -> setSuiteDefaultSource(intent.sourceUrl)
@@ -152,6 +158,8 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
         val suite = vm.uiState.value.enhance.selectedSuite ?: return
         val defaultSourceUrl = suite.defaultSourceUrl ?: vm.uiState.value.items.firstOrNull()?.bookSourceUrl ?: return
         widgetRequestVersion++
+        suiteSearchControl = null
+        lastEmbeddedSearchQuery = null
         vm.updateUiState {
             it.copy(
                 enhance = it.enhance.copy(
@@ -195,15 +203,94 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
             } else {
                 ModernExploreControlExtractor.fromFlatKinds(allSourceRawKinds)
             }
-            val nativeControls = allSourceRawKinds.filter { kind ->
-                kind.type == ExploreKind.Type.text ||
-                    kind.type == ExploreKind.Type.button ||
-                    kind.type == ExploreKind.Type.toggle
-            }
-            vm.updateUiState { state ->
-                state.copy(enhance = state.enhance.copy(dynamicControls = nativeControls.toImmutableList()))
-            }
+            refreshNativeControls()
             rebuildSelectors(suite, defaultSourceUrl)
+        }
+    }
+
+    private fun refreshNativeControls() {
+        suiteSearchControl = ModernExploreControlExtractor.findSearchControl(allSourceRawKinds)
+        val hiddenIndexes = suiteSearchControl?.hiddenSourceIndexes.orEmpty()
+        val nativeControls = allSourceRawKinds.mapIndexedNotNull { index, kind ->
+            if (index in hiddenIndexes) return@mapIndexedNotNull null
+            kind.takeIf {
+                it.type == ExploreKind.Type.text ||
+                    it.type == ExploreKind.Type.button ||
+                    it.type == ExploreKind.Type.toggle
+            }
+        }
+        vm.updateUiState { state ->
+            state.copy(enhance = state.enhance.copy(dynamicControls = nativeControls.toImmutableList()))
+        }
+    }
+
+    private suspend fun executeEmbeddedSearch(
+        query: String,
+        control: SearchControl,
+        suite: DiscoverySuite,
+        sourceUrl: String,
+    ): Boolean = withContext(IO) {
+        try {
+            val source = vm.exploreRepository.getBookSource(sourceUrl) ?: return@withContext false
+            val infoMap = getExploreInfoMap(sourceUrl)
+            infoMap[control.textKind.title] = query
+            infoMap.saveNow()
+
+            // Match the original ExploreKind text behavior first: changing a text field can
+            // have its own debounced action. Then invoke the paired button action.
+            if (!control.textKind.action.isNullOrBlank()) {
+                vm.exploreKindUseCase.executeAction(
+                    action = control.textKind.action,
+                    title = control.textKind.title,
+                    sourceUrl = sourceUrl,
+                    infoMap = infoMap,
+                    activity = null,
+                    onRefreshKinds = {}
+                )
+            }
+            vm.exploreKindUseCase.executeAction(
+                action = control.buttonKind.action,
+                title = control.buttonKind.title,
+                sourceUrl = sourceUrl,
+                infoMap = infoMap,
+                activity = null,
+                onRefreshKinds = {}
+            )
+
+            source.clearExploreKindsCache()
+            allSourceRawKinds = source.exploreKinds()
+            val classification = ModernExploreClassificationEngine.classify(
+                allSourceRawKinds,
+                source.exploreKindsJson()
+            )
+            allSourceKinds = classification.nodes
+            allSourceMode = classification.mode
+            allSourceControls = if (classification.mode == ExploreMode.TREE) {
+                ModernExploreControlExtractor.fromTreeRoot(classification.nodes)
+            } else {
+                ModernExploreControlExtractor.fromFlatKinds(allSourceRawKinds)
+            }
+            refreshNativeControls()
+            widgetRequestVersion++
+            vm.updateUiState { state ->
+                state.copy(
+                    enhance = state.enhance.copy(
+                        widgetBooks = persistentMapOf(),
+                        widgetLoading = persistentMapOf(),
+                        widgetPages = persistentMapOf(),
+                        widgetIsEnd = persistentMapOf(),
+                        suiteSearchBooks = null,
+                        suiteSearchLoading = false,
+                        suiteSearchRemote = false,
+                        suiteSearchPage = 1,
+                        suiteSearchIsEnd = true,
+                    )
+                )
+            }
+            rebuildSelectors(suite, sourceUrl)
+            true
+        } catch (_: Exception) {
+            false
         }
     }
 
@@ -377,10 +464,11 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
                 allSourceKinds = classification.nodes
                 allSourceMode = classification.mode
                 allSourceControls = if (classification.mode == ExploreMode.TREE) {
-                ModernExploreControlExtractor.fromTreeRoot(classification.nodes)
-            } else {
-                ModernExploreControlExtractor.fromFlatKinds(allSourceRawKinds)
-            }
+                    ModernExploreControlExtractor.fromTreeRoot(classification.nodes)
+                } else {
+                    ModernExploreControlExtractor.fromFlatKinds(allSourceRawKinds)
+                }
+                refreshNativeControls()
                 rebuildSelectors(suite, defaultSourceUrl)
             } catch (_: Exception) {
             }
@@ -648,6 +736,9 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
     fun searchSuiteBooks(query: String) {
         suiteSearchJob?.cancel()
         if (query.isBlank()) {
+            val control = suiteSearchControl
+            val shouldResetEmbedded = lastEmbeddedSearchQuery != null && control != null
+            lastEmbeddedSearchQuery = null
             vm.updateUiState {
                 it.copy(
                     enhance = it.enhance.copy(
@@ -658,6 +749,16 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
                         suiteSearchIsEnd = true
                     )
                 )
+            }
+            if (shouldResetEmbedded) {
+                val state = vm.uiState.value
+                val suite = state.enhance.selectedSuite
+                val sourceUrl = suite?.defaultSourceUrl ?: state.items.firstOrNull()?.bookSourceUrl
+                if (suite != null && sourceUrl != null) {
+                    suiteSearchJob = vm.viewModelScope.launch {
+                        executeEmbeddedSearch("", control!!, suite, sourceUrl)
+                    }
+                }
             }
             return
         }
@@ -670,6 +771,35 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
             val source = try { vm.exploreRepository.getBookSource(sourceUrl) } catch (_: Exception) { null }
             val field = state.enhance.suiteSearchField
             val localMatches = filterLoadedSuiteBooks(state, suite, query, field)
+
+            // A structurally confirmed source-native text + button search owns the name-search
+            // path. We feed the top-bar value into the original InfoMap key and execute the
+            // original actions, so the source's own explore URL/category/paging logic remains
+            // authoritative. No title/locale keyword guessing is used.
+            val embeddedControl = suiteSearchControl
+            if (field == "name" && embeddedControl != null) {
+                vm.updateUiState {
+                    it.copy(
+                        enhance = it.enhance.copy(
+                            suiteSearchBooks = null,
+                            suiteSearchLoading = true,
+                            suiteSearchRemote = false,
+                            suiteSearchPage = 1,
+                            suiteSearchIsEnd = true
+                        )
+                    )
+                }
+                if (executeEmbeddedSearch(query, embeddedControl, suite, sourceUrl)) {
+                    lastEmbeddedSearchQuery = query
+                    return@launch
+                }
+                // If a source action fails at runtime, keep the existing standard/local
+                // search fallback instead of leaving the page in a broken search state.
+                vm.updateUiState {
+                    it.copy(enhance = it.enhance.copy(suiteSearchLoading = false))
+                }
+            }
+
             if (field == "name" && !source?.searchUrl.isNullOrBlank()) {
                 vm.updateUiState {
                     it.copy(
