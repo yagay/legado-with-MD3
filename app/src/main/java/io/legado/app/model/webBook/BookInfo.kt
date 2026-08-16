@@ -84,7 +84,6 @@ object BookInfo {
         try {
             analyzeRule.getStringList(infoRule.kind)
                 ?.joinToString(",")
-                ?.take(1000)
                 ?.let {
                     if (it.isNotEmpty()) book.kind = it
                     Debug.log(bookSource.bookSourceUrl, "└${it}")
@@ -121,9 +120,20 @@ object BookInfo {
         coroutineContext.ensureActive()
         Debug.log(bookSource.bookSourceUrl, "┌获取简介")
         try {
-            HtmlFormatter.format(analyzeRule.getString(infoRule.intro)).take(5000).let {
-                if (it.isNotEmpty()) book.intro = it
-                Debug.log(bookSource.bookSourceUrl, "└${it}")
+            val intro = analyzeRule.getString(infoRule.intro)
+            val introTrimS = intro.trimStart()
+            if (
+                introTrimS.startsWith("<usehtml>") ||
+                introTrimS.startsWith("<md>") ||
+                introTrimS.startsWith("<useweb>")
+            ) {
+                book.intro = introTrimS
+                Debug.log(bookSource.bookSourceUrl, "└${introTrimS}")
+            } else {
+                HtmlFormatter.formatIntro(intro).let {
+                    if (it.isNotEmpty()) book.intro = it
+                    Debug.log(bookSource.bookSourceUrl, "└${it}")
+                }
             }
         } catch (e: Exception) {
             coroutineContext.ensureActive()
