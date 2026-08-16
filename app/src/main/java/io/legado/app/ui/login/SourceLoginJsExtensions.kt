@@ -23,7 +23,8 @@ import java.lang.ref.WeakReference
 class SourceLoginJsExtensions(
     activity: AppCompatActivity?, source: BaseSource?,
     private val bookType: Int = 0,
-    callback: Callback? = null
+    callback: Callback? = null,
+    private val allowOpenLogin: Boolean = false
 ) : RssJsExtensions(activity, source) {
     private val callbackRef: WeakReference<Callback> = WeakReference(callback)
     interface Callback {
@@ -45,7 +46,7 @@ class SourceLoginJsExtensions(
     }
 
     override fun open(name: String, url: String?, title: String?, origin: String?) {
-        if (name == "login") {
+        if (name == "login" && !allowOpenLogin) {
             activityRef.get()?.toastOnUi("已在登录界面")
             return
         }
