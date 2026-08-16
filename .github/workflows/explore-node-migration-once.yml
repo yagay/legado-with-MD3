@@ -1,0 +1,34 @@
+name: One-time ExploreNode Migration
+
+on:
+  push:
+    branches:
+      - beta
+    paths:
+      - '.github/workflows/explore-node-migration-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: beta
+
+      - name: Migrate modern VM to ExploreNode
+        run: python3 .github/scripts/explore_node_migration_once.py
+
+      - name: Commit and remove temporary migration files
+        run: |
+          git config user.name "Jie"
+          git config user.email "1614094+yagay@users.noreply.github.com"
+          git rm .github/workflows/explore-node-migration-once.yml
+          git rm .github/scripts/explore_node_migration_once.py
+          git add modules/legado-enhance/java/io/legado/app/enhance/explore/vm/ExploreViewModelEnhance.kt
+          git diff --cached --check
+          git commit -m "refactor(explore): traverse enhance-owned ExploreNode tree"
+          git push origin HEAD:beta
