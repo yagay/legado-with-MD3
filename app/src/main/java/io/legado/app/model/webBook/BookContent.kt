@@ -85,6 +85,7 @@ object BookContent {
         )
         appendContent(contentData.first)
         if (contentData.second.size == 1) {
+            val webJs = contentRule.webJs
             var nextUrl = contentData.second[0]
             while (nextUrl.isNotEmpty() && !nextUrlList.contains(nextUrl)) {
                 if (!mNextChapterUrl.isNullOrEmpty()
@@ -99,7 +100,7 @@ object BookContent {
                     ruleData = book,
                     coroutineContext = coroutineContext
                 )
-                val res = analyzeUrl.getStrResponseAwait() //控制并发访问
+                val res = analyzeUrl.getStrResponseAwait(jsStr = webJs) //控制并发访问
                 res.body?.let { nextBody ->
                     contentData = analyzeContent(
                         book, nextUrl, res.url, nextBody, contentRule,
@@ -151,10 +152,10 @@ object BookContent {
                 rawSubContent
             }
             if (subContent.isNotBlank()) {
-                if (book.isOnLineTxt) {
-                    appendContent(subContent)
-                } else if (book.isAudio) {
-                    bookChapter.putVariable("lyric", subContent)
+                when {
+                    book.isOnLineTxt -> appendContent(subContent)
+                    book.isAudio -> bookChapter.putLyric(subContent)
+                    book.isVideo -> bookChapter.putDanmaku(subContent)
                 }
             }
         }
@@ -188,7 +189,9 @@ object BookContent {
         if (!replaceRegex.isNullOrEmpty()) {
             contentStr = contentStr.split(AppPattern.LFRegex).joinToString("\n") { it.trim() }
             contentStr = analyzeRule.getString(replaceRegex, contentStr)
-            contentStr = contentStr.split(AppPattern.LFRegex).joinToString("\n") { "　　$it" }
+            if (book.isOnLineTxt) {
+                contentStr = contentStr.split(AppPattern.LFRegex).joinToString("\n") { "　　$it" }
+            }
         }
         Debug.log(bookSource.bookSourceUrl, "┌获取章节名称")
         Debug.log(bookSource.bookSourceUrl, "└${bookChapter.title}")
