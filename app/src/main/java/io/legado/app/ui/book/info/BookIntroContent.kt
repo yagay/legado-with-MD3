@@ -133,7 +133,7 @@ private fun BookIntroWebView(
                                 ?.trim('"')
                                 ?.toDoubleOrNull()
                                 ?: return@evaluateJavascript
-                            val px = with(density) { (cssHeight * density).toInt() }
+                            val px = (cssHeight * density.density).toInt()
                             if (px > 0) contentHeightPx = px
                         }
                     }
