@@ -1,0 +1,29 @@
+name: One-time Explore Search Overlay Fix
+
+on:
+  push:
+    branches: [ beta ]
+    paths:
+      - '.github/workflows/fix-explore-search-overlay-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  refactor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: beta
+      - name: Move search into normal list flow
+        run: python .github/scripts/fix-explore-search-overlay.py
+      - name: Commit fix and remove temporary files
+        run: |
+          rm .github/scripts/fix-explore-search-overlay.py
+          rm .github/workflows/fix-explore-search-overlay-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(explore): stop source search from covering selected source"
+          git push origin beta
