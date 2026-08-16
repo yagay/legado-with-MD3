@@ -23,7 +23,6 @@ import io.legado.app.ui.widget.components.EmptyMessage
 import io.legado.app.ui.widget.components.LoadMoreFooter
 import io.legado.app.ui.widget.components.explore.DiscoverySuiteHeader
 import io.legado.app.ui.widget.components.explore.DiscoverySuiteHorizontalBooksWidget
-import io.legado.app.ui.widget.components.explore.ExploreKindMultiTypeItem
 import io.legado.app.ui.widget.components.progressIndicator.AppContainedLoadingIndicator
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.launch
@@ -73,18 +72,17 @@ fun DiscoverySuiteScreen(
                 bottom = paddingValues.calculateBottomPadding() + 80.dp
             )
         ) {
-            state.enhance.dynamicControls.forEachIndexed { index, kind ->
-                item(key = "dynamic_native_${index}_${kind.type}_${kind.title}") {
-                    ExploreKindMultiTypeItem(
-                        kind = kind,
+            if (state.enhance.dynamicControls.isNotEmpty()) {
+                item(key = "dynamic_native_controls") {
+                    AdaptiveExploreControlRows(
+                        controls = state.enhance.dynamicControls,
                         sourceUrl = suite.defaultSourceUrl,
-                        onOpenUrl = { url ->
+                        useCase = exploreKindUseCase,
+                        onOpenUrl = { kind, url ->
                             onOpenExploreShow(kind.title, suite.defaultSourceUrl.orEmpty(), url)
                         },
                         onRefreshKinds = { onIntent(ExploreIntent.RefreshSuite) },
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp),
-                        isMiuix = false,
-                        useCase = exploreKindUseCase
+                        modifier = Modifier.padding(vertical = 2.dp),
                     )
                 }
             }
