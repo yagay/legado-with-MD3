@@ -4,6 +4,7 @@ import com.script.ScriptBindings
 import com.script.buildScriptBindings
 import com.script.rhino.RhinoScriptEngine
 import io.legado.app.data.entities.BaseSource
+import io.legado.app.constant.AppLog
 import io.legado.app.help.CacheManager
 import io.legado.app.help.http.CookieStore
 import io.legado.app.help.source.getShareScope
@@ -54,9 +55,15 @@ object SourceJsEngineRouter {
         jsStr: String,
         bindingsConfig: ScriptBindings.() -> Unit = {},
     ): Any? {
-        return when (SourceJsEngineModeStore.getMode(source.getKey())) {
-            SourceJsEngineMode.LEGACY -> LegacySourceJsEngine.eval(source, jsStr, bindingsConfig)
-            SourceJsEngineMode.MODERN -> ModernSourceJsEngine.eval(source, jsStr, bindingsConfig)
+        val mode = SourceJsEngineModeStore.getMode(source.getKey())
+        return try {
+            when (mode) {
+                SourceJsEngineMode.LEGACY -> LegacySourceJsEngine.eval(source, jsStr, bindingsConfig)
+                SourceJsEngineMode.MODERN -> ModernSourceJsEngine.eval(source, jsStr, bindingsConfig)
+            }
+        } catch (error: Exception) {
+            AppLog.put("JavaScript [${mode.name}] ${source.getTag()}\n$error", error)
+            throw error
         }
     }
 }

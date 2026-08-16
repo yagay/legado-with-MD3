@@ -19,6 +19,8 @@ import io.legado.app.help.source.SourceHelp
 import io.legado.app.help.source.clearExploreKindsCache
 import io.legado.app.help.storage.ImportOldData
 import io.legado.app.model.SharedJsScope
+import io.legado.app.model.jsEngine.SourceJsEngineMode
+import io.legado.app.model.jsEngine.SourceJsEngineModeStore
 import io.legado.app.ui.widget.components.variable.VariableEditorUiState
 import io.legado.app.utils.GSON
 import io.legado.app.utils.fromJsonArray
@@ -50,6 +52,7 @@ class BookSourceEditViewModel(
     private var originalSource: BookSource? = null
     private var draftJson = JsonObject()
     private var baselineJson = ""
+    private var baselineJsEngineMode = SourceJsEngineMode.LEGACY
 
     fun onIntent(intent: BookSourceEditIntent) {
         when (intent) {
@@ -62,6 +65,7 @@ class BookSourceEditViewModel(
             is BookSourceEditIntent.SetEventListener -> updateFlags { copy(eventListener = intent.value) }
             is BookSourceEditIntent.SetCustomButton -> updateFlags { copy(customButton = intent.value) }
             is BookSourceEditIntent.SetSourceType -> updateFlags { copy(bookSourceType = intent.value) }
+            is BookSourceEditIntent.SetJsEngineMode -> updateFlags { copy(jsEngineMode = intent.value) }
             is BookSourceEditIntent.ImportText -> importText(intent.text)
             BookSourceEditIntent.ToggleAutoComplete -> _uiState.update { it.copy(autoComplete = !it.autoComplete) }
             BookSourceEditIntent.Save -> save(BookSourceEditEffect::Finish)
@@ -132,6 +136,8 @@ class BookSourceEditViewModel(
         if (asOriginal) originalSource = source
         draftJson = JsonParser.parseString(GSON.toJson(source)).asJsonObject
         if (asOriginal) baselineJson = GSON.toJson(source)
+        val jsEngineMode = SourceJsEngineModeStore.getMode(source.getKey())
+        if (asOriginal) baselineJsEngineMode = jsEngineMode
         val tab = _uiState.value.selectedTab
         _uiState.value = BookSourceEditUiState(
             loading = false,
@@ -143,6 +149,7 @@ class BookSourceEditViewModel(
             eventListener = source.eventListener,
             customButton = source.customButton,
             bookSourceType = source.bookSourceType,
+            jsEngineMode = jsEngineMode,
             autoComplete = _uiState.value.autoComplete,
         )
     }
@@ -169,7 +176,8 @@ class BookSourceEditViewModel(
     }
 
     private fun isDirty(state: BookSourceEditUiState): Boolean =
-        GSON.toJson(currentSource(state)) != baselineJson
+        GSON.toJson(currentSource(state)) != baselineJson ||
+            state.jsEngineMode != baselineJsEngineMode
 
     private fun currentSource(state: BookSourceEditUiState = _uiState.value): BookSource {
         return GSON.fromJson(draftJson, BookSource::class.java).apply {
@@ -228,8 +236,14 @@ class BookSourceEditViewModel(
             }
             repository.insert(source)
             concurrentRecordMap.remove(source.bookSourceUrl)
+                val selectedJsEngineMode = _uiState.value.jsEngineMode
+                originalSource?.bookSourceUrl?.takeIf { it != source.bookSourceUrl }?.let {
+                    SourceJsEngineModeStore.clearMode(it)
+                }
+                SourceJsEngineModeStore.setMode(source.bookSourceUrl, selectedJsEngineMode)
                 originalSource = source
                 baselineJson = GSON.toJson(source)
+                baselineJsEngineMode = selectedJsEngineMode
                 source.bookSourceUrl
             }.onSuccess { url ->
                 _uiState.update { it.copy(saving = false, dirty = false) }

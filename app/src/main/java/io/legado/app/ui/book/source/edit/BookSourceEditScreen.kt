@@ -35,6 +35,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.legado.app.R
+import io.legado.app.model.jsEngine.SourceJsEngineMode
 import io.legado.app.ui.about.MarkdownSheet
 import io.legado.app.ui.theme.LegadoTheme
 import io.legado.app.ui.widget.components.AppFloatingActionButton
@@ -258,6 +259,7 @@ private fun BookSourceOptions(
 ) {
     val sourceTypes = stringArrayResource(R.array.book_type)
     var typeMenuExpanded by remember { mutableStateOf(false) }
+    var jsEngineMenuExpanded by remember { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Box(modifier = Modifier.weight(1f)) {
@@ -314,6 +316,27 @@ private fun BookSourceOptions(
                 modifier = Modifier.weight(1f),
                 onClick = { onIntent(BookSourceEditIntent.SetCustomButton(!state.customButton)) },
             )
+        }
+        Box(modifier = Modifier.fillMaxWidth()) {
+            SourceEditOptionCard(
+                title = "JavaScript / Rhino",
+                subtitle = if (state.jsEngineMode == SourceJsEngineMode.LEGACY) "Legacy Rhino" else "Modern Rhino",
+                modifier = Modifier.fillMaxWidth(),
+                onClick = { jsEngineMenuExpanded = true },
+            )
+            RoundDropdownMenu(expanded = jsEngineMenuExpanded, onDismissRequest = { jsEngineMenuExpanded = false }) {
+                SourceJsEngineMode.entries.forEach { mode ->
+                    val title = if (mode == SourceJsEngineMode.LEGACY) "Legacy Rhino" else "Modern Rhino"
+                    RoundDropdownMenuItem(
+                        text = title,
+                        isSelected = state.jsEngineMode == mode,
+                        onClick = {
+                            jsEngineMenuExpanded = false
+                            onIntent(BookSourceEditIntent.SetJsEngineMode(mode))
+                        },
+                    )
+                }
+            }
         }
     }
 }

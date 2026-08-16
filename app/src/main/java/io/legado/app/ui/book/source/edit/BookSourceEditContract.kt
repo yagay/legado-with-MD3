@@ -4,6 +4,7 @@ import androidx.annotation.StringRes
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import io.legado.app.ui.widget.components.variable.VariableEditorUiState
+import io.legado.app.model.jsEngine.SourceJsEngineMode
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableMap
 import kotlinx.collections.immutable.persistentMapOf
@@ -37,6 +38,7 @@ data class BookSourceEditUiState(
     val eventListener: Boolean = false,
     val customButton: Boolean = false,
     val bookSourceType: Int = 0,
+    val jsEngineMode: SourceJsEngineMode = SourceJsEngineMode.LEGACY,
     val autoComplete: Boolean = false,
     val dirty: Boolean = false,
     val activeSheet: BookSourceEditSheet? = null,
@@ -63,6 +65,7 @@ sealed interface BookSourceEditIntent {
     data class SetEventListener(val value: Boolean) : BookSourceEditIntent
     data class SetCustomButton(val value: Boolean) : BookSourceEditIntent
     data class SetSourceType(val value: Int) : BookSourceEditIntent
+    data class SetJsEngineMode(val value: SourceJsEngineMode) : BookSourceEditIntent
     data class ImportText(val text: String) : BookSourceEditIntent
     data object ToggleAutoComplete : BookSourceEditIntent
     data object Save : BookSourceEditIntent
