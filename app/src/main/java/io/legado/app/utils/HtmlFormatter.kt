@@ -9,7 +9,7 @@ import java.util.regex.Pattern
 object HtmlFormatter {
     private val nbspRegex = "(&nbsp;)+".toRegex()
     private val espRegex = "(&ensp;|&emsp;)".toRegex()
-    private val noPrintRegex = "(&thinsp;|&zwnj;|&zwj;|\u2009|\u200C|\u200D)".toRegex()
+    private val noPrintRegex = "(&thinsp;|&zwnj;|&zwj|\u2009|\u200C|\u200D)".toRegex()
     private val wrapHtmlRegex = "</?(?:div|p|br|hr|h\\d|article|dd|dl)[^>]*>".toRegex()
     private val commentRegex = "<!--[^>]*-->".toRegex() //注释
     private val notImgHtmlRegex = "</?(?!img)[a-zA-Z]+(?=[ >])[^<>]*>".toRegex()
@@ -49,6 +49,12 @@ object HtmlFormatter {
 
     fun format(html: String?, otherRegex: Regex = otherHtmlRegex): String =
         format(html, otherRegex, "　　")
+
+    /**
+     * Legado 详情/列表简介的基础纯文本格式化语义：保留换行，但不自动添加段首全角缩进。
+     */
+    fun formatIntro(html: String?): String =
+        format(html, otherHtmlRegex, "")
 
     private fun format(html: String?, otherRegex: Regex, paragraphIndent: String): String {
         html ?: return ""
@@ -142,7 +148,7 @@ object HtmlFormatter {
                 appendPos,
                 keepImgHtml.length
             )
-        )
+        }
         return sb.toString()
     }
 }
