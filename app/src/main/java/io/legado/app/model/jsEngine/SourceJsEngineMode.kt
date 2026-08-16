@@ -1,6 +1,10 @@
 package io.legado.app.model.jsEngine
 
 import android.content.Context
+import com.script.upstream.ScriptBindings as UpstreamScriptBindings
+import io.legado.app.data.entities.BookSource
+import io.legado.app.data.entities.RssSource
+import io.legado.app.utils.MD5Utils
 import splitties.init.appCtx
 
 /**
@@ -28,6 +32,9 @@ object SourceJsEngineModeStore {
     }
 
     fun setMode(sourceKey: String, mode: SourceJsEngineMode) {
+        if (getMode(sourceKey) != mode) {
+            clearUpstreamGlobals(sourceKey)
+        }
         if (mode == SourceJsEngineMode.LEGACY) {
             preferences.edit().remove(sourceKey).apply()
         } else {
@@ -37,5 +44,17 @@ object SourceJsEngineModeStore {
 
     fun clearMode(sourceKey: String) {
         preferences.edit().remove(sourceKey).apply()
+    }
+
+    private fun clearUpstreamGlobals(sourceKey: String) {
+        val sourceHash = MD5Utils.md5Encode(sourceKey)
+        UpstreamScriptBindings.removeSharedGlobalStatesBySource(
+            BookSource::class.java.name,
+            sourceHash,
+        )
+        UpstreamScriptBindings.removeSharedGlobalStatesBySource(
+            RssSource::class.java.name,
+            sourceHash,
+        )
     }
 }
