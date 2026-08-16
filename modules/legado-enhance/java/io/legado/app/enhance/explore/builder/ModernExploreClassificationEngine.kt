@@ -13,6 +13,7 @@ import io.legado.app.utils.GSON
  * - source.exploreKinds() 保持原始 type/action/chars/default/style 与顺序；
  * - 只有原始 JSON 明确提供 children 时才建立 TREE；
  * - 无显式树时，优先恢复旧式书源通过“满行空 URL 标题 + 标题外框”表达的视觉层级；
+ * - 对层级内完整的二维 URL 组合，仅在标题模式和 URL 参数同时证明为笛卡尔积时拆成两个选择维度；
  * - 其余平面书源仍仅根据纯展示 Header 与原始顺序建立 SECTION；
  * - 不根据分类名称猜测频道、状态、榜单等业务语义。
  */
@@ -135,7 +136,7 @@ object ModernExploreClassificationEngine {
         fun flushCategory() {
             val indexed = categoryKind ?: return
             parentChildren += indexed.value.toNode(
-                children = categoryChildren.toList(),
+                children = ModernExploreMatrixFactorizer.factor(categoryChildren.toList()),
                 level = 1,
                 sourceIndex = indexed.index,
                 sourceKey = indexed.index.toString(),
