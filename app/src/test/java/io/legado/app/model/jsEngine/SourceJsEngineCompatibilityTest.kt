@@ -1,9 +1,12 @@
 package io.legado.app.model.jsEngine
 
 import android.app.Application
+import com.google.gson.JsonParser
 import io.legado.app.data.entities.BookSource
+import io.legado.app.utils.GSON
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -36,6 +39,46 @@ class SourceJsEngineCompatibilityTest {
 
         assertEquals(SourceJsEngineMode.LEGACY, SourceJsEngineModeStore.getMode(source.getKey()))
         assertEquals(3.0, source.evalJS("1 + 2"))
+    }
+
+    @Test
+    fun `portable source metadata round trips both Rhino modes`() {
+        val modern = modernSource("portable-modern")
+        val legacy = source("portable-legacy")
+
+        val json = BookSourceJsEngineMetadata.toJson(listOf(modern, legacy))
+        val items = JsonParser.parseString(json).asJsonArray
+
+        assertEquals(SourceJsEngineMode.MODERN, BookSourceJsEngineMetadata.readMode(items[0]))
+        assertEquals(SourceJsEngineMode.LEGACY, BookSourceJsEngineMetadata.readMode(items[1]))
+        assertEquals(modern.getKey(), BookSourceJsEngineMetadata.readSourceKey(items[0]))
+        assertEquals(legacy.getKey(), BookSourceJsEngineMetadata.readSourceKey(items[1]))
+    }
+
+    @Test
+    fun `portable metadata stays compatible with normal BookSource Gson parsing`() {
+        val original = source("portable-gson")
+        val json = BookSourceJsEngineMetadata.toJson(original, SourceJsEngineMode.MODERN)
+
+        val restored = GSON.fromJson(json, BookSource::class.java)
+
+        assertEquals(original.bookSourceUrl, restored.bookSourceUrl)
+        assertEquals(original.bookSourceName, restored.bookSourceName)
+        assertEquals(SourceJsEngineMode.MODERN, BookSourceJsEngineMetadata.readMode(json))
+    }
+
+    @Test
+    fun `malformed portable metadata is ignored safely`() {
+        assertNull(
+            BookSourceJsEngineMetadata.readMode(
+                """{"bookSourceUrl":"https://compat.test/bad","_legadoEnhance":"bad"}"""
+            )
+        )
+        assertNull(
+            BookSourceJsEngineMetadata.readMode(
+                """{"bookSourceUrl":"https://compat.test/bad","_legadoEnhance":{"jsEngine":"UNKNOWN"}}"""
+            )
+        )
     }
 
     @Test
