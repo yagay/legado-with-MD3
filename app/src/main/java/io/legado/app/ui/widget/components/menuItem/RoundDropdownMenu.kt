@@ -118,6 +118,7 @@ fun RoundDropdownMenuLazy(
     height: Dp = 320.dp,
     state: LazyListState = rememberLazyListState(),
     showFastScroll: Boolean = false,
+    fixedHeader: (@Composable () -> Unit)? = null,
     content: LazyListScope.(dismiss: () -> Unit) -> Unit
 ) {
     val isMiuix = ThemeResolver.isMiuixEngine(LegadoTheme.composeEngine)
@@ -133,28 +134,35 @@ fun RoundDropdownMenuLazy(
             ) {
                 ProvideAppDensity {
                     ProvideAppContentColor(popupContentColor) {
-                        val listModifier = Modifier
-                            .requiredSize(width = width, height = height)
-                            .background(popupContainerColor)
-                        if (showFastScroll) {
-                            FastScrollLazyColumn(
-                                modifier = listModifier,
-                                state = state,
-                                verticalArrangement = Arrangement.spacedBy(verticalSpacing)
-                            ) {
-                                item { Spacer(Modifier.height(12.dp)) }
-                                content(onDismissRequest)
-                                item { Spacer(Modifier.height(12.dp)) }
-                            }
-                        } else {
-                            LazyColumn(
-                                modifier = listModifier,
-                                state = state,
-                                verticalArrangement = Arrangement.spacedBy(verticalSpacing)
-                            ) {
-                                item { Spacer(Modifier.height(12.dp)) }
-                                content(onDismissRequest)
-                                item { Spacer(Modifier.height(12.dp)) }
+                        Column(
+                            modifier = Modifier
+                                .requiredSize(width = width, height = height)
+                                .background(popupContainerColor)
+                        ) {
+                            fixedHeader?.invoke()
+                            val listModifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                            if (showFastScroll) {
+                                FastScrollLazyColumn(
+                                    modifier = listModifier,
+                                    state = state,
+                                    verticalArrangement = Arrangement.spacedBy(verticalSpacing)
+                                ) {
+                                    item { Spacer(Modifier.height(12.dp)) }
+                                    content(onDismissRequest)
+                                    item { Spacer(Modifier.height(12.dp)) }
+                                }
+                            } else {
+                                LazyColumn(
+                                    modifier = listModifier,
+                                    state = state,
+                                    verticalArrangement = Arrangement.spacedBy(verticalSpacing)
+                                ) {
+                                    item { Spacer(Modifier.height(12.dp)) }
+                                    content(onDismissRequest)
+                                    item { Spacer(Modifier.height(12.dp)) }
+                                }
                             }
                         }
                     }
@@ -180,22 +188,29 @@ fun RoundDropdownMenuLazy(
                     motionScheme = MotionScheme.expressive(),
                     shapes = Shapes()
                 ) {
-                    val listModifier = Modifier.requiredSize(width = width, height = height)
-                    if (showFastScroll) {
-                        FastScrollLazyColumn(
-                            modifier = listModifier,
-                            state = state,
-                            verticalArrangement = Arrangement.spacedBy(verticalSpacing)
-                        ) {
-                            content(onDismissRequest)
-                        }
-                    } else {
-                        LazyColumn(
-                            modifier = listModifier,
-                            state = state,
-                            verticalArrangement = Arrangement.spacedBy(verticalSpacing)
-                        ) {
-                            content(onDismissRequest)
+                    Column(
+                        modifier = Modifier.requiredSize(width = width, height = height)
+                    ) {
+                        fixedHeader?.invoke()
+                        val listModifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                        if (showFastScroll) {
+                            FastScrollLazyColumn(
+                                modifier = listModifier,
+                                state = state,
+                                verticalArrangement = Arrangement.spacedBy(verticalSpacing)
+                            ) {
+                                content(onDismissRequest)
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = listModifier,
+                                state = state,
+                                verticalArrangement = Arrangement.spacedBy(verticalSpacing)
+                            ) {
+                                content(onDismissRequest)
+                            }
                         }
                     }
                 }

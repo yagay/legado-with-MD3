@@ -51,6 +51,7 @@ fun GlassMediumFlexibleTopAppBar(
     subtitleDropdownMenuHeight: Dp = 320.dp,
     subtitleDropdownMenuState: LazyListState = rememberLazyListState(),
     subtitleDropdownMenuFastScroll: Boolean = false,
+    subtitleDropdownMenuFixedHeader: (@Composable () -> Unit)? = null,
     subtitleMenuExpanded: Boolean? = null,
     onSubtitleMenuExpandedChange: ((Boolean) -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
@@ -235,7 +236,8 @@ fun GlassMediumFlexibleTopAppBar(
                 width = subtitleDropdownMenuWidth,
                 height = subtitleDropdownMenuHeight,
                 state = subtitleDropdownMenuState,
-                showFastScroll = subtitleDropdownMenuFastScroll
+                showFastScroll = subtitleDropdownMenuFastScroll,
+                fixedHeader = subtitleDropdownMenuFixedHeader,
             ) {
                 subtitleDropdownMenuLazy { setSubtitleMenuExpanded(false) }
             }

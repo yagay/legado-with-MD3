@@ -54,7 +54,6 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -217,8 +216,6 @@ fun ExploreScreen(
         }
     }
     val sourceMenuListState = rememberLazyListState()
-    val sourceMenuDensity = LocalDensity.current
-    val sourceSearchHeaderOffsetPx = with(sourceMenuDensity) { 68.dp.roundToPx() }
     var sourceMenuExpanded by rememberSaveable { mutableStateOf(false) }
     val defaultSourceIndex = remember(filteredSourceMenuItems, state.enhance.selectedSuite?.defaultSourceUrl) {
         filteredSourceMenuItems.indexOfFirst {
@@ -229,10 +226,7 @@ fun ExploreScreen(
         if (sourceMenuExpanded && sourceActionMenuSource == null && defaultSourceIndex >= 0) {
             // Miuix adds one outer spacer before the shared header item.
             val menuPrefixCount = if (composeEngine) 3 else 2
-            sourceMenuListState.scrollToItem(
-                index = defaultSourceIndex + menuPrefixCount,
-                scrollOffset = -sourceSearchHeaderOffsetPx,
-            )
+            sourceMenuListState.scrollToItem(defaultSourceIndex + menuPrefixCount)
         }
     }
     val configuration = LocalConfiguration.current
@@ -258,6 +252,31 @@ fun ExploreScreen(
         subtitleDropdownMenuHeight = sourceMenuHeight,
         subtitleDropdownMenuState = sourceMenuListState,
         subtitleDropdownMenuFastScroll = state.layoutMode == 1,
+        subtitleDropdownMenuFixedHeader = if (state.layoutMode == 1 && sourceActionMenuSource == null) {
+            {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surface)
+                ) {
+                    OutlinedTextField(
+                        value = sourceMenuQuery,
+                        onValueChange = { sourceMenuQuery = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        placeholder = { Text(stringResource(R.string.search)) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = null
+                            )
+                        },
+                        singleLine = true
+                    )
+                }
+            }
+        } else null,
         subtitleMenuExpanded = if (state.layoutMode == 1) sourceMenuExpanded else null,
         onSubtitleMenuExpandedChange = if (state.layoutMode == 1) {
             { expanded ->
@@ -274,29 +293,6 @@ fun ExploreScreen(
                 if (actionSource == null) {
                     item(key = "source_menu_header") {
                         PillHeaderDivider(title = "选择首页源")
-                    }
-                    stickyHeader(key = "source_menu_search") {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(MaterialTheme.colorScheme.surface)
-                        ) {
-                            OutlinedTextField(
-                                value = sourceMenuQuery,
-                                onValueChange = { sourceMenuQuery = it },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                            placeholder = { Text(stringResource(R.string.search)) },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.Search,
-                                    contentDescription = null
-                                )
-                            },
-                                singleLine = true
-                            )
-                        }
                     }
                     items(
                         items = filteredSourceMenuItems,

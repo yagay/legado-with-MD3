@@ -45,6 +45,7 @@ fun <T> DynamicTopAppBar(
     subtitleDropdownMenuHeight: Dp = 320.dp,
     subtitleDropdownMenuState: LazyListState = rememberLazyListState(),
     subtitleDropdownMenuFastScroll: Boolean = false,
+    subtitleDropdownMenuFixedHeader: (@Composable () -> Unit)? = null,
     subtitleMenuExpanded: Boolean? = null,
     onSubtitleMenuExpandedChange: ((Boolean) -> Unit)? = null,
     state: ListUiState<T>,
@@ -88,6 +89,7 @@ fun <T> DynamicTopAppBar(
         subtitleDropdownMenuHeight = subtitleDropdownMenuHeight,
         subtitleDropdownMenuState = subtitleDropdownMenuState,
         subtitleDropdownMenuFastScroll = subtitleDropdownMenuFastScroll,
+        subtitleDropdownMenuFixedHeader = subtitleDropdownMenuFixedHeader,
         subtitleMenuExpanded = subtitleMenuExpanded,
         onSubtitleMenuExpandedChange = onSubtitleMenuExpandedChange,
         navigationIcon = {
