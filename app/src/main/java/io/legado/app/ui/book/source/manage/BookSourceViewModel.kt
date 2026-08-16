@@ -590,9 +590,10 @@ class BookSourceViewModel(
             }
             SourceHelp.insertBookSource(*sources.toTypedArray())
             selectedItems.zip(sources).forEach { (wrapper, source) ->
-                pendingImportJsEngineModes[source.bookSourceUrl]?.let { mode ->
-                    SourceJsEngineModeStore.setMode(source.bookSourceUrl, mode)
-                } ?: if (wrapper.oldData?.bookSourceUrl != source.bookSourceUrl) {
+                val importedMode = pendingImportJsEngineModes[source.bookSourceUrl]
+                if (importedMode != null) {
+                    SourceJsEngineModeStore.setMode(source.bookSourceUrl, importedMode)
+                } else if (wrapper.oldData?.bookSourceUrl != source.bookSourceUrl) {
                     SourceJsEngineModeStore.clearMode(source.bookSourceUrl)
                 }
             }
