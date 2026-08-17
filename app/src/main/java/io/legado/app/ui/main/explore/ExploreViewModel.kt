@@ -141,6 +141,9 @@ class ExploreViewModel(
         }
     }
 
+
+
+
     private fun observeGroups() {
         viewModelScope.launch {
             exploreRepository.getExploreGroups()
@@ -154,6 +157,8 @@ class ExploreViewModel(
     internal fun toggleLayoutMode() {
         val newMode = if (_uiState.value.layoutMode == 0) 1 else 0
         enhance.clearSuiteSearchJob()
+        // 两种布局的搜索语义不同：列表搜“源”，瀑布流搜“书”。切换布局时清空搜索，
+        // 避免同一个关键字被另一种布局误解释。
         _uiState.update {
             it.copy(
                 layoutMode = newMode,
@@ -169,6 +174,7 @@ class ExploreViewModel(
             )
         }
         observeExplore()
+        // 直接复用上游字段 exploreLayoutMode
         viewModelScope.launch {
             shellSettingsGateway.update { it.copy(exploreLayoutMode = newMode) }
         }
@@ -187,10 +193,14 @@ class ExploreViewModel(
     fun search(key: String) {
         val query = key.trim()
         _uiState.update { it.copy(searchKey = key, expandedId = null) }
+
+        // 普通列表布局：保持原来的行为，只过滤发现页中的书源列表。
         if (_uiState.value.layoutMode == 0) {
             observeExplore()
             return
         }
+
+        // 瀑布流/DiscoverySuite：搜索的是“书”，不再过滤左侧书源列表。
         enhance.searchSuiteBooks(query)
     }
 
@@ -211,6 +221,8 @@ class ExploreViewModel(
         exploreJob?.cancel()
         exploreJob = viewModelScope.launch {
             val state = _uiState.value
+            // 列表布局的 searchKey 用于过滤书源；瀑布流的 searchKey 用于搜索书籍，
+            // 两者不能混用，否则瀑布流搜索关键字会错误地把左上角书源菜单也过滤掉。
             val query = if (state.layoutMode == 0) state.searchKey else ""
             val selectedGroup = state.selectedGroup
 
@@ -218,6 +230,7 @@ class ExploreViewModel(
                 .flowOn(IO)
                 .collectLatest { items ->
                     _uiState.update { it.copy(items = items.toImmutableList()) }
+                    // [ENHANCE] Resolve source name for DiscoverySuite once items are loaded
                     if (_uiState.value.layoutMode == 1) {
                         if (pendingDiscoverySuiteLoadAfterSources && items.isNotEmpty()) {
                             pendingDiscoverySuiteLoadAfterSources = false
