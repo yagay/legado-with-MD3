@@ -23,6 +23,7 @@ import io.legado.app.ui.main.explore.ExploreEffect
 import io.legado.app.ui.main.explore.ExploreIntent
 import io.legado.app.ui.main.explore.ExploreViewModel
 import io.legado.app.ui.main.explore.ExploreViewModel.DynamicSelectorUi
+import io.legado.app.ui.widget.components.explore.calculateExploreKindRows
 import kotlinx.collections.immutable.*
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.Job
@@ -46,6 +47,8 @@ data class EnhanceState(
     val showCategorySheet: Boolean = false,
     val dynamicSelectors: ImmutableList<DynamicSelectorUi> = persistentListOf(),
     val dynamicControls: ImmutableList<ExploreKind> = persistentListOf(),
+    val sourceKindPreviewRows: ImmutableList<ImmutableList<Pair<ExploreKind, Int>>> = persistentListOf(),
+    val sourceKindPreviewReady: Boolean = false,
     val selectedWidgetKeys: ImmutableMap<String, String> = persistentMapOf(),
     val dynamicCategoryTargets: ImmutableList<DiscoverySuiteWidgetTarget> = persistentListOf(),
     val dynamicRankTargets: ImmutableList<ImmutableList<DiscoverySuiteWidgetTarget>> = persistentListOf(),
@@ -204,6 +207,8 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
                     widgetIsEnd = persistentMapOf(),
                     dynamicSelectors = persistentListOf(),
                     dynamicControls = persistentListOf(),
+                    sourceKindPreviewRows = persistentListOf(),
+                    sourceKindPreviewReady = false,
                     selectedWidgetKeys = persistentMapOf(),
                     suiteSearchBooks = null,
                     suiteSearchLoading = false,
@@ -228,6 +233,7 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
             } catch (_: Exception) {
                 emptyList()
             }
+            val sourceKindPreviewRows = buildSourceKindPreviewRows(rawKinds)
             val classification = try {
                 ModernExploreClassificationEngine.classify(
                     rawKinds,
@@ -253,7 +259,13 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
                 .firstOrNull { it.title.startsWith("ERROR:", ignoreCase = true) }
                 ?.let { it.url?.takeIf(String::isNotBlank) ?: it.title }
             vm.updateUiState { state ->
-                state.copy(enhance = state.enhance.copy(exploreError = exploreError))
+                state.copy(
+                    enhance = state.enhance.copy(
+                        exploreError = exploreError,
+                        sourceKindPreviewRows = sourceKindPreviewRows,
+                        sourceKindPreviewReady = true,
+                    )
+                )
             }
             allSourceControls = if (classification.mode == ExploreMode.TREE) {
                 ModernExploreControlExtractor.fromTreeRoot(classification.nodes)
@@ -454,6 +466,8 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
                     suiteSearchBooks = null,
                     suiteSearchLoading = false,
                     suiteSearchRemote = false,
+                    sourceKindPreviewRows = persistentListOf(),
+                    sourceKindPreviewReady = false,
                 )
             )
         }
@@ -475,6 +489,7 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
 
                 source.clearExploreKindsCache()
                 allSourceRawKinds = source.exploreKinds()
+                val sourceKindPreviewRows = buildSourceKindPreviewRows(allSourceRawKinds)
                 val classification = ModernExploreClassificationEngine.classify(
                     allSourceRawKinds,
                     source.exploreKindsJson()
@@ -494,7 +509,13 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
                     .firstOrNull { it.title.startsWith("ERROR:", ignoreCase = true) }
                     ?.let { it.url?.takeIf(String::isNotBlank) ?: it.title }
                 vm.updateUiState { state ->
-                    state.copy(enhance = state.enhance.copy(exploreError = exploreError))
+                    state.copy(
+                        enhance = state.enhance.copy(
+                            exploreError = exploreError,
+                            sourceKindPreviewRows = sourceKindPreviewRows,
+                            sourceKindPreviewReady = true,
+                        )
+                    )
                 }
                 allSourceControls = if (classification.mode == ExploreMode.TREE) {
                     ModernExploreControlExtractor.fromTreeRoot(classification.nodes)
@@ -507,6 +528,14 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
             } catch (_: Exception) {
             }
         }
+    }
+
+    private fun buildSourceKindPreviewRows(
+        kinds: List<ExploreKind>
+    ): ImmutableList<ImmutableList<Pair<ExploreKind, Int>>> {
+        return calculateExploreKindRows(kinds, maxSpan = 6)
+            .map { it.toImmutableList() }
+            .toImmutableList()
     }
 
     private fun rebuildSelectors(suite: DiscoverySuite, defaultSourceUrl: String) {

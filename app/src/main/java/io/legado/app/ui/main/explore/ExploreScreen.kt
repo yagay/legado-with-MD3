@@ -83,7 +83,6 @@ import io.legado.app.ui.widget.components.card.GlassCard
 import io.legado.app.ui.widget.components.card.TextCard
 import io.legado.app.ui.widget.components.divider.PillHeaderDivider
 import io.legado.app.ui.widget.components.explore.ExploreKindMultiTypeItem
-import io.legado.app.ui.widget.components.explore.calculateExploreKindRows
 import io.legado.app.ui.widget.components.lazylist.FastScrollLazyColumn
 import io.legado.app.ui.widget.components.list.ListScaffold
 import io.legado.app.ui.widget.components.list.TopFloatingStickyItem
@@ -96,9 +95,7 @@ import io.legado.app.ui.widget.components.text.AppText
 import io.legado.app.ui.widget.components.topbar.TopBarActionButton
 import io.legado.app.enhance.explore.screen.ExploreConfigEnhance
 import io.legado.app.enhance.explore.screen.ExploreScreenEnhance
-import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -201,25 +198,10 @@ fun ExploreScreen(
     val scope = rememberCoroutineScope()
     val previewExploreKindUseCase: ExploreKindUiUseCase = koinInject()
     var sourceKindPreviewUrl by rememberSaveable { mutableStateOf<String?>(null) }
-    var sourceKindPreviewRows by remember { mutableStateOf<List<List<Pair<ExploreKind, Int>>>>(emptyList()) }
-    var sourceKindPreviewLoading by remember { mutableStateOf(false) }
+    val sourceKindPreviewRows = state.enhance.sourceKindPreviewRows
+    val sourceKindPreviewLoading = !state.enhance.sourceKindPreviewReady
     val sourceKindPreviewSource = remember(sourceKindPreviewUrl, state.items) {
         state.items.firstOrNull { it.bookSourceUrl == sourceKindPreviewUrl }
-    }
-    LaunchedEffect(sourceKindPreviewUrl, sourceKindPreviewSource) {
-        val source = sourceKindPreviewSource
-        if (sourceKindPreviewUrl == null || source == null) {
-            sourceKindPreviewRows = emptyList()
-            sourceKindPreviewLoading = false
-            return@LaunchedEffect
-        }
-        sourceKindPreviewLoading = true
-        sourceKindPreviewRows = withContext(IO) {
-            runCatching {
-                calculateExploreKindRows(source.exploreKinds(), maxSpan = 6)
-            }.getOrDefault(emptyList())
-        }
-        sourceKindPreviewLoading = false
     }
 
     val composeEngine = ThemeResolver.isMiuixEngine(composeEngine)
@@ -494,7 +476,6 @@ fun ExploreScreen(
         show = state.layoutMode == 1 && sourceKindPreviewUrl != null,
         onDismissRequest = {
             sourceKindPreviewUrl = null
-            sourceKindPreviewRows = emptyList()
         },
         title = sourceKindPreviewSource?.bookSourceName ?: state.enhance.selectedSourceName,
     ) {
@@ -543,12 +524,10 @@ fun ExploreScreen(
                                     onOpenUrl = { url ->
                                         val sourceUrl = sourceKindPreviewUrl.orEmpty()
                                         sourceKindPreviewUrl = null
-                                        sourceKindPreviewRows = emptyList()
                                         onOpenExploreShow(kind.title, sourceUrl, url)
                                     },
                                     onRefreshKinds = {
                                         sourceKindPreviewUrl = null
-                                        sourceKindPreviewRows = emptyList()
                                         onIntent(ExploreIntent.RefreshSuite)
                                     },
                                     modifier = Modifier.weight(span.toFloat()),
