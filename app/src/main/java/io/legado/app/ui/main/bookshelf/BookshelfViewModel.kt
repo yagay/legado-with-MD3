@@ -467,9 +467,12 @@ class BookshelfViewModel(
         )
     }
 
-    private val groupPreviewsStateFlow = MutableStateFlow(
-        GroupPreviewState(persistentMapOf(), persistentMapOf(), 0)
-    )
+    private val groupPreviewsStateFlow: StateFlow<GroupPreviewState> = groupPreviewsFlow
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            GroupPreviewState(persistentMapOf(), persistentMapOf(), 0)
+        )
 
     private val dataStateFlow = combine(
         selectedBooksStateFlow,
@@ -650,9 +653,6 @@ class BookshelfViewModel(
             }
         }
 
-        viewModelScope.launch {
-            groupPreviewsFlow.collect { groupPreviewsStateFlow.value = it }
-        }
         viewModelScope.launch {
             combine(booksFlow, selectedGroupCanReorderFlow) { books, canReorderBooks ->
                 books to canReorderBooks

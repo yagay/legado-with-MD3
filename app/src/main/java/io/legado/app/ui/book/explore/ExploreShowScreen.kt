@@ -363,7 +363,7 @@ fun ExploreShowScreen(
                                     previewBook = book
                                     previewSharedCoverKey = coverKey
                                 },
-                                modifier = Modifier.animateItem(),
+                                modifier = Modifier,
                                 sharedTransitionScope = sharedTransitionScope,
                                 animatedVisibilityScope = animatedVisibilityScope,
                                 sharedCoverKey = sharedCoverKey,
@@ -414,7 +414,7 @@ fun ExploreShowScreen(
                                     previewBook = book
                                     previewSharedCoverKey = coverKey
                                 },
-                                modifier = Modifier.animateItem(),
+                                modifier = Modifier,
                                 sharedTransitionScope = sharedTransitionScope,
                                 animatedVisibilityScope = animatedVisibilityScope,
                                 sharedCoverKey = sharedCoverKey,

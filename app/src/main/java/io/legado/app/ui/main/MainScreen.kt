@@ -107,6 +107,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.math.abs
 import org.koin.androidx.compose.koinViewModel
 import top.yukonga.miuix.kmp.basic.FloatingActionButton
 import top.yukonga.miuix.kmp.basic.NavigationRailDefaults
@@ -244,7 +245,13 @@ fun MainScreen(
             return
         }
         coroutineScope.launch {
-            pagerState.animateScrollToPage(index)
+            // Avoid animating through every intermediate top-level page.
+            // Distant tab jumps used to compose/measure several heavy pages in one gesture.
+            if (abs(pagerState.currentPage - index) > 1) {
+                pagerState.scrollToPage(index)
+            } else {
+                pagerState.animateScrollToPage(index)
+            }
         }
     }
     LaunchedEffect(destinations) {
@@ -259,6 +266,9 @@ fun MainScreen(
     val useLiquidGlass = useFloatingBottomBar &&
             mainUiState.useFloatingBottomBarLiquidGlass &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+    // Blur/backdrop capture is one of the most expensive operations while the root pager moves.
+    // Keep the visual effect at rest, but suspend it for the duration of a page transition.
+    val enableLiquidGlassRendering = useLiquidGlass && !pagerState.isScrollInProgress
     val alwaysShowLabel = labelVisibilityMode == "labeled"
     val showLabel = !isUnlabeled
 
@@ -497,7 +507,7 @@ fun MainScreen(
             ) {
                 Box(
                     modifier = Modifier.then(
-                        if (useLiquidGlass) {
+                        if (enableLiquidGlassRendering) {
                             Modifier
                                 .hazeSource(hazeState)
                                 .layerBackdrop(floatingBarBackdrop)
@@ -517,7 +527,7 @@ fun MainScreen(
                                 }
                             ),
                         userScrollEnabled = true,
-                        beyondViewportPageCount = 4
+                        beyondViewportPageCount = 1
                     ) { page ->
                         val destination = destinations.getOrNull(page) ?: return@HorizontalPager
                         val pageLifecycleOwner = rememberMainPageLifecycleOwner(
@@ -657,7 +667,7 @@ fun MainScreen(
                             },
                             backdrop = floatingBarBackdrop,
                             tabsCount = destinations.size,
-                            isBlurEnabled = useLiquidGlass,
+                            isBlurEnabled = enableLiquidGlassRendering,
                             hasCustomIcons = destinations.any { dest ->
                                 mainUiState.customIconPath(dest).isNotEmpty() ||
                                         mainUiState.selectedCustomIconPath(dest).isNotEmpty()
@@ -741,7 +751,7 @@ private class MainPageLifecycleOwner : LifecycleOwner {
             parentState == Lifecycle.State.INITIALIZED -> Lifecycle.State.INITIALIZED
             parentState == Lifecycle.State.CREATED -> Lifecycle.State.CREATED
             isActive -> parentState
-            else -> Lifecycle.State.STARTED
+            else -> Lifecycle.State.CREATED
         }
     }
 
