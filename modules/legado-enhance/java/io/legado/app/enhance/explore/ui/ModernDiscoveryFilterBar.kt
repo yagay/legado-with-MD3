@@ -45,8 +45,8 @@ import kotlin.math.roundToInt
  * - 展开项单独在下一排 FlowRow 展示；
  * - 点击任意选项后自动收起。
  *
- * 大分类源展开时分帧加入选项，避免一次性创建数百个 Compose 节点阻塞主线程。
- * 只复用分类交互/布局逻辑，颜色和字体继续使用 MD3 当前主题。
+ * 大分类源在折叠状态只计算和分配第一排；剩余索引只有真正展开时才生成，
+ * 展开后再分帧加入选项，避免切换分类时为数百个隐藏项制造临时对象和 Compose 节点。
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -74,7 +74,6 @@ fun ModernDiscoveryFilterBar(
         val optionSpacing = 6.dp
         val optionStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp)
         val displayTitle = remember(title) { stripWrapSymbols(title) }
-        val displayOptions = remember(targets) { targets.map { stripWrapSymbols(it.title) } }
         val selectedIndex = remember(targets, selectedTargetTitle) {
             targets.indexOfFirst { it.title == selectedTargetTitle }
         }
@@ -84,9 +83,8 @@ fun ModernDiscoveryFilterBar(
         }.roundToInt().coerceAtLeast(0)
         val markerWidthPx = with(density) { markerWidth.toPx() }.roundToInt()
 
-        val layout = remember(
+        val firstLine = remember(
             targets,
-            displayOptions,
             selectedIndex,
             contentWidthPx,
             markerWidthPx,
@@ -94,72 +92,70 @@ fun ModernDiscoveryFilterBar(
             optionStyle,
             density
         ) {
-            fun countFor(indices: Iterable<Int>, widthPx: Int): Int {
+            fun fitIndices(indices: Sequence<Int>, widthPx: Int): List<Int> {
                 val chipPaddingPx = with(density) {
                     (optionHorizontalPadding * 2).toPx()
                 }.roundToInt()
                 val spacingPx = with(density) { optionSpacing.toPx() }.roundToInt()
+                val result = ArrayList<Int>(8)
                 var usedWidth = 0
-                var count = 0
                 for (index in indices) {
-                    val option = displayOptions.getOrNull(index).orEmpty()
+                    if (index !in targets.indices) continue
+                    val option = stripWrapSymbols(targets[index].title)
                     val textWidth = textMeasurer.measure(
                         text = AnnotatedString(option),
                         style = optionStyle,
                         maxLines = 1
                     ).size.width
-                    val chipWidth = textWidth + chipPaddingPx + if (count > 0) spacingPx else 0
+                    val chipWidth = textWidth + chipPaddingPx + if (result.isNotEmpty()) spacingPx else 0
                     if (usedWidth + chipWidth > widthPx) break
                     usedWidth += chipWidth
-                    count++
+                    result += index
                 }
-                return count.coerceAtMost(targets.size)
+                return result
             }
 
-            val naturalIndices = targets.indices
-            val naturalCount = countFor(naturalIndices.asIterable(), contentWidthPx)
-            val needMarker = naturalCount < targets.size
+            val naturalFirst = fitIndices(targets.indices.asSequence(), contentWidthPx)
+            val needMarker = naturalFirst.size < targets.size
             val actualWidthPx = (contentWidthPx - if (needMarker) markerWidthPx else 0)
                 .coerceAtLeast(0)
 
-            if (selectedIndex in targets.indices && selectedIndex >= naturalCount) {
-                val candidate = buildList(targets.size) {
-                    add(selectedIndex)
-                    targets.indices.forEach { index -> if (index != selectedIndex) add(index) }
+            if (selectedIndex in targets.indices && selectedIndex >= naturalFirst.size) {
+                val promoted = sequence {
+                    yield(selectedIndex)
+                    targets.indices.forEach { index ->
+                        if (index != selectedIndex) yield(index)
+                    }
                 }
-                val candidateCount = countFor(candidate, actualWidthPx)
-                if (candidateCount > 0) {
-                    candidate to candidateCount
-                } else {
-                    naturalIndices.toList() to countFor(naturalIndices.asIterable(), actualWidthPx)
-                }
+                fitIndices(promoted, actualWidthPx).takeIf { it.isNotEmpty() }
+                    ?: fitIndices(targets.indices.asSequence(), actualWidthPx)
             } else {
-                naturalIndices.toList() to countFor(naturalIndices.asIterable(), actualWidthPx)
+                fitIndices(targets.indices.asSequence(), actualWidthPx)
             }
         }
 
-        val ordered = layout.first
-        val firstLineCount = layout.second
-        val validRange = targets.indices
-        val firstLine = remember(ordered, firstLineCount, targets.size) {
-            ordered.take(firstLineCount).filter { it in validRange }
+        val expandable = firstLine.size < targets.size
+        val restSize = (targets.size - firstLine.size).coerceAtLeast(0)
+        val restLine = remember(expanded, firstLine, targets.size) {
+            if (!expanded || restSize == 0) {
+                emptyList()
+            } else {
+                val firstSet = firstLine.toHashSet()
+                targets.indices.filterNot { it in firstSet }
+            }
         }
-        val restLine = remember(ordered, firstLineCount, targets.size) {
-            ordered.drop(firstLineCount).filter { it in validRange }
-        }
-        val expandable = restLine.isNotEmpty()
 
-        LaunchedEffect(expanded, restLine.size) {
+        LaunchedEffect(expanded, restSize) {
             if (!expanded) {
                 expandedVisibleCount = EXPANDED_BATCH_SIZE
                 return@LaunchedEffect
             }
-            expandedVisibleCount = minOf(EXPANDED_BATCH_SIZE, restLine.size)
-            while (expandedVisibleCount < restLine.size) {
+            expandedVisibleCount = minOf(EXPANDED_BATCH_SIZE, restSize)
+            while (expandedVisibleCount < restSize) {
                 withFrameNanos { }
                 expandedVisibleCount = minOf(
                     expandedVisibleCount + EXPANDED_BATCH_SIZE,
-                    restLine.size
+                    restSize
                 )
             }
         }
