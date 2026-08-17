@@ -13,7 +13,7 @@ import io.legado.app.utils.GSON
  * - source.exploreKinds() 保持原始 type/action/chars/default/style 与顺序；
  * - 只有原始 JSON 明确提供 children 时才建立 TREE；
  * - 无显式树时，优先恢复旧式书源通过“满行空 URL 标题 + 标题外框”表达的视觉层级；
- * - 对层级内完整的二维 URL 组合，仅在标题模式和 URL 参数同时证明为笛卡尔积时拆成两个选择维度；
+ * - 对层级/区块内完整的二维 URL 组合，仅在标题模式和 URL 参数同时证明为笛卡尔积时拆成两个选择维度；
  * - 其余平面书源仍仅根据纯展示 Header 与原始顺序建立 SECTION；
  * - 不根据分类名称猜测频道、状态、榜单等业务语义。
  */
@@ -71,7 +71,6 @@ object ModernExploreClassificationEngine {
     ): ExploreNode? {
         if (!element.isJsonObject) return null
         val obj = element.asJsonObject
-        // Gson ignores the JSON-only children member because upstream ExploreKind does not own hierarchy.
         val kind = GSON.fromJson(obj, ExploreKind::class.java) ?: return null
         val children = obj.get("children")
             ?.takeIf(JsonElement::isJsonArray)
@@ -123,7 +122,6 @@ object ModernExploreClassificationEngine {
             .map { it.second }
             .toSet()
 
-        // Ambiguous formatting is left to the ordinary flat SECTION parser.
         if (parentSignatures.size != 1) return null
         val parentSignature = parentSignatures.single()
 
@@ -208,6 +206,8 @@ object ModernExploreClassificationEngine {
 
     /**
      * 只按 Header 边界切分连续区间，原始 ExploreKind 不做转换或过滤。
+     * 区间本身若恰好构成经 URL 参数和标题重复模式双重验证的完整二维矩阵，
+     * 复用同一个 MatrixFactorizer 恢复维度；验证失败则原样保留。
      */
     private fun buildSectionTree(kinds: List<ExploreKind>): List<ExploreNode> {
         val result = mutableListOf<ExploreNode>()
@@ -217,7 +217,7 @@ object ModernExploreClassificationEngine {
         fun flushSection() {
             val indexed = currentHeader ?: return
             result += indexed.value.toNode(
-                children = currentChildren.toList(),
+                children = ModernExploreMatrixFactorizer.factor(currentChildren.toList()),
                 level = 0,
                 sourceIndex = indexed.index,
                 sourceKey = indexed.index.toString(),
@@ -246,10 +246,6 @@ object ModernExploreClassificationEngine {
         return style.layout_wrapBefore || style.layout_flexBasisPercent >= 1f
     }
 
-    /**
-     * 提取标题中“正文”两侧的装饰外框，用于恢复书源自己表达的视觉分组。
-     * 正文字符只认常用文字/ASCII 字母数字；特殊装饰符号会保留在签名中。
-     */
     private fun titleFrameSignature(title: String): String {
         val value = title.trim()
         if (value.isEmpty()) return ""
