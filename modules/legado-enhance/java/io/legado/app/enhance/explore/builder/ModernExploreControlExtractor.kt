@@ -122,6 +122,40 @@ object ModernExploreControlExtractor {
     }
 
     /**
+     * A URL item that the source itself lays out as a full-width row is an independent entry,
+     * not merely another option inside a modern category selector. This covers shelves,
+     * recommendation/history entrances and similar source-defined destinations without relying
+     * on their visible names. Compact URL cells remain category options.
+     */
+    fun isStandaloneUrlEntry(kind: ExploreKind): Boolean {
+        if (kind.type != ExploreKind.Type.url || kind.url.isNullOrBlank()) return false
+        val style = kind.style()
+        return style.layout_wrapBefore || style.layout_flexBasisPercent >= 1f
+    }
+
+    /** Standalone URL entries in their exact source declaration order. */
+    fun standaloneUrlEntries(): List<ExploreKind> =
+        sourceOrderSnapshot.filter(::isStandaloneUrlEntry)
+
+    /** True when this modern selector target represents a source-defined standalone URL row. */
+    fun isStandaloneUrlTarget(title: String, url: String?): Boolean {
+        if (url.isNullOrBlank()) return false
+        val snapshot = sourceOrderSnapshot
+        val urlMatch = snapshot.firstOrNull { it.url == url && isStandaloneUrlEntry(it) }
+        if (urlMatch != null) return true
+
+        // URL is authoritative. Title is only used to disambiguate equivalent normalized URL
+        // wrappers that may be recreated by dynamic source JavaScript.
+        val normalized = cleanTitle(title)
+        if (normalized.isBlank()) return false
+        return snapshot.any { kind ->
+            isStandaloneUrlEntry(kind) &&
+                kind.url == url &&
+                cleanTitle(kind.title) == normalized
+        }
+    }
+
+    /**
      * Original position represented by a dynamic category/tree target.
      * URL is authoritative because different branches often reuse the same visible title.
      * Title matching is only a fallback for structural blank-URL headers and synthetic matrix
