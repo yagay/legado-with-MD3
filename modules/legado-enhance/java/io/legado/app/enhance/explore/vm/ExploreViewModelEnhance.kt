@@ -98,6 +98,7 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
                 it.copy(enhance = it.enhance.copy(showDiscoveryConfig = intent.show))
             }
             is ExploreIntent.UpdateDiscoverySettings -> updateDiscoverySettings(intent.transform)
+            is ExploreIntent.PreviewDiscoverySettings -> previewDiscoverySettings(intent.transform)
             is ExploreIntent.SelectWidgetTarget -> selectWidgetTarget(intent.widgetId, intent.target)
             is ExploreIntent.LoadMoreWidgetData -> loadMoreWidgetData(intent.widgetId)
             is ExploreIntent.LoadMoreSuiteSearch -> loadMoreSuiteSearch()
@@ -389,6 +390,22 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
         DiscoverySuiteStore.save(
             config.copy(lastSelectedTargets = config.lastSelectedTargets + ("${sourceUrl}_$widgetId" to title))
         )
+    }
+
+    private fun previewDiscoverySettings(transform: (DiscoverySuiteConfig) -> DiscoverySuiteConfig) {
+        val state = vm.uiState.value
+        val current = state.enhance.selectedSuite ?: return
+        val base = DiscoverySuiteConfig(suites = state.enhance.suites)
+        val preview = transform(base)
+        val previewCurrent = preview.suites.find { it.id == current.id } ?: return
+        vm.updateUiState { ui ->
+            ui.copy(
+                enhance = ui.enhance.copy(
+                    suites = preview.suites.toImmutableList(),
+                    selectedSuite = previewCurrent,
+                )
+            )
+        }
     }
 
     private fun updateDiscoverySettings(transform: (DiscoverySuiteConfig) -> DiscoverySuiteConfig) {

@@ -77,6 +77,19 @@ fun DiscoveryConfigSheet(
                             defaultValue = 3f,
                             valueRange = 2f..5f,
                             steps = 3,
+                            onValuePreviewChange = { value ->
+                                onIntent(ExploreIntent.PreviewDiscoverySettings { config ->
+                                    config.copy(
+                                        suites = config.suites.map { s ->
+                                            if (s.id == suite.id) {
+                                                s.copy(widgets = s.widgets.map { w ->
+                                                    if (w.id == bookWidget.id) w.copy(gridCount = value.toInt()) else w
+                                                })
+                                            } else s
+                                        }
+                                    )
+                                })
+                            },
                             onValueChange = { value ->
                                 onIntent(ExploreIntent.UpdateDiscoverySettings { config ->
                                     config.copy(
@@ -99,6 +112,19 @@ fun DiscoveryConfigSheet(
                             value = bookWidget.coverHeight.toFloat(),
                             defaultValue = 110f,
                             valueRange = 80f..200f,
+                            onValuePreviewChange = { value ->
+                                onIntent(ExploreIntent.PreviewDiscoverySettings { config ->
+                                    config.copy(
+                                        suites = config.suites.map { s ->
+                                            if (s.id == suite.id) {
+                                                s.copy(widgets = s.widgets.map { w ->
+                                                    if (w.id == bookWidget.id) w.copy(coverHeight = value.toInt()) else w
+                                                })
+                                            } else s
+                                        }
+                                    )
+                                })
+                            },
                             onValueChange = { value ->
                                 onIntent(ExploreIntent.UpdateDiscoverySettings { config ->
                                     config.copy(

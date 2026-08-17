@@ -412,6 +412,7 @@ sealed interface ExploreIntent {
     data class SetSuiteDefaultSource(val sourceUrl: String) : ExploreIntent
     data class ShowDiscoveryConfig(val show: Boolean) : ExploreIntent
     data class UpdateDiscoverySettings(val transform: (DiscoverySuiteConfig) -> DiscoverySuiteConfig) : ExploreIntent
+    data class PreviewDiscoverySettings(val transform: (DiscoverySuiteConfig) -> DiscoverySuiteConfig) : ExploreIntent
     data class SelectWidgetTarget(val widgetId: String, val target: DiscoverySuiteWidgetTarget) : ExploreIntent
     data class LoadMoreWidgetData(val widgetId: String) : ExploreIntent
     data object LoadMoreSuiteSearch : ExploreIntent

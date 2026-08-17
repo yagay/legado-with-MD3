@@ -52,6 +52,7 @@ fun SliderSettingItem(
     valueLabel: ((Float) -> String)? = null,
     decimal: Boolean = false,
     highlightKey: String? = null,
+    onValuePreviewChange: ((Float) -> Unit)? = null,
     onValueChange: (Float) -> Unit
 ) {
 
@@ -66,7 +67,9 @@ fun SliderSettingItem(
         description = description,
         imageVector = Icons.Default.LinearScale,
         highlightKey = highlightKey,
-        option = valueLabel?.invoke(value) ?: if (decimal) value.toString() else value.roundToInt().toString(),
+        option = valueLabel?.invoke(if (expanded) sliderValue else value)
+            ?: if (decimal) (if (expanded) sliderValue else value).toString()
+            else (if (expanded) sliderValue else value).roundToInt().toString(),
         expanded = expanded,
         onExpandChange = { expanded = it },
         color = if (highlightKey != null && title.contains(highlightKey, ignoreCase = true)) {
@@ -83,6 +86,7 @@ fun SliderSettingItem(
                         onValueChange = {
                             it.toFloatOrNull()?.let { v ->
                                 sliderValue = v.coerceIn(valueRange)
+                                onValuePreviewChange?.invoke(sliderValue)
                             }
                         },
                         label = stringResource(R.string.edit),
@@ -92,7 +96,10 @@ fun SliderSettingItem(
                 } else {
                     Slider(
                         value = sliderValue,
-                        onValueChange = { sliderValue = it },
+                        onValueChange = {
+                            sliderValue = it
+                            onValuePreviewChange?.invoke(it)
+                        },
                         valueRange = valueRange,
                         steps = steps,
                         modifier = Modifier.fillMaxWidth()
@@ -111,7 +118,10 @@ fun SliderSettingItem(
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
-                    IconButton(onClick = { sliderValue = defaultValue }) {
+                    IconButton(onClick = {
+                        sliderValue = defaultValue
+                        onValuePreviewChange?.invoke(defaultValue)
+                    }) {
                         Icon(
                             imageVector = Icons.Default.RestartAlt,
                             contentDescription = stringResource(R.string.restore_default),
@@ -125,6 +135,7 @@ fun SliderSettingItem(
                         },
                         onDismiss = {
                             sliderValue = value
+                            onValuePreviewChange?.invoke(value)
                             expanded = false
                         },
                         confirmText = stringResource(R.string.ok),
