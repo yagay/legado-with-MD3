@@ -58,7 +58,8 @@ fun SliderSettingItem(
 
     var expanded by remember { mutableStateOf(false) }
     var isInputMode by remember { mutableStateOf(false) }
-    var sliderValue by remember(value) { mutableFloatStateOf(value) }
+    var sliderValue by remember { mutableFloatStateOf(value) }
+    var previewStartValue by remember { mutableFloatStateOf(value) }
 
     SplicedColumnDivider()
 
@@ -71,7 +72,16 @@ fun SliderSettingItem(
             ?: if (decimal) (if (expanded) sliderValue else value).toString()
             else (if (expanded) sliderValue else value).roundToInt().toString(),
         expanded = expanded,
-        onExpandChange = { expanded = it },
+        onExpandChange = { newExpanded ->
+            if (newExpanded && !expanded) {
+                previewStartValue = value
+                sliderValue = value
+            } else if (!newExpanded && expanded) {
+                sliderValue = previewStartValue
+                onValuePreviewChange?.invoke(previewStartValue)
+            }
+            expanded = newExpanded
+        },
         color = if (highlightKey != null && title.contains(highlightKey, ignoreCase = true)) {
             MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
         } else color,
@@ -134,8 +144,8 @@ fun SliderSettingItem(
                             expanded = false
                         },
                         onDismiss = {
-                            sliderValue = value
-                            onValuePreviewChange?.invoke(value)
+                            sliderValue = previewStartValue
+                            onValuePreviewChange?.invoke(previewStartValue)
                             expanded = false
                         },
                         confirmText = stringResource(R.string.ok),
