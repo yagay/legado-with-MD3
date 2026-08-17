@@ -22,7 +22,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Label
@@ -94,7 +96,9 @@ import io.legado.app.ui.widget.components.text.AppText
 import io.legado.app.ui.widget.components.topbar.TopBarActionButton
 import io.legado.app.enhance.explore.screen.ExploreConfigEnhance
 import io.legado.app.enhance.explore.screen.ExploreScreenEnhance
+import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -197,7 +201,7 @@ fun ExploreScreen(
     val scope = rememberCoroutineScope()
     val previewExploreKindUseCase: ExploreKindUiUseCase = koinInject()
     var sourceKindPreviewUrl by rememberSaveable { mutableStateOf<String?>(null) }
-    var sourceKindPreviewKinds by remember { mutableStateOf<List<ExploreKind>>(emptyList()) }
+    var sourceKindPreviewRows by remember { mutableStateOf<List<List<Pair<ExploreKind, Int>>>>(emptyList()) }
     var sourceKindPreviewLoading by remember { mutableStateOf(false) }
     val sourceKindPreviewSource = remember(sourceKindPreviewUrl, state.items) {
         state.items.firstOrNull { it.bookSourceUrl == sourceKindPreviewUrl }
@@ -205,16 +209,17 @@ fun ExploreScreen(
     LaunchedEffect(sourceKindPreviewUrl, sourceKindPreviewSource) {
         val source = sourceKindPreviewSource
         if (sourceKindPreviewUrl == null || source == null) {
-            sourceKindPreviewKinds = emptyList()
+            sourceKindPreviewRows = emptyList()
             sourceKindPreviewLoading = false
             return@LaunchedEffect
         }
         sourceKindPreviewLoading = true
-        sourceKindPreviewKinds = runCatching { source.exploreKinds() }.getOrDefault(emptyList())
+        sourceKindPreviewRows = withContext(IO) {
+            runCatching {
+                calculateExploreKindRows(source.exploreKinds(), maxSpan = 6)
+            }.getOrDefault(emptyList())
+        }
         sourceKindPreviewLoading = false
-    }
-    val sourceKindPreviewRows = remember(sourceKindPreviewKinds) {
-        calculateExploreKindRows(sourceKindPreviewKinds, maxSpan = 6)
     }
 
     val composeEngine = ThemeResolver.isMiuixEngine(composeEngine)
@@ -489,7 +494,7 @@ fun ExploreScreen(
         show = state.layoutMode == 1 && sourceKindPreviewUrl != null,
         onDismissRequest = {
             sourceKindPreviewUrl = null
-            sourceKindPreviewKinds = emptyList()
+            sourceKindPreviewRows = emptyList()
         },
         title = sourceKindPreviewSource?.bookSourceName ?: state.enhance.selectedSourceName,
     ) {
@@ -516,13 +521,15 @@ fun ExploreScreen(
             }
 
             else -> {
-                Column(
+                LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(max = 560.dp)
-                        .verticalScroll(rememberScrollState())
                 ) {
-                    sourceKindPreviewRows.forEach { rowItems ->
+                    itemsIndexed(
+                        items = sourceKindPreviewRows,
+                        key = { index, _ -> "source_kind_preview_$index" },
+                    ) { _, rowItems ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -536,12 +543,12 @@ fun ExploreScreen(
                                     onOpenUrl = { url ->
                                         val sourceUrl = sourceKindPreviewUrl.orEmpty()
                                         sourceKindPreviewUrl = null
-                                        sourceKindPreviewKinds = emptyList()
+                                        sourceKindPreviewRows = emptyList()
                                         onOpenExploreShow(kind.title, sourceUrl, url)
                                     },
                                     onRefreshKinds = {
                                         sourceKindPreviewUrl = null
-                                        sourceKindPreviewKinds = emptyList()
+                                        sourceKindPreviewRows = emptyList()
                                         onIntent(ExploreIntent.RefreshSuite)
                                     },
                                     modifier = Modifier.weight(span.toFloat()),
