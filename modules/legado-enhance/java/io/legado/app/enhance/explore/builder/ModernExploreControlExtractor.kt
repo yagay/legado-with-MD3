@@ -122,15 +122,71 @@ object ModernExploreControlExtractor {
     }
 
     /**
-     * A URL item that the source itself lays out as a full-width row is an independent entry,
-     * not merely another option inside a modern category selector. This covers shelves,
-     * recommendation/history entrances and similar source-defined destinations without relying
-     * on their visible names. Compact URL cells remain category options.
+     * Full-width URL rows are only standalone-entry candidates. A source may also use a full
+     * width cell as the visual start of a category group (for example one 1.0 cell followed by
+     * several 0.25 cells). When the same URL endpoint/query shape has compact siblings in the
+     * same contiguous URL block, keep the full-width item in the category selector instead of
+     * extracting it as an independent destination.
+     *
+     * This deliberately uses source structure rather than visible words such as “书架/分类”.
      */
     fun isStandaloneUrlEntry(kind: ExploreKind): Boolean {
         if (kind.type != ExploreKind.Type.url || kind.url.isNullOrBlank()) return false
         val style = kind.style()
-        return style.layout_wrapBefore || style.layout_flexBasisPercent >= 1f
+        val isFullWidthCandidate = style.layout_wrapBefore || style.layout_flexBasisPercent >= 1f
+        if (!isFullWidthCandidate) return false
+
+        val index = sourceIndexOf(kind)
+        if (index < 0) return true
+        return !belongsToUrlCategoryCluster(index, kind)
+    }
+
+    private fun belongsToUrlCategoryCluster(index: Int, kind: ExploreKind): Boolean {
+        val snapshot = sourceOrderSnapshot
+        if (index !in snapshot.indices) return false
+        val family = urlFamilySignature(kind.url.orEmpty())
+        if (family.isBlank()) return false
+
+        var start = index
+        while (start > 0 && snapshot[start - 1].isActionableUrl()) start--
+        var end = index
+        while (end < snapshot.lastIndex && snapshot[end + 1].isActionableUrl()) end++
+
+        for (position in start..end) {
+            if (position == index) continue
+            val sibling = snapshot[position]
+            if (urlFamilySignature(sibling.url.orEmpty()) != family) continue
+            val siblingStyle = sibling.style()
+            if (!siblingStyle.layout_wrapBefore && siblingStyle.layout_flexBasisPercent < 1f) {
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun ExploreKind.isActionableUrl(): Boolean =
+        type == ExploreKind.Type.url && !url.isNullOrBlank()
+
+    /**
+     * Compare URL structure without depending on parameter values. Dynamic category sources often
+     * vary only category_id/gender/etc.; standalone destinations usually use a different endpoint
+     * or parameter shape. Keeping query-key order out of the signature also handles sources that
+     * build equivalent URLs in a different order.
+     */
+    private fun urlFamilySignature(url: String): String {
+        val normalized = url.substringBefore('#')
+        val base = normalized.substringBefore('?').trim()
+        if (base.isBlank()) return ""
+        val query = normalized.substringAfter('?', "")
+        if (query.isBlank()) return base
+        val keys = query.split('&')
+            .asSequence()
+            .map { it.substringBefore('=').trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .sorted()
+            .joinToString("&")
+        return if (keys.isBlank()) base else "$base?$keys"
     }
 
     /** Standalone URL entries in their exact source declaration order. */
