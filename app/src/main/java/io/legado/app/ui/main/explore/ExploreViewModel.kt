@@ -392,7 +392,7 @@ sealed interface ExploreIntent {
     data class RunKindAction(val sourceUrl: String, val kind: ExploreKind) : ExploreIntent
     data class OpenEdit(val source: BookSourcePart) : ExploreIntent
     data class OpenSearch(val source: BookSourcePart) : ExploreIntent
-    data class OpenLogin(val sourceUrl: String) : ExploreIntent
+    data class OpenLogin(val source: BookSourcePart) : ExploreIntent
     data object ToggleLayoutMode : ExploreIntent
     data class SwitchSuite(val suite: DiscoverySuite) : ExploreIntent
     data object RefreshSuite : ExploreIntent
