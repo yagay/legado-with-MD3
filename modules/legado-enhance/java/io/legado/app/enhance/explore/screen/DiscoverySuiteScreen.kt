@@ -27,6 +27,7 @@ import io.legado.app.ui.widget.components.explore.DiscoverySuiteHeader
 import io.legado.app.ui.widget.components.explore.DiscoverySuiteHorizontalBooksWidget
 import io.legado.app.ui.widget.components.progressIndicator.AppContainedLoadingIndicator
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -97,6 +98,21 @@ fun DiscoverySuiteScreen(
                         item(key = row.key) {
                             AdaptiveExploreControlRows(
                                 controls = row.controls,
+                                sourceUrl = suite.defaultSourceUrl,
+                                useCase = exploreKindUseCase,
+                                onOpenUrl = { kind, url ->
+                                    onOpenExploreShow(kind.title, suite.defaultSourceUrl.orEmpty(), url)
+                                },
+                                onRefreshKinds = { onIntent(ExploreIntent.RefreshSuite) },
+                                modifier = Modifier.padding(vertical = 2.dp),
+                            )
+                        }
+                    }
+
+                    is OrderedExploreRow.StandaloneEntry -> {
+                        item(key = row.key) {
+                            AdaptiveExploreControlRows(
+                                controls = listOf(row.entry),
                                 sourceUrl = suite.defaultSourceUrl,
                                 useCase = exploreKindUseCase,
                                 onOpenUrl = { kind, url ->
@@ -313,6 +329,11 @@ private sealed interface OrderedExploreRow {
         val key: String,
         val controls: List<ExploreKind>,
     ) : OrderedExploreRow
+
+    data class StandaloneEntry(
+        val key: String,
+        val entry: ExploreKind,
+    ) : OrderedExploreRow
 }
 
 private sealed interface OrderedExploreAtom {
@@ -330,26 +351,45 @@ private sealed interface OrderedExploreAtom {
         override val fallbackOrder: Int,
         val control: ExploreKind,
     ) : OrderedExploreAtom
+
+    data class StandaloneEntry(
+        override val sourceIndex: Int,
+        override val fallbackOrder: Int,
+        val entry: ExploreKind,
+    ) : OrderedExploreAtom
 }
 
 /**
  * Rebuild the mixed source declaration order after enhance has separated select/category rows
- * from native text/button/toggle controls. This mirrors the default Explore screen's ordering
- * while still allowing the modern layout to recover SECTION/TREE hierarchy and URL matrices.
+ * from native text/button/toggle controls. Full-width URL entries keep their source-defined
+ * standalone semantics instead of being folded into a generic category selector.
  */
 private fun buildOrderedExploreRows(
     selectors: List<ExploreViewModel.DynamicSelectorUi>,
     controls: List<ExploreKind>,
 ): List<OrderedExploreRow> {
-    if (selectors.isEmpty() && controls.isEmpty()) return emptyList()
+    val standaloneEntries = ModernExploreControlExtractor.standaloneUrlEntries()
+    if (selectors.isEmpty() && controls.isEmpty() && standaloneEntries.isEmpty()) return emptyList()
 
     val atoms = buildList<OrderedExploreAtom> {
         selectors.forEachIndexed { index, selector ->
+            val filteredTargets = selector.targets.filterNot { target ->
+                ModernExploreControlExtractor.isStandaloneUrlTarget(
+                    title = target.title,
+                    url = target.tagUrl,
+                )
+            }
+            if (filteredTargets.isEmpty()) return@forEachIndexed
+            val visibleSelector = if (filteredTargets.size == selector.targets.size) {
+                selector
+            } else {
+                selector.copy(targets = filteredTargets.toImmutableList())
+            }
             add(
                 OrderedExploreAtom.Selector(
-                    sourceIndex = sourceIndexOfSelector(selector),
-                    fallbackOrder = index * 2,
-                    selector = selector,
+                    sourceIndex = sourceIndexOfSelector(visibleSelector),
+                    fallbackOrder = index * 3,
+                    selector = visibleSelector,
                 )
             )
         }
@@ -357,8 +397,17 @@ private fun buildOrderedExploreRows(
             add(
                 OrderedExploreAtom.NativeControl(
                     sourceIndex = ModernExploreControlExtractor.sourceIndexOf(control),
-                    fallbackOrder = index * 2 + 1,
+                    fallbackOrder = index * 3 + 1,
                     control = control,
+                )
+            )
+        }
+        standaloneEntries.forEachIndexed { index, entry ->
+            add(
+                OrderedExploreAtom.StandaloneEntry(
+                    sourceIndex = ModernExploreControlExtractor.sourceIndexOf(entry),
+                    fallbackOrder = index * 3 + 2,
+                    entry = entry,
                 )
             )
         }
@@ -393,6 +442,15 @@ private fun buildOrderedExploreRows(
             is OrderedExploreAtom.NativeControl -> {
                 pendingControls += atom.control
                 pendingIndexes += atom.sourceIndex.takeIf { it >= 0 } ?: atom.fallbackOrder
+            }
+
+            is OrderedExploreAtom.StandaloneEntry -> {
+                flushControls()
+                val entryIndex = atom.sourceIndex.takeIf { it >= 0 } ?: atom.fallbackOrder
+                rows += OrderedExploreRow.StandaloneEntry(
+                    key = "dynamic_entry_$entryIndex",
+                    entry = atom.entry,
+                )
             }
         }
     }
