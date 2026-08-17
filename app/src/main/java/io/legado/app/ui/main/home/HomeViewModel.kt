@@ -24,6 +24,8 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -45,10 +47,22 @@ class HomeViewModel(
     private var backupRefreshJob: Job? = null
     private val backupActionMutex = Mutex()
 
+    private val visibleSectionsFlow = homeDashboardUseCase.observeVisibleSections()
+        .distinctUntilChanged()
+        .onEach { sections ->
+            if (HomeDashboardSection.WebDavBackup in sections) {
+                refreshLatestBackup()
+            } else {
+                backupRefreshJob?.cancel()
+                _backupState.update { it.copy(isLoading = false) }
+            }
+        }
+        .onCompletion { backupRefreshJob?.cancel() }
+
     private val dashboardData = combine(
         homeDashboardUseCase.observe(),
         homeDashboardUseCase.observeSelectedSourceSetUrl(),
-        homeDashboardUseCase.observeVisibleSections(),
+        visibleSectionsFlow,
     ) { dashboard, selectedSourceUrl, visibleSections ->
         Triple(dashboard, selectedSourceUrl, visibleSections)
     }
@@ -85,22 +99,6 @@ class HomeViewModel(
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = HomeUiState(),
     )
-
-    init {
-        viewModelScope.launch {
-            homeDashboardUseCase.observeVisibleSections()
-                .map { HomeDashboardSection.WebDavBackup in it }
-                .distinctUntilChanged()
-                .collect { visible ->
-                    if (visible) {
-                        refreshLatestBackup()
-                    } else {
-                        backupRefreshJob?.cancel()
-                        _backupState.update { it.copy(isLoading = false) }
-                    }
-                }
-        }
-    }
 
     fun onIntent(intent: HomeIntent) {
         when (intent) {

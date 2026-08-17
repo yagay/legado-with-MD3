@@ -163,6 +163,11 @@ fun ExploreShowScreen(
     val scrollBehavior = GlassTopAppBarDefaults.defaultScrollBehavior()
     val isGridMode = state.layoutState == 1
     val hazeState = remember { HazeState() }
+    val enableHazeRendering = if (isGridMode) {
+        !gridState.isScrollInProgress
+    } else {
+        !listState.isScrollInProgress
+    }
     val showLoadMoreFooter = !state.isRefreshing &&
         (state.isLoading || state.errorMsg != null || state.isEnd)
     val canLoadMore = state.books.isNotEmpty() &&
@@ -271,7 +276,7 @@ fun ExploreShowScreen(
             .nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             GlassMediumFlexibleTopAppBar(
-                modifier = Modifier.responsiveHazeEffect(state = hazeState),
+                modifier = if (enableHazeRendering) Modifier.responsiveHazeEffect(state = hazeState) else Modifier,
                 title = state.selectedKindTitle ?: title,
                 navigationIcon = {
                     TopBarNavigationButton(onClick = onBack)
@@ -319,17 +324,12 @@ fun ExploreShowScreen(
             topPadding = paddingValues.calculateTopPadding(),
             scrollBehavior = scrollBehavior
         ) {
-            Crossfade(
-                targetState = isGridMode,
-                animationSpec = tween(250),
-                label = "LayoutCrossfade"
-            ) { isGrid ->
-                if (isGrid) {
+            if (isGridMode) {
                     LazyVerticalGrid(
                         state = gridState,
                         modifier = Modifier
                             .fillMaxSize()
-                            .responsiveHazeSource(hazeState),
+                            .then(if (enableHazeRendering) Modifier.responsiveHazeSource(hazeState) else Modifier),
                         columns = GridCells.Fixed(state.gridCount),
                         contentPadding = PaddingValues(
                             top = paddingValues.calculateTopPadding() + 12.dp,
@@ -384,7 +384,7 @@ fun ExploreShowScreen(
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxSize()
-                            .responsiveHazeSource(hazeState),
+                            .then(if (enableHazeRendering) Modifier.responsiveHazeSource(hazeState) else Modifier),
                         state = listState,
                         contentPadding = PaddingValues(
                             top = paddingValues.calculateTopPadding(),
@@ -432,7 +432,6 @@ fun ExploreShowScreen(
                         }
                     }
                 }
-            }
         }
     }
 
