@@ -2,6 +2,7 @@ package io.legado.app.enhance.explore.builder
 
 import io.legado.app.data.entities.rule.ExploreKind
 import io.legado.app.enhance.explore.model.ExploreNode
+import java.util.IdentityHashMap
 
 /**
  * 现代发现页书源自定义控件提取器。
@@ -38,6 +39,19 @@ object ModernExploreControlExtractor {
     /** Exact ExploreKind order used by the current modern discovery page. */
     @Volatile
     private var sourceOrderSnapshot: List<ExploreKind> = emptyList()
+
+    /**
+     * Hot-path lookup caches rebuilt once whenever sourceOrderSnapshot changes.
+     * Compose rendering can ask about hundreds of targets, so these queries must not rescan the
+     * complete source list for every target.
+     */
+    private var sourceIndexByIdentity = IdentityHashMap<ExploreKind, Int>()
+    private var firstIndexByUrl: Map<String, Int> = emptyMap()
+    private var firstIndexByCleanTitle: Map<String, Int> = emptyMap()
+    private var firstSelectIndexByCleanTitle: Map<String, Int> = emptyMap()
+    private var standaloneSourceIndexes: Set<Int> = emptySet()
+    private var standaloneUrls: Set<String> = emptySet()
+    private var standaloneTargetKeys: Set<String> = emptySet()
 
     /**
      * Select controls that have proved to change the shape of the explore page.
@@ -88,7 +102,7 @@ object ModernExploreControlExtractor {
         // and new snapshots lets us learn whether that select controls page structure or merely
         // changes URL parameter values. No business labels are required.
         learnStructuralSelectRelationships(sourceOrderSnapshot, kinds)
-        sourceOrderSnapshot = kinds.toList()
+        updateSourceSnapshot(kinds)
 
         val searchControl = findSearchControl(kinds)
         val hiddenIndexes = searchControl?.hiddenSourceIndexes.orEmpty()
@@ -104,6 +118,78 @@ object ModernExploreControlExtractor {
             searchControl = searchControl,
             visibleControls = visibleControls,
         )
+    }
+
+    private fun updateSourceSnapshot(kinds: List<ExploreKind>) {
+        val snapshot = kinds.toList()
+        sourceOrderSnapshot = snapshot
+
+        val identity = IdentityHashMap<ExploreKind, Int>(snapshot.size.coerceAtLeast(1))
+        val byUrl = linkedMapOf<String, Int>()
+        val byTitle = linkedMapOf<String, Int>()
+        val selectByTitle = linkedMapOf<String, Int>()
+        val familyByIndex = Array(snapshot.size) { "" }
+
+        snapshot.forEachIndexed { index, kind ->
+            identity[kind] = index
+            kind.url?.takeIf { it.isNotBlank() }?.let { byUrl.putIfAbsent(it, index) }
+            val cleaned = cleanTitle(kind.title)
+            if (cleaned.isNotBlank()) {
+                byTitle.putIfAbsent(cleaned, index)
+                if (kind.type == ExploreKind.Type.select) {
+                    selectByTitle.putIfAbsent(cleaned, index)
+                }
+            }
+            if (kind.isActionableUrl()) {
+                familyByIndex[index] = urlFamilySignature(kind.url.orEmpty())
+            }
+        }
+
+        val standaloneIndexes = linkedSetOf<Int>()
+        var blockStart = 0
+        while (blockStart < snapshot.size) {
+            if (!snapshot[blockStart].isActionableUrl()) {
+                blockStart++
+                continue
+            }
+            var blockEnd = blockStart
+            while (blockEnd < snapshot.lastIndex && snapshot[blockEnd + 1].isActionableUrl()) {
+                blockEnd++
+            }
+
+            val compactFamilies = hashSetOf<String>()
+            for (index in blockStart..blockEnd) {
+                val kind = snapshot[index]
+                val style = kind.style()
+                if (!style.layout_wrapBefore && style.layout_flexBasisPercent < 1f) {
+                    familyByIndex[index].takeIf { it.isNotBlank() }?.let(compactFamilies::add)
+                }
+            }
+            for (index in blockStart..blockEnd) {
+                val kind = snapshot[index]
+                val style = kind.style()
+                val fullWidthCandidate = style.layout_wrapBefore || style.layout_flexBasisPercent >= 1f
+                if (fullWidthCandidate && familyByIndex[index] !in compactFamilies) {
+                    standaloneIndexes += index
+                }
+            }
+            blockStart = blockEnd + 1
+        }
+
+        sourceIndexByIdentity = identity
+        firstIndexByUrl = byUrl
+        firstIndexByCleanTitle = byTitle
+        firstSelectIndexByCleanTitle = selectByTitle
+        standaloneSourceIndexes = standaloneIndexes
+        standaloneUrls = standaloneIndexes.mapNotNullTo(linkedSetOf()) { index ->
+            snapshot.getOrNull(index)?.url?.takeIf { it.isNotBlank() }
+        }
+        standaloneTargetKeys = standaloneIndexes.mapNotNullTo(linkedSetOf()) { index ->
+            val kind = snapshot.getOrNull(index) ?: return@mapNotNullTo null
+            val url = kind.url?.takeIf { it.isNotBlank() } ?: return@mapNotNullTo null
+            val title = cleanTitle(kind.title)
+            "$url\u001F$title"
+        }
     }
 
     /**
@@ -128,6 +214,13 @@ object ModernExploreControlExtractor {
 
     internal fun resetStructureLearning() {
         sourceOrderSnapshot = emptyList()
+        sourceIndexByIdentity = IdentityHashMap()
+        firstIndexByUrl = emptyMap()
+        firstIndexByCleanTitle = emptyMap()
+        firstSelectIndexByCleanTitle = emptyMap()
+        standaloneSourceIndexes = emptySet()
+        standaloneUrls = emptySet()
+        standaloneTargetKeys = emptySet()
         structuralSelectKeys.clear()
     }
 
@@ -188,61 +281,28 @@ object ModernExploreControlExtractor {
     }
 
     /** Exact original position for a native control. Identity wins over structural equality. */
-    fun sourceIndexOf(kind: ExploreKind): Int {
-        val snapshot = sourceOrderSnapshot
-        val identityIndex = snapshot.indexOfFirst { it === kind }
-        if (identityIndex >= 0) return identityIndex
-        return snapshot.indexOf(kind)
-    }
+    fun sourceIndexOf(kind: ExploreKind): Int =
+        sourceIndexByIdentity[kind] ?: sourceOrderSnapshot.indexOf(kind)
 
     /** Original position of a source-native select row. */
     fun sourceIndexOfSelect(title: String): Int {
         val normalized = cleanTitle(title)
         if (normalized.isBlank()) return -1
-        return sourceOrderSnapshot.indexOfFirst { kind ->
-            kind.type == ExploreKind.Type.select && cleanTitle(kind.title) == normalized
-        }
+        return firstSelectIndexByCleanTitle[normalized] ?: -1
     }
 
     /**
-     * Full-width URL rows are only standalone-entry candidates. A source may also use a full
-     * width cell as the visual start of a category group (for example one 1.0 cell followed by
-     * several 0.25 cells). When the same URL endpoint/query shape has compact siblings in the
-     * same contiguous URL block, keep the full-width item in the category selector instead of
-     * extracting it as an independent destination.
+     * Full-width URL rows are only standalone-entry candidates. Classification is precomputed
+     * once per source snapshot so rendering hundreds of targets does not repeatedly scan URL
+     * blocks or parse query strings.
      */
     fun isStandaloneUrlEntry(kind: ExploreKind): Boolean {
         if (kind.type != ExploreKind.Type.url || kind.url.isNullOrBlank()) return false
-        val style = kind.style()
-        val isFullWidthCandidate = style.layout_wrapBefore || style.layout_flexBasisPercent >= 1f
-        if (!isFullWidthCandidate) return false
-
         val index = sourceIndexOf(kind)
-        if (index < 0) return true
-        return !belongsToUrlCategoryCluster(index, kind)
-    }
+        if (index >= 0) return index in standaloneSourceIndexes
 
-    private fun belongsToUrlCategoryCluster(index: Int, kind: ExploreKind): Boolean {
-        val snapshot = sourceOrderSnapshot
-        if (index !in snapshot.indices) return false
-        val family = urlFamilySignature(kind.url.orEmpty())
-        if (family.isBlank()) return false
-
-        var start = index
-        while (start > 0 && snapshot[start - 1].isActionableUrl()) start--
-        var end = index
-        while (end < snapshot.lastIndex && snapshot[end + 1].isActionableUrl()) end++
-
-        for (position in start..end) {
-            if (position == index) continue
-            val sibling = snapshot[position]
-            if (urlFamilySignature(sibling.url.orEmpty()) != family) continue
-            val siblingStyle = sibling.style()
-            if (!siblingStyle.layout_wrapBefore && siblingStyle.layout_flexBasisPercent < 1f) {
-                return true
-            }
-        }
-        return false
+        val style = kind.style()
+        return style.layout_wrapBefore || style.layout_flexBasisPercent >= 1f
     }
 
     private fun ExploreKind.isActionableUrl(): Boolean =
@@ -267,34 +327,24 @@ object ModernExploreControlExtractor {
 
     /** Standalone URL entries in their exact source declaration order. */
     fun standaloneUrlEntries(): List<ExploreKind> =
-        sourceOrderSnapshot.filter(::isStandaloneUrlEntry)
+        standaloneSourceIndexes.mapNotNull(sourceOrderSnapshot::getOrNull)
 
     /** True when this modern selector target represents a source-defined standalone URL row. */
     fun isStandaloneUrlTarget(title: String, url: String?): Boolean {
         if (url.isNullOrBlank()) return false
-        val snapshot = sourceOrderSnapshot
-        val urlMatch = snapshot.firstOrNull { it.url == url && isStandaloneUrlEntry(it) }
-        if (urlMatch != null) return true
-
+        if (url in standaloneUrls) return true
         val normalized = cleanTitle(title)
-        if (normalized.isBlank()) return false
-        return snapshot.any { kind ->
-            isStandaloneUrlEntry(kind) &&
-                kind.url == url &&
-                cleanTitle(kind.title) == normalized
-        }
+        return "$url\u001F$normalized" in standaloneTargetKeys
     }
 
     /** Original position represented by a dynamic category/tree target. */
     fun sourceIndexOfTarget(title: String, url: String?): Int {
-        val snapshot = sourceOrderSnapshot
         if (!url.isNullOrBlank()) {
-            val urlIndex = snapshot.indexOfFirst { it.url == url }
-            if (urlIndex >= 0) return urlIndex
+            firstIndexByUrl[url]?.let { return it }
         }
         val normalized = cleanTitle(title)
         if (normalized.isBlank()) return -1
-        return snapshot.indexOfFirst { kind -> cleanTitle(kind.title) == normalized }
+        return firstIndexByCleanTitle[normalized] ?: -1
     }
 
     fun findSearchControl(kinds: List<ExploreKind>): SearchControl? {
