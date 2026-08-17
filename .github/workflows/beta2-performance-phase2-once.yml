@@ -1,0 +1,151 @@
+name: Beta2 Performance Phase 2 (one-shot)
+
+on:
+  push:
+    branches:
+      - beta2
+    paths:
+      - '.github/workflows/beta2-performance-phase2-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  optimize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout beta2
+        uses: actions/checkout@v5
+        with:
+          ref: beta2
+          fetch-depth: 0
+
+      - name: Apply phase 2 performance patches
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_exact(path, old, new, count=None):
+              p = Path(path)
+              text = p.read_text()
+              found = text.count(old)
+              if count is not None and found != count:
+                  raise SystemExit(f"{path}: expected {count} occurrences, found {found}: {old[:120]!r}")
+              if found == 0:
+                  raise SystemExit(f"{path}: pattern not found: {old[:120]!r}")
+              p.write_text(text.replace(old, new))
+              print(f"patched {path}: {found} occurrence(s)")
+
+          # Home: make backup-section observation follow the UI subscription instead of
+          # permanently collecting in viewModelScope after the page has gone inactive.
+          home = 'app/src/main/java/io/legado/app/ui/main/home/HomeViewModel.kt'
+          replace_exact(
+              home,
+              'import kotlinx.coroutines.flow.map\n',
+              'import kotlinx.coroutines.flow.map\nimport kotlinx.coroutines.flow.onCompletion\nimport kotlinx.coroutines.flow.onEach\n',
+              1,
+          )
+          replace_exact(
+              home,
+              '''    private val dashboardData = combine(\n        homeDashboardUseCase.observe(),\n        homeDashboardUseCase.observeSelectedSourceSetUrl(),\n        homeDashboardUseCase.observeVisibleSections(),\n    ) { dashboard, selectedSourceUrl, visibleSections ->''',
+              '''    private val visibleSectionsFlow = homeDashboardUseCase.observeVisibleSections()\n        .distinctUntilChanged()\n        .onEach { sections ->\n            if (HomeDashboardSection.WebDavBackup in sections) {\n                refreshLatestBackup()\n            } else {\n                backupRefreshJob?.cancel()\n                _backupState.update { it.copy(isLoading = false) }\n            }\n        }\n        .onCompletion { backupRefreshJob?.cancel() }\n\n    private val dashboardData = combine(\n        homeDashboardUseCase.observe(),\n        homeDashboardUseCase.observeSelectedSourceSetUrl(),\n        visibleSectionsFlow,\n    ) { dashboard, selectedSourceUrl, visibleSections ->''',
+              1,
+          )
+          replace_exact(
+              home,
+              '''    init {\n        viewModelScope.launch {\n            homeDashboardUseCase.observeVisibleSections()\n                .map { HomeDashboardSection.WebDavBackup in it }\n                .distinctUntilChanged()\n                .collect { visible ->\n                    if (visible) {\n                        refreshLatestBackup()\n                    } else {\n                        backupRefreshJob?.cancel()\n                        _backupState.update { it.copy(isLoading = false) }\n                    }\n                }\n        }\n    }\n\n''',
+              '',
+              1,
+          )
+
+          # Explore detail: stop blur sampling while a long list/grid is actively scrolling.
+          # The glass appearance returns immediately when scrolling becomes idle.
+          explore = 'app/src/main/java/io/legado/app/ui/book/explore/ExploreShowScreen.kt'
+          replace_exact(
+              explore,
+              '''    val isGridMode = state.layoutState == 1\n    val hazeState = remember { HazeState() }\n''',
+              '''    val isGridMode = state.layoutState == 1\n    val hazeState = remember { HazeState() }\n    val enableHazeRendering = if (isGridMode) {\n        !gridState.isScrollInProgress\n    } else {\n        !listState.isScrollInProgress\n    }\n''',
+              1,
+          )
+          replace_exact(
+              explore,
+              '                modifier = Modifier.responsiveHazeEffect(state = hazeState),\n',
+              '                modifier = if (enableHazeRendering) Modifier.responsiveHazeEffect(state = hazeState) else Modifier,\n',
+              1,
+          )
+          replace_exact(
+              explore,
+              '                            .responsiveHazeSource(hazeState),\n',
+              '                            .then(if (enableHazeRendering) Modifier.responsiveHazeSource(hazeState) else Modifier),\n',
+              2,
+          )
+
+          # Layout switching is rare and does not need two complete lazy containers alive
+          # during a crossfade. Switch directly while preserving scroll-position transfer.
+          replace_exact(
+              explore,
+              '''            Crossfade(\n                targetState = isGridMode,\n                animationSpec = tween(250),\n                label = "LayoutCrossfade"\n            ) { isGrid ->\n                if (isGrid) {''',
+              '''            if (isGridMode) {''',
+              1,
+          )
+          replace_exact(
+              explore,
+              '''                    }\n                }\n            }\n        }\n    }\n\n    val previewShelfState''',
+              '''                    }\n                }\n        }\n    }\n\n    val previewShelfState''',
+              1,
+          )
+
+          # Keep beta2 continuously buildable after this optimization series.
+          build = '.github/workflows/build-beta.yml'
+          replace_exact(
+              build,
+              '''    branches:\n      - beta\n''',
+              '''    branches:\n      - beta\n      - beta2\n''',
+              1,
+          )
+
+          Path('.github/workflows/beta2-performance-phase2-once.yml').unlink()
+          PY
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Remove Aliyun mirrors for CI
+        run: sed -i '/maven.aliyun.com/d' settings.gradle
+
+      - name: Compile phase 2
+        timeout-minutes: 45
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleAppDebug \
+            -PenableAbiSplits=false \
+            --no-daemon \
+            --no-configuration-cache
+
+      - name: Run focused compatibility tests
+        timeout-minutes: 30
+        run: |
+          ./gradlew \
+            :app:testAppDebugUnitTest \
+            --tests "io.legado.app.ui.main.explore.ExploreUpstreamReuseTest" \
+            --tests "io.legado.app.enhance.explore.builder.ModernExploreClassificationEngineTest" \
+            --tests "io.legado.app.enhance.explore.builder.ModernExploreControlExtractorTest" \
+            --tests "io.legado.app.enhance.explore.builder.ModernExploreTreeControlTest" \
+            --tests "io.legado.app.enhance.explore.screen.AdaptiveExploreControlRowsTest" \
+            --no-daemon \
+            --no-configuration-cache
+
+      - name: Commit phase 2 to beta2
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'perf: suspend hidden-page work and reduce scrolling effects'
+          git push origin HEAD:beta2
