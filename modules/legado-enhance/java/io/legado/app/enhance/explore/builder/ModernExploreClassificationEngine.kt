@@ -25,8 +25,14 @@ object ModernExploreClassificationEngine {
     )
 
     fun classify(flatKinds: List<ExploreKind>, rawJson: String): Result {
-        val explicitTree = parseRawTree(rawJson)
-            .takeIf { it.hasChildrenDeep() }
+        // Flat explore JSON is by far the common case. Avoid reparsing the entire payload into
+        // ExploreKind objects unless the source actually declares the protocol-level children key.
+        // JSON object member names are quoted, so this remains conservative and does not infer tree
+        // structure from titles/actions that merely contain the word "children".
+        val explicitTree = rawJson
+            .takeIf { it.contains("\"children\"") }
+            ?.let(::parseRawTree)
+            ?.takeIf { it.hasChildrenDeep() }
 
         if (explicitTree != null) {
             return Result(explicitTree, ExploreMode.TREE)
@@ -105,19 +111,26 @@ object ModernExploreClassificationEngine {
     private fun buildVisualHierarchy(kinds: List<ExploreKind>): List<ExploreNode>? {
         if (kinds.size < 3) return null
 
-        val framedHeaders = kinds.withIndex()
-            .filter { isFullWidthHeader(it.value) }
-            .map { indexed -> indexed to titleFrameSignature(indexed.value.title) }
-            .filter { (_, signature) -> signature.isNotBlank() }
+        // Cache the full-width/header decision and frame signature once. These values are otherwise
+        // queried repeatedly while detecting the parent signature and again while rebuilding rows.
+        val headerInfo = Array<HeaderInfo?>(kinds.size) { index ->
+            val kind = kinds[index]
+            if (!isFullWidthHeader(kind)) return@Array null
+            HeaderInfo(titleFrameSignature(kind.title)).takeIf { it.signature.isNotBlank() }
+        }
+        val framedHeaders = headerInfo.indices
+            .asSequence()
+            .mapNotNull { index -> headerInfo[index]?.let { index to it.signature } }
+            .toList()
 
         if (framedHeaders.size < 3) return null
 
         val occurrences = framedHeaders.groupingBy { it.second }.eachCount()
         val parentSignatures = framedHeaders.asSequence()
             .filter { (_, signature) -> (occurrences[signature] ?: 0) >= 2 }
-            .filter { (indexed, signature) ->
-                val next = kinds.getOrNull(indexed.index + 1) ?: return@filter false
-                isFullWidthHeader(next) && titleFrameSignature(next.title) != signature
+            .filter { (index, signature) ->
+                val nextInfo = headerInfo.getOrNull(index + 1) ?: return@filter false
+                nextInfo.signature != signature
             }
             .map { it.second }
             .toSet()
@@ -158,8 +171,8 @@ object ModernExploreClassificationEngine {
 
         kinds.withIndex().forEach { indexed ->
             val kind = indexed.value
-            val isHeader = isFullWidthHeader(kind)
-            val signature = if (isHeader) titleFrameSignature(kind.title) else ""
+            val signature = headerInfo[indexed.index]?.signature.orEmpty()
+            val isHeader = signature.isNotEmpty()
 
             when {
                 isHeader && signature == parentSignature -> {
@@ -239,6 +252,8 @@ object ModernExploreClassificationEngine {
         flushSection()
         return result
     }
+
+    private data class HeaderInfo(val signature: String)
 
     private fun isFullWidthHeader(kind: ExploreKind): Boolean {
         if (!isSectionHeader(kind)) return false
