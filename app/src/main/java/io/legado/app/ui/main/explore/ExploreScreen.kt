@@ -67,6 +67,7 @@ import io.legado.app.data.entities.BookSourcePart
 import io.legado.app.data.entities.SearchBook
 import io.legado.app.data.entities.rule.ExploreKind
 import io.legado.app.domain.usecase.ExploreKindUiUseCase
+import io.legado.app.help.source.exploreKinds
 import io.legado.app.help.source.getExploreInfoMap
 import io.legado.app.ui.book.search.SearchScope
 import io.legado.app.ui.theme.LegadoTheme
@@ -193,6 +194,27 @@ fun ExploreScreen(
         state.items.firstOrNull { it.bookSourceUrl == sourceActionMenuUrl }
     }
     val scope = rememberCoroutineScope()
+    val previewExploreKindUseCase: ExploreKindUiUseCase = koinInject()
+    var sourceKindPreviewUrl by rememberSaveable { mutableStateOf<String?>(null) }
+    var sourceKindPreviewKinds by remember { mutableStateOf<List<ExploreKind>>(emptyList()) }
+    var sourceKindPreviewLoading by remember { mutableStateOf(false) }
+    val sourceKindPreviewSource = remember(sourceKindPreviewUrl, state.items) {
+        state.items.firstOrNull { it.bookSourceUrl == sourceKindPreviewUrl }
+    }
+    LaunchedEffect(sourceKindPreviewUrl, sourceKindPreviewSource) {
+        val source = sourceKindPreviewSource
+        if (sourceKindPreviewUrl == null || source == null) {
+            sourceKindPreviewKinds = emptyList()
+            sourceKindPreviewLoading = false
+            return@LaunchedEffect
+        }
+        sourceKindPreviewLoading = true
+        sourceKindPreviewKinds = runCatching { source.exploreKinds() }.getOrDefault(emptyList())
+        sourceKindPreviewLoading = false
+    }
+    val sourceKindPreviewRows = remember(sourceKindPreviewKinds) {
+        calculateExploreKindRows(sourceKindPreviewKinds, maxSpan = 6)
+    }
 
     val composeEngine = ThemeResolver.isMiuixEngine(composeEngine)
 
@@ -284,6 +306,18 @@ fun ExploreScreen(
                 if (!expanded) {
                     sourceActionMenuUrl = null
                     sourceMenuQuery = ""
+                }
+            }
+        } else null,
+        onSubtitleLongClick = if (state.layoutMode == 1) {
+            {
+                val sourceUrl = state.enhance.selectedSuite?.defaultSourceUrl
+                    ?: state.items.firstOrNull()?.bookSourceUrl
+                if (sourceUrl != null) {
+                    sourceMenuExpanded = false
+                    sourceActionMenuUrl = null
+                    sourceMenuQuery = ""
+                    sourceKindPreviewUrl = sourceUrl
                 }
             }
         } else null,
@@ -449,6 +483,81 @@ fun ExploreScreen(
         dismissText = stringResource(android.R.string.cancel),
         onDismiss = { sourceToDeleteUrl = null },
     )
+
+    AppModalBottomSheet(
+        show = state.layoutMode == 1 && sourceKindPreviewUrl != null,
+        onDismissRequest = {
+            sourceKindPreviewUrl = null
+            sourceKindPreviewKinds = emptyList()
+        },
+        title = sourceKindPreviewSource?.bookSourceName ?: state.enhance.selectedSourceName,
+    ) {
+        when {
+            sourceKindPreviewLoading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 32.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    AppContainedLoadingIndicator()
+                }
+            }
+
+            sourceKindPreviewRows.isEmpty() -> {
+                Text(
+                    text = "该书源没有发现分类",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            else -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 560.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    sourceKindPreviewRows.forEach { rowItems ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            rowItems.forEach { (kind, span) ->
+                                ExploreKindMultiTypeItem(
+                                    kind = kind,
+                                    sourceUrl = sourceKindPreviewUrl,
+                                    onOpenUrl = { url ->
+                                        val sourceUrl = sourceKindPreviewUrl.orEmpty()
+                                        sourceKindPreviewUrl = null
+                                        sourceKindPreviewKinds = emptyList()
+                                        onOpenExploreShow(kind.title, sourceUrl, url)
+                                    },
+                                    onRefreshKinds = {
+                                        sourceKindPreviewUrl = null
+                                        sourceKindPreviewKinds = emptyList()
+                                        onIntent(ExploreIntent.RefreshSuite)
+                                    },
+                                    modifier = Modifier.weight(span.toFloat()),
+                                    isMiuix = composeEngine,
+                                    useCase = previewExploreKindUseCase,
+                                )
+                            }
+                            val totalSpan = rowItems.sumOf { it.second }
+                            if (totalSpan < 6) {
+                                Spacer(modifier = Modifier.weight((6 - totalSpan).toFloat()))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     ExploreConfigEnhance(state, onIntent)
 }

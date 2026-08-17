@@ -48,6 +48,7 @@ fun <T> DynamicTopAppBar(
     subtitleDropdownMenuFixedHeader: (@Composable () -> Unit)? = null,
     subtitleMenuExpanded: Boolean? = null,
     onSubtitleMenuExpandedChange: ((Boolean) -> Unit)? = null,
+    onSubtitleLongClick: (() -> Unit)? = null,
     state: ListUiState<T>,
     scrollBehavior: GlassTopAppBarScrollBehavior,
     onBackClick: (() -> Unit)? = null,
@@ -92,6 +93,7 @@ fun <T> DynamicTopAppBar(
         subtitleDropdownMenuFixedHeader = subtitleDropdownMenuFixedHeader,
         subtitleMenuExpanded = subtitleMenuExpanded,
         onSubtitleMenuExpandedChange = onSubtitleMenuExpandedChange,
+        onSubtitleLongClick = onSubtitleLongClick,
         navigationIcon = {
             if (isSelecting || onBackClick != null) {
                 TopBarNavigationButton(

@@ -1,7 +1,8 @@
 package io.legado.app.ui.widget.components.topbar
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
@@ -36,6 +37,7 @@ import top.yukonga.miuix.kmp.basic.TopAppBar as MiuixTopAppBar
     ExperimentalMaterial3Api::class,
     ExperimentalMaterial3ExpressiveApi::class,
     ExperimentalLayoutApi::class,
+    ExperimentalFoundationApi::class,
 )
 @Composable
 fun GlassMediumFlexibleTopAppBar(
@@ -54,6 +56,7 @@ fun GlassMediumFlexibleTopAppBar(
     subtitleDropdownMenuFixedHeader: (@Composable () -> Unit)? = null,
     subtitleMenuExpanded: Boolean? = null,
     onSubtitleMenuExpandedChange: ((Boolean) -> Unit)? = null,
+    onSubtitleLongClick: (() -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
     bottomContent: @Composable (ColumnScope.() -> Unit)? = null
 ) {
@@ -152,8 +155,12 @@ fun GlassMediumFlexibleTopAppBar(
                         },
                         subtitle = subtitleText?.let { text ->
                             {
-                                val rowModifier = if (subtitleDropdownMenu != null || subtitleDropdownMenuLazy != null) {
-                                    Modifier.clickable { setSubtitleMenuExpanded(true) }
+                                val hasSubtitleMenu = subtitleDropdownMenu != null || subtitleDropdownMenuLazy != null
+                                val rowModifier = if (hasSubtitleMenu || onSubtitleLongClick != null) {
+                                    Modifier.combinedClickable(
+                                        onClick = { if (hasSubtitleMenu) setSubtitleMenuExpanded(true) },
+                                        onLongClick = onSubtitleLongClick,
+                                    )
                                 } else Modifier
                                 Row(modifier = rowModifier, verticalAlignment = Alignment.CenterVertically) {
                                     AnimatedTextLine(text = text)
@@ -189,8 +196,12 @@ fun GlassMediumFlexibleTopAppBar(
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 subtitleText?.let { text ->
-                                    val rowModifier = if (subtitleDropdownMenu != null || subtitleDropdownMenuLazy != null) {
-                                        Modifier.clickable { setSubtitleMenuExpanded(true) }
+                                    val hasSubtitleMenu = subtitleDropdownMenu != null || subtitleDropdownMenuLazy != null
+                                    val rowModifier = if (hasSubtitleMenu || onSubtitleLongClick != null) {
+                                        Modifier.combinedClickable(
+                                            onClick = { if (hasSubtitleMenu) setSubtitleMenuExpanded(true) },
+                                            onLongClick = onSubtitleLongClick,
+                                        )
                                     } else Modifier
                                     Row(modifier = rowModifier, verticalAlignment = Alignment.CenterVertically) {
                                         AnimatedTextLine(
