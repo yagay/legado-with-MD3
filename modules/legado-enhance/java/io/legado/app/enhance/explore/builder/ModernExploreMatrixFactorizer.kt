@@ -21,28 +21,35 @@ internal object ModernExploreMatrixFactorizer {
             return items
         }
 
+        // URL parsing and parameter-shape discovery do not depend on blockSize. Previously these
+        // were repeated for every candidate block size, which becomes expensive on sources with
+        // hundreds of discover entries. Parse once, then only validate the candidate arrangement.
+        val parsed = items.map { parseUrl(it.url!!) ?: return items }
+        if (parsed.map { it.base }.distinct().size != 1) return items
+
+        val commonKeys = parsed.map { it.query.keys }.reduce { left, right -> left intersect right }
+        val varyingKeys = commonKeys.filter { key ->
+            parsed.asSequence().map { it.query[key] }.distinct().take(3).count() > 1
+        }
+        if (varyingKeys.size != 2) return items
+
+        val cleanTitles = items.map { cleanDimensionTitle(it.title) }
+
         for (blockSize in 2..(items.size / 2)) {
             if (items.size % blockSize != 0) continue
             val blockCount = items.size / blockSize
             if (blockCount < 2) continue
-            if (!hasRepeatedTitlePattern(items, blockSize, blockCount)) continue
-
-            val urls = items.map { parseUrl(it.url!!) ?: return@map null }
-            if (urls.any { it == null }) continue
-            @Suppress("UNCHECKED_CAST")
-            val parsed = urls as List<ParsedUrl>
-            if (parsed.map { it.base }.distinct().size != 1) continue
-
-            val commonKeys = parsed.map { it.query.keys }.reduce { left, right -> left intersect right }
-            val varyingKeys = commonKeys.filter { key -> parsed.map { it.query[key] }.distinct().size > 1 }
-            if (varyingKeys.size != 2) continue
+            if (!hasRepeatedTitlePattern(cleanTitles, blockSize, blockCount)) continue
 
             val blockKey = varyingKeys.singleOrNull { key ->
                 (0 until blockCount).all { block ->
                     val start = block * blockSize
                     val value = parsed[start].query[key]
                     (0 until blockSize).all { offset -> parsed[start + offset].query[key] == value }
-                } && (0 until blockCount).map { block -> parsed[block * blockSize].query[key] }.distinct().size == blockCount
+                } && (0 until blockCount)
+                    .map { block -> parsed[block * blockSize].query[key] }
+                    .distinct()
+                    .size == blockCount
             } ?: continue
 
             val positionKey = varyingKeys.singleOrNull { key ->
@@ -50,7 +57,10 @@ internal object ModernExploreMatrixFactorizer {
                     (0 until blockSize).all { offset ->
                         val value = parsed[offset].query[key]
                         (0 until blockCount).all { block -> parsed[block * blockSize + offset].query[key] == value }
-                    } && (0 until blockSize).map { offset -> parsed[offset].query[key] }.distinct().size == blockSize
+                    } && (0 until blockSize)
+                    .map { offset -> parsed[offset].query[key] }
+                    .distinct()
+                    .size == blockSize
             } ?: continue
 
             val pairs = parsed.map { it.query[blockKey] to it.query[positionKey] }
@@ -65,14 +75,14 @@ internal object ModernExploreMatrixFactorizer {
                         title = if (offset == 0) {
                             defaultPositionTitle(parsed[start + offset].query[positionKey])
                         } else {
-                            cleanDimensionTitle(leaf.title)
+                            cleanTitles[start + offset]
                         },
                         level = leaf.level + 2,
                         sourceKey = "${leaf.sourceKey}.matrixB",
                     )
                 }
                 ExploreNode(
-                    title = cleanDimensionTitle(head.title),
+                    title = cleanTitles[start],
                     url = null,
                     children = listOf(
                         ExploreNode(
@@ -97,17 +107,17 @@ internal object ModernExploreMatrixFactorizer {
     }
 
     private fun hasRepeatedTitlePattern(
-        items: List<ExploreNode>,
+        cleanTitles: List<String>,
         blockSize: Int,
         blockCount: Int,
     ): Boolean {
         val headTitles = (0 until blockCount)
-            .map { block -> cleanDimensionTitle(items[block * blockSize].title) }
+            .map { block -> cleanTitles[block * blockSize] }
         if (headTitles.any(String::isBlank) || headTitles.distinct().size != blockCount) return false
 
         return (1 until blockSize).all { offset ->
             val titles = (0 until blockCount)
-                .map { block -> cleanDimensionTitle(items[block * blockSize + offset].title) }
+                .map { block -> cleanTitles[block * blockSize + offset] }
             titles.firstOrNull()?.isNotBlank() == true && titles.distinct().size == 1
         }
     }
