@@ -35,13 +35,16 @@ object ModernExploreControlExtractor {
         val visibleControls: List<ExploreKind>,
     )
 
-    /**
-     * Snapshot of the exact ExploreKind order used for the current modern discovery page.
-     * It lets the Compose layer interleave select/category rows with native button/text/toggle
-     * rows without changing the upstream ExploreKind model or teaching the UI source semantics.
-     */
+    /** Exact ExploreKind order used by the current modern discovery page. */
     @Volatile
     private var sourceOrderSnapshot: List<ExploreKind> = emptyList()
+
+    /**
+     * Select controls that have proved to change the shape of the explore page.
+     * The key includes title/action/options so equally named controls from unrelated sources do
+     * not normally share learned state.
+     */
+    private val structuralSelectKeys = mutableSetOf<String>()
 
     fun fromFlatKinds(kinds: List<ExploreKind>): List<SelectControl> =
         kinds.mapIndexedNotNull { index, kind ->
@@ -67,11 +70,7 @@ object ModernExploreControlExtractor {
         return result
     }
 
-    /**
-     * Produces the exact native-control list that the modern UI should render.
-     * Search recognition and hiding are intentionally performed in one pass so the UI cannot
-     * observe a SearchControl whose original text/button pair was filtered by separate state.
-     */
+    /** Produces the exact native-control list that the modern UI should render. */
     fun flattenOriginalKinds(nodes: List<ExploreNode>): List<ExploreKind> {
         val result = mutableListOf<ExploreKind>()
         val stack = ArrayDeque<ExploreNode>()
@@ -85,9 +84,12 @@ object ModernExploreControlExtractor {
     }
 
     fun extractNativeControls(kinds: List<ExploreKind>): NativeControlsResult {
-        // refreshNativeControls() is invoked only after the active-source generation check,
-        // therefore this snapshot always belongs to the page that will be rendered next.
+        // A dynamic source commonly rebuilds ExploreKind after a select action. Comparing the old
+        // and new snapshots lets us learn whether that select controls page structure or merely
+        // changes URL parameter values. No business labels are required.
+        learnStructuralSelectRelationships(sourceOrderSnapshot, kinds)
         sourceOrderSnapshot = kinds.toList()
+
         val searchControl = findSearchControl(kinds)
         val hiddenIndexes = searchControl?.hiddenSourceIndexes.orEmpty()
         val visibleControls = kinds.mapIndexedNotNull { index, kind ->
@@ -102,6 +104,87 @@ object ModernExploreControlExtractor {
             searchControl = searchControl,
             visibleControls = visibleControls,
         )
+    }
+
+    /**
+     * Return the selected value of the nearest proven structural select before a dynamic row.
+     * Independent selects (status/sort/word-count/etc.) are deliberately ignored.
+     */
+    fun structuralParentSelectionBefore(sourceIndex: Int): String? {
+        if (sourceIndex < 0) return null
+        val candidate = sourceOrderSnapshot
+            .withIndex()
+            .asSequence()
+            .filter { (index, kind) ->
+                index < sourceIndex &&
+                    kind.type == ExploreKind.Type.select &&
+                    selectIdentity(kind) in structuralSelectKeys
+            }
+            .maxByOrNull { it.index }
+            ?.value
+            ?: return null
+        return cleanTitle(candidate.default.orEmpty()).takeIf { it.isNotBlank() }
+    }
+
+    internal fun resetStructureLearning() {
+        sourceOrderSnapshot = emptyList()
+        structuralSelectKeys.clear()
+    }
+
+    private fun learnStructuralSelectRelationships(
+        previous: List<ExploreKind>,
+        current: List<ExploreKind>,
+    ) {
+        if (previous.isEmpty() || current.isEmpty()) return
+
+        val previousSelects = previous
+            .filter { it.type == ExploreKind.Type.select }
+            .associateBy(::selectIdentity)
+        if (previousSelects.isEmpty()) return
+
+        val changedSelectKeys = current
+            .asSequence()
+            .filter { it.type == ExploreKind.Type.select }
+            .mapNotNull { currentSelect ->
+                val key = selectIdentity(currentSelect)
+                val old = previousSelects[key] ?: return@mapNotNull null
+                val oldValue = old.default.orEmpty()
+                val newValue = currentSelect.default.orEmpty()
+                key.takeIf { oldValue != newValue }
+            }
+            .toList()
+        if (changedSelectKeys.isEmpty()) return
+
+        if (exploreStructureSignature(previous) != exploreStructureSignature(current)) {
+            structuralSelectKeys += changedSelectKeys
+        }
+    }
+
+    /**
+     * Structure deliberately ignores select defaults and URL parameter values. A status/sort
+     * change therefore keeps the same signature, while channel/category/group changes that add,
+     * remove or rename rows produce a different signature.
+     */
+    private fun exploreStructureSignature(kinds: List<ExploreKind>): List<String> =
+        kinds.map { kind ->
+            when (kind.type) {
+                ExploreKind.Type.url ->
+                    "url|${cleanTitle(kind.title)}|${urlFamilySignature(kind.url.orEmpty())}"
+                ExploreKind.Type.select ->
+                    "select|${cleanTitle(kind.title)}|${kind.chars.orEmpty().filterNotNull().joinToString("\u001F") { cleanTitle(it) }}"
+                else -> "${kind.type}|${cleanTitle(kind.title)}"
+            }
+        }
+
+    private fun selectIdentity(kind: ExploreKind): String = buildString {
+        append(cleanTitle(kind.title))
+        append('\u001F')
+        append(kind.action.orEmpty())
+        append('\u001F')
+        kind.chars.orEmpty().filterNotNull().forEach { value ->
+            append(cleanTitle(value))
+            append('\u001E')
+        }
     }
 
     /** Exact original position for a native control. Identity wins over structural equality. */
@@ -127,8 +210,6 @@ object ModernExploreControlExtractor {
      * several 0.25 cells). When the same URL endpoint/query shape has compact siblings in the
      * same contiguous URL block, keep the full-width item in the category selector instead of
      * extracting it as an independent destination.
-     *
-     * This deliberately uses source structure rather than visible words such as “书架/分类”.
      */
     fun isStandaloneUrlEntry(kind: ExploreKind): Boolean {
         if (kind.type != ExploreKind.Type.url || kind.url.isNullOrBlank()) return false
@@ -167,12 +248,7 @@ object ModernExploreControlExtractor {
     private fun ExploreKind.isActionableUrl(): Boolean =
         type == ExploreKind.Type.url && !url.isNullOrBlank()
 
-    /**
-     * Compare URL structure without depending on parameter values. Dynamic category sources often
-     * vary only category_id/gender/etc.; standalone destinations usually use a different endpoint
-     * or parameter shape. Keeping query-key order out of the signature also handles sources that
-     * build equivalent URLs in a different order.
-     */
+    /** Compare URL structure without depending on parameter values. */
     private fun urlFamilySignature(url: String): String {
         val normalized = url.substringBefore('#')
         val base = normalized.substringBefore('?').trim()
@@ -200,8 +276,6 @@ object ModernExploreControlExtractor {
         val urlMatch = snapshot.firstOrNull { it.url == url && isStandaloneUrlEntry(it) }
         if (urlMatch != null) return true
 
-        // URL is authoritative. Title is only used to disambiguate equivalent normalized URL
-        // wrappers that may be recreated by dynamic source JavaScript.
         val normalized = cleanTitle(title)
         if (normalized.isBlank()) return false
         return snapshot.any { kind ->
@@ -211,12 +285,7 @@ object ModernExploreControlExtractor {
         }
     }
 
-    /**
-     * Original position represented by a dynamic category/tree target.
-     * URL is authoritative because different branches often reuse the same visible title.
-     * Title matching is only a fallback for structural blank-URL headers and synthetic matrix
-     * dimension labels.
-     */
+    /** Original position represented by a dynamic category/tree target. */
     fun sourceIndexOfTarget(title: String, url: String?): Int {
         val snapshot = sourceOrderSnapshot
         if (!url.isNullOrBlank()) {
@@ -247,10 +316,7 @@ object ModernExploreControlExtractor {
             return SearchControl(matched.second, button, matched.first, buttonIndex)
         }
 
-        // 2. Explicit search action: some sources hide the real search implementation in
-        // jsLib helpers such as exploreSearch()/doSearch(), while others call java.searchBook
-        // or java.open('search', ...) directly. Pair such a button with the nearest preceding
-        // text control even when the page contains other text fields returned dynamically.
+        // 2. Explicit search action: some sources hide the real search implementation in helpers.
         kinds.forEachIndexed { buttonIndex, button ->
             if (
                 button.type != ExploreKind.Type.button ||
@@ -285,8 +351,6 @@ object ModernExploreControlExtractor {
             }
 
             // 4. Wrapped-function fallback: a single text followed by the next native button.
-            // Explicit login/browser/form actions are excluded, and multi-text forms never enter
-            // this branch, so account/password/captcha controls remain visible.
             val nextNative = kinds
                 .mapIndexedNotNull { index, kind ->
                     if (index <= textIndex) return@mapIndexedNotNull null
