@@ -128,7 +128,7 @@ fun DiscoverySuiteScreen(
                         val selector = row.selector
                         item(key = selector.id) {
                             ModernDiscoveryFilterBar(
-                                title = selector.title,
+                                title = displayTitleForSelector(selector),
                                 targets = selector.targets,
                                 selectedTargetTitle = selector.selectedTitle,
                                 onTargetClick = { target ->
@@ -474,6 +474,13 @@ private fun sourceIndexOfSelector(selector: ExploreViewModel.DynamicSelectorUi):
         .filter { it >= 0 }
         .minOrNull()
         ?: -1
+}
+
+private fun displayTitleForSelector(selector: ExploreViewModel.DynamicSelectorUi): String {
+    if (selector.id != "dynamic_level_0") return selector.title
+    val sourceIndex = sourceIndexOfSelector(selector)
+    return ModernExploreControlExtractor.structuralParentSelectionBefore(sourceIndex)
+        ?: selector.title
 }
 
 private fun buildExplorePathTitle(
