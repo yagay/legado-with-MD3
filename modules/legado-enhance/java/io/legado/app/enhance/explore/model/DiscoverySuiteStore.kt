@@ -15,28 +15,35 @@ object DiscoverySuiteStore {
         appCtx.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
     }
 
+    @Volatile
+    private var cachedConfig: DiscoverySuiteConfig? = null
+
     fun load(): DiscoverySuiteConfig {
-        val json = sharedPrefs.getString(KEY_CONFIG, null)
-        LogUtils.d("DiscoverySuiteStore", "Loading config: $json")
-        return if (json.isNullOrBlank()) {
-            createDefaultConfig()
-        } else {
-            try {
-                val config = GSON.fromJson(json, DiscoverySuiteConfig::class.java).sanitize()
-                if (config.suites.isEmpty()) {
-                    createDefaultConfig()
-                } else {
-                    config
-                }
-            } catch (e: Exception) {
-                LogUtils.e("DiscoverySuiteStore", "Failed to parse config: ${e.message}")
+        cachedConfig?.let { return it }
+        return synchronized(this) {
+            cachedConfig?.let { return@synchronized it }
+            val json = sharedPrefs.getString(KEY_CONFIG, null)
+            val config = if (json.isNullOrBlank()) {
                 createDefaultConfig()
+            } else {
+                try {
+                    GSON.fromJson(json, DiscoverySuiteConfig::class.java).sanitize()
+                        .takeIf { it.suites.isNotEmpty() }
+                        ?: createDefaultConfig()
+                } catch (e: Exception) {
+                    LogUtils.e("DiscoverySuiteStore", "Failed to parse config: ${e.message}")
+                    createDefaultConfig()
+                }
             }
+            cachedConfig = config
+            config
         }
     }
 
     fun save(config: DiscoverySuiteConfig) {
-        val json = GSON.toJson(config.sanitize())
+        val sanitized = config.sanitize()
+        cachedConfig = sanitized
+        val json = GSON.toJson(sanitized)
         sharedPrefs.edit().putString(KEY_CONFIG, json).apply()
     }
 
