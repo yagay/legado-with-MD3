@@ -28,6 +28,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
@@ -56,10 +57,11 @@ fun AppModalBottomSheet(
     contentWindowInsets: @Composable () -> WindowInsets = { BottomSheetDefaults.modalWindowInsets },
     contentPaddingEnabled: Boolean = true,
     sheetGesturesEnabled: Boolean = true,
+    containerColor: Color? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val colorScheme = LocalLegadoThemeColors.current.colorScheme
-    val sheetContainerColor = LegadoTheme.colorScheme.surfaceContainer
+    val sheetContainerColor = containerColor ?: LegadoTheme.colorScheme.surfaceContainer
     val sheetContentColor = LegadoTheme.colorScheme.onSurface
     val sheetDragHandleColor = LegadoTheme.colorScheme.onSurfaceVariant
 

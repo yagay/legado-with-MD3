@@ -479,6 +479,11 @@ fun ExploreScreen(
             sourceKindPreviewUrl = null
         },
         title = sourceKindPreviewSource?.bookSourceName ?: state.enhance.selectedSourceName,
+        containerColor = if (composeEngine) {
+            MiuixTheme.colorScheme.surface
+        } else {
+            MaterialTheme.colorScheme.background
+        },
     ) {
         when {
             sourceKindPreviewLoading -> {
