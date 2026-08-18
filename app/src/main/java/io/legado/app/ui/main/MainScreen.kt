@@ -244,11 +244,7 @@ fun MainScreen(
             return
         }
         coroutineScope.launch {
-            // Top-level tabs contain heavy, independent screens. Animating the pager on a
-            // navigation click makes both pages measure/draw on every frame. Adjacent pages
-            // are already precomposed (beyondViewportPageCount = 1), so switch immediately.
-            // Direct horizontal swipes still keep the native pager animation.
-            pagerState.scrollToPage(index)
+            pagerState.animateScrollToPage(index)
         }
     }
     LaunchedEffect(destinations) {
@@ -263,8 +259,6 @@ fun MainScreen(
     val useLiquidGlass = useFloatingBottomBar &&
             mainUiState.useFloatingBottomBarLiquidGlass &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
-    // Blur/backdrop capture is one of the most expensive operations while the root pager moves.
-    // Keep the visual effect at rest, but suspend it for the duration of a page transition.
     val enableLiquidGlassRendering = useLiquidGlass && !pagerState.isScrollInProgress
     val alwaysShowLabel = labelVisibilityMode == "labeled"
     val showLabel = !isUnlabeled
