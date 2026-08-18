@@ -1,6 +1,5 @@
-name: Beta2 Performance Phase 3 Fixed (one-shot)
+name: Beta2 Performance Phase 3 Remaining (one-shot)
 
-# retriggered after enabling beta2 build verification
 on:
   push:
     branches:
@@ -21,7 +20,7 @@ jobs:
           ref: beta2
           fetch-depth: 0
 
-      - name: Apply corrected phase 3 performance patches
+      - name: Apply remaining phase 3 patches
         shell: bash
         run: |
           python3 - <<'PY'
@@ -110,61 +109,6 @@ jobs:
         groupsJob = viewModelScope.launch {
 ''', 1)
 
-          rss_vm = 'app/src/main/java/io/legado/app/ui/main/rss/RssViewModel.kt'
-          replace_exact(rss_vm, 'import kotlinx.coroutines.ExperimentalCoroutinesApi\n', 'import kotlinx.coroutines.ExperimentalCoroutinesApi\nimport kotlinx.coroutines.Job\n', 1)
-          replace_exact(rss_vm, 'import kotlinx.coroutines.flow.combine\n', 'import kotlinx.coroutines.flow.combine\nimport kotlinx.coroutines.flow.collectLatest\nimport kotlinx.coroutines.flow.distinctUntilChanged\n', 1)
-          replace_exact(rss_vm, 'import kotlinx.coroutines.flow.launchIn\n', 'import kotlinx.coroutines.flow.launchIn\nimport kotlinx.coroutines.flow.map\n', 1)
-          replace_exact(
-              rss_vm,
-              '''    private val _effects = MutableSharedFlow<RssEffect>(extraBufferCapacity = 8)
-    val effects = _effects.asSharedFlow()
-
-    init {
-        _uiState.update { it.copy(isLoading = true) }
-        initGroupData()
-        initRssData()
-    }
-''',
-              '''    private val _effects = MutableSharedFlow<RssEffect>(extraBufferCapacity = 8)
-    val effects = _effects.asSharedFlow()
-    private var groupDataJob: Job? = null
-    private var rssDataJob: Job? = null
-
-    init {
-        _uiState.update { it.copy(isLoading = true) }
-        observeActiveSubscriptions()
-    }
-
-    private fun observeActiveSubscriptions() {
-        viewModelScope.launch {
-            _uiState.subscriptionCount
-                .map { it > 0 }
-                .distinctUntilChanged()
-                .collectLatest { active ->
-                    if (active) {
-                        initGroupData()
-                        initRssData()
-                    } else {
-                        groupDataJob?.cancel()
-                        rssDataJob?.cancel()
-                    }
-                }
-        }
-    }
-''', 1)
-          replace_exact(rss_vm, '''    private fun initGroupData() {
-        viewModelScope.launch {
-''', '''    private fun initGroupData() {
-        groupDataJob?.cancel()
-        groupDataJob = viewModelScope.launch {
-''', 1)
-          replace_exact(rss_vm, '''    private fun initRssData() {
-        combine(
-''', '''    private fun initRssData() {
-        rssDataJob?.cancel()
-        rssDataJob = combine(
-''', 1)
-
           bookshelf_vm = 'app/src/main/java/io/legado/app/ui/main/bookshelf/BookshelfViewModel.kt'
           replace_exact(
               bookshelf_vm,
@@ -198,15 +142,15 @@ jobs:
 ''', 1)
 
           explore_show = 'app/src/main/java/io/legado/app/ui/book/explore/ExploreShowScreen.kt'
-          replace_exact(explore_show, 'key = { index, item -> "${item.book.bookUrl}:$index" }', 'key = { _, item -> item.book.bookUrl }', 2)
+          replace_exact(
+              explore_show,
+              'key = { index, item -> "${item.book.bookUrl}:$index" }',
+              'key = { _, item -> item.book.bookUrl }',
+              2,
+          )
 
-          for workflow in (
-              '.github/workflows/beta2-performance-phase3-once.yml',
-              '.github/workflows/beta2-performance-phase3-fix-once.yml',
-          ):
-              p = Path(workflow)
-              if p.exists():
-                  p.unlink()
+          Path('.github/workflows/beta2-performance-phase3-once.yml').unlink(missing_ok=True)
+          Path('.github/workflows/beta2-performance-phase3-fix-once.yml').unlink(missing_ok=True)
           PY
 
       - name: Set up JDK 21
@@ -221,7 +165,7 @@ jobs:
       - name: Remove Aliyun mirrors for CI
         run: sed -i '/maven.aliyun.com/d' settings.gradle
 
-      - name: Compile corrected phase 3
+      - name: Compile remaining phase 3
         timeout-minutes: 45
         run: |
           chmod +x gradlew
@@ -241,10 +185,10 @@ jobs:
             --no-daemon \
             --no-configuration-cache
 
-      - name: Commit corrected phase 3 to beta2
+      - name: Commit remaining phase 3 to beta2
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
-          git commit -m 'perf: stop hidden main-page database collectors'
+          git commit -m 'perf: stop hidden explore and bookshelf collectors'
           git push origin HEAD:beta2
