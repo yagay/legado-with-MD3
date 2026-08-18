@@ -480,7 +480,7 @@ fun BookshelfScreen(
                         .takeIf { it.isNotEmpty() }
                         ?.let(onNavigateToSearch)
                 },
-                onClearSearch = { onIntent(BookshelfIntent.SetSearchKey("")) },
+                onClearSearch = { onIntent(BookshelfIntent.SetSearchKey("") },
                 actions = {
                     AnimatedVisibility(visible = isEditMode) {
                         TopBarActionButton(
@@ -637,7 +637,7 @@ fun BookshelfScreen(
                                 tabTitles = tabTitles,
                                 selectedTabIndex = selectedTabIndex,
                                 onTabSelected = { index ->
-                                    scope.launch { pagerState.animateScrollToPage(index) }
+                                    scope.launch { pagerState.scrollToPage(index) }
                                 },
                                 modifier = Modifier.weight(1f)
                             )
@@ -670,9 +670,7 @@ fun BookshelfScreen(
                                                         onIntent(BookshelfIntent.ChangeGroup(group.groupId))
                                                     }
                                                     scope.launch {
-                                                        pagerState.animateScrollToPage(
-                                                            index
-                                                        )
+                                                        pagerState.scrollToPage(index)
                                                     }
                                                     dismiss()
                                                 },
@@ -1068,7 +1066,7 @@ fun BookshelfScreen(
                                         if (targetIndex >= 0) {
                                             scope.launch {
                                                 if (pagerState.currentPage != targetIndex) {
-                                                    pagerState.animateScrollToPage(targetIndex)
+                                                    pagerState.scrollToPage(targetIndex)
                                                 }
                                             }
                                         }
