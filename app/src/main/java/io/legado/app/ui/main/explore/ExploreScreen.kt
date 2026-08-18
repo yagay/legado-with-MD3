@@ -188,10 +188,6 @@ fun ExploreScreen(
     val sourceToDelete = remember(sourceToDeleteUrl, state.items) {
         state.items.firstOrNull { it.bookSourceUrl == sourceToDeleteUrl }
     }
-    // Long-pressing a source in the waterfall source picker switches the SAME
-    // popup into the standard source action menu instead of opening a nested popup.
-    // This avoids the double-popup problem while keeping the exact same actions
-    // available as the list layout's source long-press menu.
     var sourceActionMenuUrl by rememberSaveable { mutableStateOf<String?>(null) }
     val sourceActionMenuSource = remember(sourceActionMenuUrl, state.items) {
         state.items.firstOrNull { it.bookSourceUrl == sourceActionMenuUrl }
@@ -206,24 +202,14 @@ fun ExploreScreen(
     }
 
     val composeEngine = ThemeResolver.isMiuixEngine(composeEngine)
-
-    // Source picker popup is lazy-rendered for speed, but must have a concrete
-    // size so Popup/DropdownMenu never asks LazyColumn for intrinsic sizes.
-    // Width follows the longest visible source name; height grows with item
-    // count and stops at a comfortable maximum, so one/few sources do not
-    // leave a giant empty panel.
     val sourceMenuItems = remember(state.items) {
         state.items.distinctBy { it.bookSourceUrl }
     }
     var sourceMenuQuery by rememberSaveable { mutableStateOf("") }
     val filteredSourceMenuItems = remember(sourceMenuItems, sourceMenuQuery) {
         val query = sourceMenuQuery.trim()
-        if (query.isEmpty()) {
-            sourceMenuItems
-        } else {
-            sourceMenuItems.filter { source ->
-                source.bookSourceName.contains(query, ignoreCase = true)
-            }
+        if (query.isEmpty()) sourceMenuItems else sourceMenuItems.filter { source ->
+            source.bookSourceName.contains(query, ignoreCase = true)
         }
     }
     val sourceMenuListState = rememberLazyListState()
@@ -235,7 +221,6 @@ fun ExploreScreen(
     }
     LaunchedEffect(sourceMenuExpanded, defaultSourceIndex, sourceActionMenuSource) {
         if (sourceMenuExpanded && sourceActionMenuSource == null && defaultSourceIndex >= 0) {
-            // Miuix adds one outer spacer before the shared header item.
             val menuPrefixCount = if (composeEngine) 2 else 1
             sourceMenuListState.scrollToItem(defaultSourceIndex + menuPrefixCount)
         }
@@ -252,7 +237,6 @@ fun ExploreScreen(
         val baseHeight = if (sourceActionRowCount > 0) 68 else 132
         (baseHeight + rowCount * 56).dp.coerceIn(124.dp, sourceMenuMaxHeight)
     }
-    // Fixed width avoids the visible resize flash while long names remain single-line in menu items.
     val sourcePopupWidth = 280.dp
 
     ListScaffold(
@@ -331,8 +315,6 @@ fun ExploreScreen(
                                 dismiss()
                             },
                             onLongClick = {
-                                // Do not create a second Popup. Reuse this popup and swap
-                                // its content to the same action set used by list headers.
                                 sourceActionMenuUrl = source.bookSourceUrl
                                 scope.launch { sourceMenuListState.scrollToItem(0) }
                             }
@@ -420,10 +402,6 @@ fun ExploreScreen(
             }
         },
         dropDownMenuContent = { dismiss ->
-            // 普通列表和瀑布流统一使用同一套“书源分组”菜单。
-            // 在瀑布流模式下，选择分组只负责筛选左上角“发现”标题下拉菜单
-            // 中可见的书源名称；真正切换书源仍由左上角下拉菜单完成。
-            // 这样两个布局的右上角三点菜单内容和功能完全一致，也避免维护两份逻辑。
             RoundDropdownMenuItem(
                 leadingIcon = { MenuItemIcon(Icons.Default.Group) },
                 text = stringResource(R.string.all),
@@ -439,26 +417,30 @@ fun ExploreScreen(
         },
         contentWindowInsets = WindowInsets(0)
     ) { paddingValues ->
-        if (state.layoutMode == 1) {
-            ExploreScreenEnhance(
-                state = state,
-                onIntent = onIntent,
-                onOpenExploreShow = onOpenExploreShow,
-                onBookClick = onBookClick,
-                paddingValues = paddingValues
-            )
-        } else {
-            ExploreListContent(
-                state = state,
-                onIntent = onIntent,
-                onOpenExploreShow = onOpenExploreShow,
-                onDeleteSource = { sourceToDeleteUrl = it.bookSourceUrl },
-                paddingValues = paddingValues,
-                isMiuix = composeEngine
-            )
+        AnimatedContent(
+            targetState = state.layoutMode,
+            label = "ExploreLayoutSwitch"
+        ) { layoutMode ->
+            if (layoutMode == 1) {
+                ExploreScreenEnhance(
+                    state = state,
+                    onIntent = onIntent,
+                    onOpenExploreShow = onOpenExploreShow,
+                    onBookClick = onBookClick,
+                    paddingValues = paddingValues
+                )
+            } else {
+                ExploreListContent(
+                    state = state,
+                    onIntent = onIntent,
+                    onOpenExploreShow = onOpenExploreShow,
+                    onDeleteSource = { sourceToDeleteUrl = it.bookSourceUrl },
+                    paddingValues = paddingValues,
+                    isMiuix = composeEngine
+                )
+            }
         }
     }
-
 
     AppAlertDialog(
         data = sourceToDelete,
@@ -475,15 +457,9 @@ fun ExploreScreen(
 
     AppModalBottomSheet(
         show = state.layoutMode == 1 && sourceKindPreviewUrl != null,
-        onDismissRequest = {
-            sourceKindPreviewUrl = null
-        },
+        onDismissRequest = { sourceKindPreviewUrl = null },
         title = sourceKindPreviewSource?.bookSourceName ?: state.enhance.selectedSourceName,
-        containerColor = if (composeEngine) {
-            MiuixTheme.colorScheme.surface
-        } else {
-            MaterialTheme.colorScheme.background
-        },
+        containerColor = if (composeEngine) MiuixTheme.colorScheme.surface else MaterialTheme.colorScheme.background,
     ) {
         when {
             sourceKindPreviewLoading -> {
@@ -555,9 +531,6 @@ fun ExploreScreen(
     ExploreConfigEnhance(state, onIntent)
 }
 
-/**
- * 抽取上游原始列表内容，方便后续同步上游 UI 修改
- */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ExploreListContent(
@@ -580,9 +553,7 @@ private fun ExploreListContent(
             val item = listItems.getOrNull(firstIndex)
             if (item is ExploreListItem.KindRow) {
                 state.items.find { it.bookSourceUrl == item.sourceUrl }
-            } else {
-                null
-            }
+            } else null
         }
     }
 
@@ -662,18 +633,14 @@ private fun ExploreListContent(
                                         )
                                     },
                                     onRunAction = {
-                                        onIntent(
-                                            ExploreIntent.RunKindAction(listItem.sourceUrl, kind)
-                                        )
+                                        onIntent(ExploreIntent.RunKindAction(listItem.sourceUrl, kind))
                                     }
                                 )
                             }
 
                             val totalSpan = listItem.rowItems.sumOf { it.second }
                             if (totalSpan < 6) {
-                                Spacer(
-                                    modifier = Modifier.weight((6 - totalSpan).toFloat())
-                                )
+                                Spacer(modifier = Modifier.weight((6 - totalSpan).toFloat()))
                             }
                         }
                     }
@@ -740,7 +707,6 @@ private fun buildExploreListItems(state: ExploreViewModel.ExploreUiState): List<
     return list
 }
 
-
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ExploreSourceHeader(
@@ -801,14 +767,10 @@ fun ExploreSourceHeader(
                 .semantics(mergeDescendants = true) {
                     contentDescription = item.bookSourceName
                     role = Role.Button
-                    if (loadingKinds) {
-                        stateDescription = loadingLabel
-                    }
+                    if (loadingKinds) stateDescription = loadingLabel
                 }
                 .fillMaxWidth(),
-            colors = ListItemDefaults.colors(
-                containerColor = Color.Transparent
-            ),
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             headlineContent = {
                 AppText(
                     text = item.bookSourceName,
@@ -822,9 +784,7 @@ fun ExploreSourceHeader(
                     label = "LoadingSwitch"
                 ) { loading ->
                     if (loading) {
-                        AppContainedLoadingIndicator(
-                            modifier = Modifier.size(18.dp)
-                        )
+                        AppContainedLoadingIndicator(modifier = Modifier.size(18.dp))
                     } else {
                         Icon(
                             imageVector = Icons.Default.ChevronRight,
