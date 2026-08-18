@@ -200,8 +200,6 @@ fun ExploreShowScreen(
         }
     }
 
-    // Auto-load next page when filter removes all books on the current page
-    // but the ViewModel hasn't reached the end of data yet.
     LaunchedEffect(books.isEmpty(), state.isLoading, state.isEnd, state.books.size) {
         if (books.isEmpty() && !state.isLoading && !state.isEnd && state.books.isNotEmpty()) {
             onIntent(ExploreShowIntent.ForceLoadNext)
@@ -257,7 +255,6 @@ fun ExploreShowScreen(
         )
 
         Spacer(modifier = Modifier.height(32.dp))
-
     }
 
     ExploreKindSelectSheet(
@@ -272,8 +269,7 @@ fun ExploreShowScreen(
     )
 
     AppScaffold(
-        modifier = Modifier
-            .nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             GlassMediumFlexibleTopAppBar(
                 modifier = if (enableHazeRendering) Modifier.responsiveHazeEffect(state = hazeState) else Modifier,
@@ -282,7 +278,6 @@ fun ExploreShowScreen(
                     TopBarNavigationButton(onClick = onBack)
                 },
                 actions = {
-
                     AnimatedVisibility(
                         visible = isGridMode,
                         enter = fadeIn(tween(300)),
@@ -324,7 +319,12 @@ fun ExploreShowScreen(
             topPadding = paddingValues.calculateTopPadding(),
             scrollBehavior = scrollBehavior
         ) {
-            if (isGridMode) {
+            Crossfade(
+                targetState = isGridMode,
+                animationSpec = tween(250),
+                label = "LayoutCrossfade"
+            ) { isGrid ->
+                if (isGrid) {
                     LazyVerticalGrid(
                         state = gridState,
                         modifier = Modifier
@@ -363,7 +363,7 @@ fun ExploreShowScreen(
                                     previewBook = book
                                     previewSharedCoverKey = coverKey
                                 },
-                                modifier = Modifier,
+                                modifier = Modifier.animateItem(),
                                 sharedTransitionScope = sharedTransitionScope,
                                 animatedVisibilityScope = animatedVisibilityScope,
                                 sharedCoverKey = sharedCoverKey,
@@ -414,7 +414,7 @@ fun ExploreShowScreen(
                                     previewBook = book
                                     previewSharedCoverKey = coverKey
                                 },
-                                modifier = Modifier,
+                                modifier = Modifier.animateItem(),
                                 sharedTransitionScope = sharedTransitionScope,
                                 animatedVisibilityScope = animatedVisibilityScope,
                                 sharedCoverKey = sharedCoverKey,
@@ -432,6 +432,7 @@ fun ExploreShowScreen(
                         }
                     }
                 }
+            }
         }
     }
 
