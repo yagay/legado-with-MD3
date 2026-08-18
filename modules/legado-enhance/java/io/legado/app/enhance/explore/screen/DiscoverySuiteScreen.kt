@@ -501,8 +501,6 @@ private fun buildExplorePathTitle(
 
 private fun cleanExplorePathPart(title: String): String {
     return title
-        .replace(Regex("[\\[\\]【】?（）<>《》]"), "")
-        .replace(Regex("[\\p{So}\\p{Sk}]+"), "")
-        .replace(Regex("[༺༻ˇ»«`´ʚɞ]+"), "")
         .trim()
+        .trim { !it.isLetterOrDigit() }
 }
