@@ -255,7 +255,7 @@ private fun ModernDiscoveryFilterOption(
     )
 }
 
-private fun stripWrapSymbols(raw: String): String {
+internal fun stripWrapSymbols(raw: String): String {
     val value = raw.trim()
     if (value.isEmpty()) return value
 
