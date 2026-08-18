@@ -1,7 +1,7 @@
 package io.legado.app.ui.main.explore
 
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -417,8 +417,9 @@ fun ExploreScreen(
         },
         contentWindowInsets = WindowInsets(0)
     ) { paddingValues ->
-        AnimatedContent(
+        Crossfade(
             targetState = state.layoutMode,
+            animationSpec = tween(durationMillis = 160),
             label = "ExploreLayoutSwitch"
         ) { layoutMode ->
             if (layoutMode == 1) {
@@ -779,7 +780,7 @@ fun ExploreSourceHeader(
                 )
             },
             trailingContent = {
-                AnimatedContent(
+                androidx.compose.animation.AnimatedContent(
                     targetState = loadingKinds,
                     label = "LoadingSwitch"
                 ) { loading ->
