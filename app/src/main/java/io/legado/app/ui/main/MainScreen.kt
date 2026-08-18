@@ -107,7 +107,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlin.math.abs
 import org.koin.androidx.compose.koinViewModel
 import top.yukonga.miuix.kmp.basic.FloatingActionButton
 import top.yukonga.miuix.kmp.basic.NavigationRailDefaults
@@ -245,13 +244,11 @@ fun MainScreen(
             return
         }
         coroutineScope.launch {
-            // Avoid animating through every intermediate top-level page.
-            // Distant tab jumps used to compose/measure several heavy pages in one gesture.
-            if (abs(pagerState.currentPage - index) > 1) {
-                pagerState.scrollToPage(index)
-            } else {
-                pagerState.animateScrollToPage(index)
-            }
+            // Top-level tabs contain heavy, independent screens. Animating the pager on a
+            // navigation click makes both pages measure/draw on every frame. Adjacent pages
+            // are already precomposed (beyondViewportPageCount = 1), so switch immediately.
+            // Direct horizontal swipes still keep the native pager animation.
+            pagerState.scrollToPage(index)
         }
     }
     LaunchedEffect(destinations) {
