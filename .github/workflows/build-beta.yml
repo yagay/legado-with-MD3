@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: beta-build-${{ github.ref }}
@@ -22,36 +22,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-
-      - name: Apply pending beta2 performance patches
-        if: github.ref == 'refs/heads/beta2'
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-
-          bookshelf_vm = Path('app/src/main/java/io/legado/app/ui/main/bookshelf/BookshelfViewModel.kt')
-          text = bookshelf_vm.read_text()
-          text = text.replace('SharingStarted.WhileSubscribed(5000)', 'SharingStarted.WhileSubscribed()')
-          bookshelf_vm.write_text(text)
-
-          explore_show = Path('app/src/main/java/io/legado/app/ui/book/explore/ExploreShowScreen.kt')
-          text = explore_show.read_text()
-          old = 'key = { index, item -> "${item.book.bookUrl}:$index" }'
-          if text.count(old) != 2:
-              raise SystemExit(f'ExploreShowScreen expected 2 index keys, found {text.count(old)}')
-          text = text.replace(old, 'key = { _, item -> item.book.bookUrl }')
-          explore_show.write_text(text)
-
-          bookshelf_screen = Path('app/src/main/java/io/legado/app/ui/main/bookshelf/BookshelfScreen.kt')
-          text = bookshelf_screen.read_text()
-          pattern = r'pagerState\.animateScrollToPage\(\s*index\s*\)'
-          text, count = re.subn(pattern, 'pagerState.scrollToPage(index)', text)
-          if count != 2:
-              raise SystemExit(f'BookshelfScreen expected 2 tab-click animations, found {count}')
-          bookshelf_screen.write_text(text)
-          PY
 
       - name: Set up JDK 21
         uses: actions/setup-java@v5
@@ -98,20 +68,3 @@ jobs:
           name: beta-debug-universal-apk
           if-no-files-found: error
           path: app/build/outputs/apk/app/debug/*.apk
-
-      - name: Commit verified beta2 performance patches
-        if: github.ref == 'refs/heads/beta2'
-        shell: bash
-        run: |
-          git add \
-            app/src/main/java/io/legado/app/ui/main/bookshelf/BookshelfViewModel.kt \
-            app/src/main/java/io/legado/app/ui/main/bookshelf/BookshelfScreen.kt \
-            app/src/main/java/io/legado/app/ui/book/explore/ExploreShowScreen.kt
-          if git diff --cached --quiet; then
-            echo 'No pending beta2 performance patches.'
-            exit 0
-          fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'perf: finish beta2 main-screen performance pass'
-          git push origin HEAD:beta2
