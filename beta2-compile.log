@@ -65,12 +65,12 @@ This class is not used for the public extensions in AGP when android.newDsl=true
 > Task :modules:rhino-upstream:processDebugNavigationResources
 > Task :app:processAppDebugNavigationResources
 > Task :app:mergeAppDebugResources
-> Task :modules:rhino:parseDebugLocalResources
 > Task :modules:rhino-upstream:parseDebugLocalResources
 > Task :modules:book:parseDebugLocalResources
-> Task :modules:rhino-upstream:generateDebugRFile
+> Task :modules:rhino:parseDebugLocalResources
 > Task :modules:book:generateDebugRFile
 > Task :modules:rhino:generateDebugRFile
+> Task :modules:rhino-upstream:generateDebugRFile
 > Task :app:generateAppDebugBuildConfig
 > Task :modules:book:compileDebugKotlin NO-SOURCE
 > Task :modules:book:javaPreCompileDebug
@@ -86,216 +86,479 @@ This class is not used for the public extensions in AGP when android.newDsl=true
 w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/modules/rhino/src/main/java/com/script/rhino/RhinoExtensions.kt:43:5 Expression is unused.
 
 > Task :modules:rhino-upstream:compileDebugKotlin
+> Task :modules:rhino-upstream:compileDebugJavaWithJavac
 > Task :modules:rhino:compileDebugJavaWithJavac NO-SOURCE
 > Task :modules:rhino:bundleLibCompileToJarDebug
-> Task :modules:rhino-upstream:compileDebugJavaWithJavac
 > Task :modules:rhino-upstream:bundleLibCompileToJarDebug
 > Task :app:kspAppDebugKotlin
 > Task :app:copyRoomSchemas NO-SOURCE
 > Task :app:compileAppDebugKotlin
-e: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/main/bookshelf/BookshelfViewModel.kt:658:18 'fun <T> StateFlow<T>.distinctUntilChanged(): Flow<T>' is deprecated. Applying 'distinctUntilChanged' to StateFlow has no effect. See the StateFlow documentation on Operator Fusion.
-
-> Task :app:compileAppDebugKotlin FAILED
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/compile-1787074540456.json
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/App.kt:112:9 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/App.kt:134:17 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/App.kt:201:52 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/App.kt:223:19 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/App.kt:234:17 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/App.kt:339:9 Expression is unused.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/api/controller/BookController.kt:53:34 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/base/AppContextWrapper.kt:25:29 'object ThemeConfig : Any' is deprecated. 使用 ThemeSettingsGateway / AppShellSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/base/BaseActivity.kt:107:27 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/base/BaseActivity.kt:158:27 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/base/BaseActivity.kt:279:21 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/base/BaseActivity.kt:286:13 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/base/BaseDialogFragment.kt:83:21 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/base/BasePrefDialogFragment.kt:13:13 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/constant/AppLog.kt:59:13 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:28:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:39:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:45:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:51:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:69:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:75:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:81:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:87:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:98:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:104:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:110:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:134:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:140:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:147:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:157:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:168:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:187:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:194:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:200:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:216:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:228:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:234:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:261:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:267:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:273:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:280:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:288:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:294:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:300:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:307:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:317:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:323:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:329:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:517:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/data/DatabaseMigrations.kt:550:30 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/domain/model/AiMessageParts.kt:126:30 'data class ToolCall : AiMessagePart' is deprecated. Use Tool instead — tool call and result are now a single part.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/domain/model/AiMessageParts.kt:133:30 'data class ToolResult : AiMessagePart' is deprecated. Use Tool instead — tool call and result are now a single part.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/AppFreezeMonitor.kt:31:14 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/AppFreezeMonitor.kt:63:21 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/AppWebDav.kt:73:29 'object BackupConfig : Any' is deprecated. 使用 BackupSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/AppWebDav.kt:76:13 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/AppWebDav.kt:87:23 'object BackupConfig : Any' is deprecated. 使用 BackupSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/AppWebDav.kt:88:27 'object BackupConfig : Any' is deprecated. 使用 BackupSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/AppWebDav.kt:89:28 'object BackupConfig : Any' is deprecated. 使用 BackupSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/AppWebDav.kt:90:23 'object BackupConfig : Any' is deprecated. 使用 BackupSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/AppWebDav.kt:189:27 'object BackupConfig : Any' is deprecated. 使用 BackupSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/AppWebDav.kt:190:28 'object BackupConfig : Any' is deprecated. 使用 BackupSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/AppWebDav.kt:307:14 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/AppWebDav.kt:328:18 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/CrashHandler.kt:88:73 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/CrashHandler.kt:175:34 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/DispatchersMonitor.kt:35:14 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/JsExtensions.kt:135:39 'object OtherConfig : Any' is deprecated. 使用 OtherSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/JsExtensions.kt:158:39 'object OtherConfig : Any' is deprecated. 使用 OtherSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/JsExtensions.kt:234:55 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/JsExtensions.kt:273:55 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/JsExtensions.kt:319:55 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/JsExtensions.kt:1200:16 'object ThemeConfig : Any' is deprecated. 使用 ThemeSettingsGateway / AppShellSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/MediaHelp.kt:15:40 'class PlaybackStateCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/MediaHelp.kt:16:16 'class PlaybackStateCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/MediaHelp.kt:17:16 'class PlaybackStateCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/MediaHelp.kt:18:16 'class PlaybackStateCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/MediaHelp.kt:19:16 'class PlaybackStateCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/MediaHelp.kt:20:16 'class PlaybackStateCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/MediaHelp.kt:21:16 'class PlaybackStateCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/MediaHelp.kt:22:16 'class PlaybackStateCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/MediaHelp.kt:23:16 'class PlaybackStateCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/MediaHelp.kt:24:16 'class PlaybackStateCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/MediaHelp.kt:25:16 'class PlaybackStateCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/MediaHelp.kt:26:16 'class PlaybackStateCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/MediaHelp.kt:27:16 'class PlaybackStateCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/MediaHelp.kt:28:16 'class PlaybackStateCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/MediaHelp.kt:29:16 'class PlaybackStateCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/MediaHelp.kt:30:16 'class PlaybackStateCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/MediaHelp.kt:31:16 'class PlaybackStateCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/MediaHelp.kt:32:16 'class PlaybackStateCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/MediaHelp.kt:33:16 'class PlaybackStateCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/MediaHelp.kt:34:16 'class PlaybackStateCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/MediaHelp.kt:35:16 'class PlaybackStateCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/MediaHelp.kt:39:8 'class AudioFocusRequestCompat : Any' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/MediaHelp.kt:40:35 'class AudioAttributesCompat : Any, VersionedParcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/MediaHelp.kt:40:57 'constructor(): AudioAttributesCompat.Builder' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/MediaHelp.kt:41:23 'class AudioAttributesCompat : Any, VersionedParcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/MediaHelp.kt:42:29 'class AudioAttributesCompat : Any, VersionedParcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/MediaHelp.kt:44:16 'class AudioFocusRequestCompat : Any' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/MediaHelp.kt:44:40 'constructor(p0: Int): AudioFocusRequestCompat.Builder' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/MediaHelp.kt:44:48 'class AudioManagerCompat : Any' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/MediaHelp.kt:54:36 'class AudioFocusRequestCompat : Any' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/MediaHelp.kt:55:23 'class AudioManagerCompat : Any' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/WebDavManager.kt:216:14 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/WebDavManager.kt:234:14 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/WebDavManager.kt:289:19 'object BackupConfig : Any' is deprecated. 使用 BackupSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/WebDavManager.kt:290:23 'object BackupConfig : Any' is deprecated. 使用 BackupSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/WebDavManager.kt:291:24 'object BackupConfig : Any' is deprecated. 使用 BackupSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/WebDavManager.kt:292:19 'object BackupConfig : Any' is deprecated. 使用 BackupSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/WebDavManager.kt:293:26 'object BackupConfig : Any' is deprecated. 使用 BackupSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/book/BookExtensions.kt:189:26 'object OtherConfig : Any' is deprecated. 使用 OtherSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/book/BookExtensions.kt:190:25 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/book/BookExtensions.kt:261:26 'object OtherConfig : Any' is deprecated. 使用 OtherSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/book/BookExtensions.kt:542:35 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/book/BookExtensions.kt:543:40 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/book/BookExtensions.kt:619:25 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/book/BookExtensions.kt:672:22 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/book/BookHelp.kt:140:30 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/book/BookHelp.kt:144:49 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/book/BookHelp.kt:145:47 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/book/BookHelp.kt:209:33 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/book/BookHelp.kt:309:28 'object OtherConfig : Any' is deprecated. 使用 OtherSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/book/ContentProcessor.kt:123:65 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/book/ContentProcessor.kt:128:52 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/book/ContentProcessor.kt:148:27 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/book/ContentProcessor.kt:157:17 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/book/ContentProcessor.kt:164:54 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/book/ContentProcessor.kt:224:67 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/book/ContentProcessor.kt:225:40 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/config/ReadBookConfig.kt:155:26 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/config/ReadStyleResolver.kt:32:68 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/config/ReadStyleResolver.kt:33:37 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/config/ReadStyleResolver.kt:37:37 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/config/ReadStyleResolver.kt:41:56 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/config/ThemeConfigStore.kt:42:9 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/config/ThemeConfigStore.kt:65:9 'object ThemeConfig : Any' is deprecated. 使用 ThemeSettingsGateway / AppShellSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/config/ThemeConfigStore.kt:71:17 'object ThemeConfig : Any' is deprecated. 使用 ThemeSettingsGateway / AppShellSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/config/ThemeConfigStore.kt:72:17 'object ThemeConfig : Any' is deprecated. 使用 ThemeSettingsGateway / AppShellSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/config/ThemeConfigStore.kt:76:17 'object ThemeConfig : Any' is deprecated. 使用 ThemeSettingsGateway / AppShellSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/config/ThemeConfigStore.kt:77:17 'object ThemeConfig : Any' is deprecated. 使用 ThemeSettingsGateway / AppShellSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/config/ThemeConfigStore.kt:156:27 'object ThemeConfig : Any' is deprecated. 使用 ThemeSettingsGateway / AppShellSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/config/ThemeConfigStore.kt:162:28 'object ThemeConfig : Any' is deprecated. 使用 ThemeSettingsGateway / AppShellSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/config/ThemeConfigStore.kt:171:23 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/config/ThemeConfigStore.kt:194:13 'object ThemeConfig : Any' is deprecated. 使用 ThemeSettingsGateway / AppShellSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/config/ThemeConfigStore.kt:196:13 'object ThemeConfig : Any' is deprecated. 使用 ThemeSettingsGateway / AppShellSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/config/ThemeConfigStore.kt:226:13 'object ThemeConfig : Any' is deprecated. 使用 ThemeSettingsGateway / AppShellSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/config/ThemeConfigStore.kt:228:13 'object ThemeConfig : Any' is deprecated. 使用 ThemeSettingsGateway / AppShellSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/glide/LegadoGlideModule.kt:48:36 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/http/BackstageWebView.kt:141:72 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/http/HttpHelper.kt:99:53 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/http/HttpHelper.kt:125:9 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/http/ObsoleteUrlFactory.kt:1051:54 Java type mismatch: inferred type is 'Date?', but 'Date' was expected.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/http/ObsoleteUrlFactory.kt:1155:44 Java type mismatch: inferred type is 'String?', but 'String' was expected.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/readaloud/playback/SystemTtsFileSynthesizer.kt:51:30 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/readaloud/playback/SystemTtsVoiceCatalog.kt:82:57 Unnecessary safe call on a non-null receiver of type 'TextToSpeech'.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/storage/Backup.kt:120:26 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/storage/Backup.kt:121:30 Unnecessary safe call on a non-null receiver of type 'String'.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/storage/Backup.kt:140:45 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/storage/Backup.kt:331:34 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/storage/Backup.kt:408:40 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/storage/Backup.kt:409:44 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/storage/Restore.kt:472:49 'object OtherConfig : Any' is deprecated. 使用 OtherSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/update/AppUpdateGitHub.kt:31:23 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/help/webView/WebViewDataCleaner.kt:44:13 'fun clearFormData(): Unit' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/lib/cronet/AbsCallBack.kt:478:30 Java type mismatch: inferred type is 'Nothing?', but 'ByteBuffer' was expected.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/lib/cronet/AbsCallBack.kt:484:30 Java type mismatch: inferred type is 'Nothing?', but 'ByteBuffer' was expected.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/lib/cronet/AbsCallBack.kt:489:30 Java type mismatch: inferred type is 'Nothing?', but 'ByteBuffer' was expected.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/lib/cronet/CronetLoader.kt:135:31 Java type mismatch: inferred type is 'File?', but 'File' was expected.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/lib/permission/RequestManager.kt:38:38 Java type mismatch: inferred type is 'Stack<Request>?', but '(Mutable)List<*>' was expected.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/lib/prefs/EditTextPreferenceDialog.kt:44:13 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/lib/prefs/ListPreferenceDialog.kt:47:13 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/lib/prefs/MultiSelectListPreferenceDialog.kt:49:13 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/lib/prefs/ThemeCardPreference.kt:95:43 'object ThemeConfig : Any' is deprecated. 使用 ThemeSettingsGateway / AppShellSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/lib/prefs/ThemeCardPreference.kt:96:42 'object ThemeConfig : Any' is deprecated. 使用 ThemeSettingsGateway / AppShellSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/AudioPlay.kt:378:48 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/AudioPlay.kt:379:48 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/BookCover.kt:56:32 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/BookCover.kt:71:28 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/BookCover.kt:84:28 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/BookCover.kt:114:13 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/BookCover.kt:178:23 'object ReadMangaConfig : Any' is deprecated. 使用 MangaSettingsGateway.currentSettings 读取，通过 update() 写入.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/BookCover.kt:217:13 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/CacheBook.kt:75:31 'object OtherConfig : Any' is deprecated. 使用 OtherSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/ImageProvider.kt:44:20 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/ImageProvider.kt:187:36 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/ReadAloud.kt:31:60 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/ReadAloud.kt:86:14 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/ReadBook.kt:367:36 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/ReadBook.kt:368:36 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/ReadBook.kt:437:53 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/ReadBook.kt:445:40 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/ReadBook.kt:580:17 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/ReadBook.kt:658:14 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/ReadBook.kt:966:14 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/ReadBook.kt:1432:36 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/ReadBook.kt:1433:36 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/ReadBook.kt:1636:52 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/ReadBook.kt:1637:52 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/ReadBook.kt:1655:17 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/ReadBook.kt:1663:47 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/ReadBook.kt:1671:68 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/analyzeRule/AnalyzeRule.kt:183:55 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/analyzeRule/AnalyzeUrl.kt:138:34 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/analyzeRule/AnalyzeUrl.kt:640:13 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/analyzeRule/AnalyzeUrl.kt:796:48 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/localBook/LocalBook.kt:161:40 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/localBook/LocalBook.kt:162:40 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/localBook/LocalBook.kt:168:44 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/localBook/LocalBook.kt:169:44 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/localBook/LocalBook.kt:357:14 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/localBook/LocalBook.kt:361:21 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/localBook/LocalBook.kt:418:9 'object OtherConfig : Any' is deprecated. 使用 OtherSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/localBook/LocalBook.kt:444:38 'object OtherConfig : Any' is deprecated. 使用 OtherSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/localBook/LocalBook.kt:498:13 'object OtherConfig : Any' is deprecated. 使用 OtherSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/localBook/TextFile.kt:366:22 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/localBook/TextFile.kt:519:45 Unnecessary safe call on a non-null receiver of type 'TxtTocRule'.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/remote/RemoteBookWebDav.kt:60:9 'object OtherConfig : Any' is deprecated. 使用 OtherSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/webBook/BookChapterList.kt:100:28 'object OtherConfig : Any' is deprecated. 使用 OtherSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/webBook/BookChapterList.kt:156:40 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/webBook/BookChapterList.kt:157:40 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/webBook/BookChapterList.kt:169:44 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/webBook/BookChapterList.kt:170:44 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/webBook/BookContent.kt:123:24 'object OtherConfig : Any' is deprecated. 使用 OtherSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/model/webBook/BookContent.kt:237:17 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/receiver/MediaButtonReceiver.kt:94:32 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/receiver/MediaButtonReceiver.kt:104:29 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/service/AudioPlayService.kt:85:52 'class PlaybackStateCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/service/AudioPlayService.kt:86:20 'class PlaybackStateCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/service/AudioPlayService.kt:87:20 'class PlaybackStateCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/service/AudioPlayService.kt:88:20 'class PlaybackStateCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/service/AudioPlayService.kt:89:20 'class PlaybackStateCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/service/AudioPlayService.kt:90:20 'class PlaybackStateCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/service/AudioPlayService.kt:96:31 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/service/AudioPlayService.kt:109:32 'class AudioFocusRequestCompat : Any' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/service/AudioPlayService.kt:115:37 'class MediaSessionCompat : Any' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/service/AudioPlayService.kt:133:37 'class PlaybackStateCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/service/AudioPlayService.kt:205:37 'class PlaybackStateCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/service/AudioPlayService.kt:265:41 'class PlaybackStateCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/service/AudioPlayService.kt:293:41 'class PlaybackStateCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/service/AudioPlayService.kt:366:24 'class MediaMetadataCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/service/AudioPlayService.kt:366:44 'constructor(): MediaMetadataCompat.Builder' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/service/AudioPlayService.kt:367:24 'class MediaMetadataCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/service/AudioPlayService.kt:368:22 'class MediaMetadataCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/service/AudioPlayService.kt:369:22 'class MediaMetadataCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/service/AudioPlayService.kt:370:22 'class MediaMetadataCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/service/AudioPlayService.kt:371:22 'class MediaMetadataCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/service/AudioPlayService.kt:438:45 'class PlaybackStateCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/service/AudioPlayService.kt:449:13 'class PlaybackStateCompat : Any, Parcelable' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/service/AudioPlayService.kt:449:33 'constructor(): PlaybackStateCompat.Builder' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/service/AudioPlayService.kt:472:30 'constructor(p0: Context, p1: String): MediaSessionCompat' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/service/AudioPlayService.kt:473:13 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/service/AudioPlayService.kt:474:73 'class Callback : Any' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/service/AudioPlayService.kt:509:73 'class Callback : Any' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/service/AudioPlayService.kt:538:13 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/service/AudioPlayService.kt:632:75 'class MediaStyle : NotificationCompat.Style' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/service/AudioPlayService.kt:633:45 'class NotificationCompat : Any' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/service/AudioPlayService.kt:633:64 'constructor(): NotificationCompat.MediaStyle' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/service/AudioPlayService.kt:635:13 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/service/AudioPlayService.kt:672:13 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/service/CacheBookService.kt:61:31 'object OtherConfig : Any' is deprecated. 使用 OtherSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/about/AboutViewModel.kt:137:30 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/about/AboutViewModel.kt:161:26 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/about/AboutViewModel.kt:174:30 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/about/AboutViewModel.kt:178:18 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/about/AboutViewModel.kt:193:30 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/about/AboutViewModel.kt:197:18 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/about/CrashLogsDialog.kt:115:34 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/about/CrashLogsDialog.kt:149:34 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/about/UpdateDialog.kt:38:23 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/ai/chat/AiChatScreen.kt:130:28 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/ai/chat/AiChatViewModel.kt:376:70 Unnecessary non-null assertion (!!) on a non-null receiver of type 'String'.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/ai/chat/AiChatViewModel.kt:485:25 Condition is always 'true'.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/association/ImportRssSourceDialog.kt:146:13 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/association/ImportRssSourceDialog.kt:148:13 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/association/ImportRssSourceDialog.kt:150:13 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/association/ImportRssSourceViewModel.kt:69:28 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/association/ImportRssSourceViewModel.kt:70:29 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/association/ImportRssSourceViewModel.kt:71:30 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/audio/AudioPlayActivity.kt:186:57 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/audio/AudioPlayActivity.kt:187:61 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/audio/AudioPlayActivity.kt:255:9 'object ThemeConfig : Any' is deprecated. 使用 ThemeSettingsGateway / AppShellSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/audio/AudioPlayActivity.kt:452:14 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/audio/AudioPlayActivity.kt:643:25 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/audio/AudioPlayActivity.kt:644:25 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/bookmark/AllBookmarkScreen.kt:416:5 'fun ListItem(headlineContent: ComposableFunction0<Unit>, modifier: Modifier = ..., overlineContent: ComposableFunction0<Unit>? = ..., supportingContent: ComposableFunction0<Unit>? = ..., leadingContent: ComposableFunction0<Unit>? = ..., trailingContent: ComposableFunction0<Unit>? = ..., colors: ListItemColors = ..., tonalElevation: Dp = ..., shadowElevation: Dp = ...): Unit' is deprecated. Use the overload where `headlineContent` is now a trailing `content` lambda.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/changecover/ChangeCoverViewModel.kt:42:31 'object OtherConfig : Any' is deprecated. 使用 OtherSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/changesource/ChangeBookSourceAdapter.kt:93:17 'object ChangeSourceConfig : Any' is deprecated. 使用 ChangeSourceSettingsGateway.currentSettings 读取，通过 update() 写入.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/changesource/ChangeBookSourceAdapter.kt:99:17 'object ChangeSourceConfig : Any' is deprecated. 使用 ChangeSourceSettingsGateway.currentSettings 读取，通过 update() 写入.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/changesource/ChangeBookSourceDialog.kt:86:43 'object ChangeSourceConfig : Any' is deprecated. 使用 ChangeSourceSettingsGateway.currentSettings 读取，通过 update() 写入.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/changesource/ChangeBookSourceDialog.kt:137:27 'object ChangeSourceConfig : Any' is deprecated. 使用 ChangeSourceSettingsGateway.currentSettings 读取，通过 update() 写入.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/changesource/ChangeBookSourceDialog.kt:139:27 'object ChangeSourceConfig : Any' is deprecated. 使用 ChangeSourceSettingsGateway.currentSettings 读取，通过 update() 写入.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/changesource/ChangeBookSourceDialog.kt:141:27 'object ChangeSourceConfig : Any' is deprecated. 使用 ChangeSourceSettingsGateway.currentSettings 读取，通过 update() 写入.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/changesource/ChangeBookSourceDialog.kt:143:27 'object ChangeSourceConfig : Any' is deprecated. 使用 ChangeSourceSettingsGateway.currentSettings 读取，通过 update() 写入.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/changesource/ChangeBookSourceDialog.kt:433:21 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/changesource/ChangeBookSourceDialog.kt:434:21 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/changesource/ChangeBookSourceDialog.kt:511:47 'object ChangeSourceConfig : Any' is deprecated. 使用 ChangeSourceSettingsGateway.currentSettings 读取，通过 update() 写入.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/changesource/ChangeBookSourceDialog.kt:540:39 'object ChangeSourceConfig : Any' is deprecated. 使用 ChangeSourceSettingsGateway.currentSettings 读取，通过 update() 写入.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/changesource/ChangeBookSourceDialog.kt:563:17 'fun bundleOf(vararg pairs: Pair<String, Any?>): Bundle' is deprecated. This method does not provide type safety at compile time. Use the platform `Bundle` class directly instead.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/changesource/ChangeBookSourceViewModel.kt:64:31 'object OtherConfig : Any' is deprecated. 使用 OtherSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/changesource/ChangeBookSourceViewModel.kt:143:34 'object ChangeSourceConfig : Any' is deprecated. 使用 ChangeSourceSettingsGateway.currentSettings 读取，通过 update() 写入.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/changesource/ChangeBookSourceViewModel.kt:216:77 'object ChangeSourceConfig : Any' is deprecated. 使用 ChangeSourceSettingsGateway.currentSettings 读取，通过 update() 写入.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/changesource/ChangeBookSourceViewModel.kt:275:27 'object ChangeSourceConfig : Any' is deprecated. 使用 ChangeSourceSettingsGateway.currentSettings 读取，通过 update() 写入.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/changesource/ChangeBookSourceViewModel.kt:276:24 'object ChangeSourceConfig : Any' is deprecated. 使用 ChangeSourceSettingsGateway.currentSettings 读取，通过 update() 写入.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/changesource/ChangeBookSourceViewModel.kt:277:23 'object ChangeSourceConfig : Any' is deprecated. 使用 ChangeSourceSettingsGateway.currentSettings 读取，通过 update() 写入.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/changesource/ChangeBookSourceViewModel.kt:278:29 'object ChangeSourceConfig : Any' is deprecated. 使用 ChangeSourceSettingsGateway.currentSettings 读取，通过 update() 写入.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/changesource/ChangeBookSourceViewModel.kt:301:13 'object ChangeSourceConfig : Any' is deprecated. 使用 ChangeSourceSettingsGateway.currentSettings 读取，通过 update() 写入.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/changesource/ChangeBookSourceViewModel.kt:301:43 'object ChangeSourceConfig : Any' is deprecated. 使用 ChangeSourceSettingsGateway.currentSettings 读取，通过 update() 写入.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/changesource/ChangeBookSourceViewModel.kt:321:13 'object ChangeSourceConfig : Any' is deprecated. 使用 ChangeSourceSettingsGateway.currentSettings 读取，通过 update() 写入.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/changesource/ChangeBookSourceViewModel.kt:417:13 'object ChangeSourceConfig : Any' is deprecated. 使用 ChangeSourceSettingsGateway.currentSettings 读取，通过 update() 写入.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/changesource/ChangeBookSourceViewModel.kt:423:30 'object ChangeSourceConfig : Any' is deprecated. 使用 ChangeSourceSettingsGateway.currentSettings 读取，通过 update() 写入.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/info/BookInfoBackdropStyle.kt:13:9 'object ThemeConfig : Any' is deprecated. 使用 ThemeSettingsGateway / AppShellSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/info/BookInfoBackdropStyle.kt:19:9 'object ThemeConfig : Any' is deprecated. 使用 ThemeSettingsGateway / AppShellSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/info/BookInfoReviewUi.kt:52:5 'fun ListItem(headlineContent: ComposableFunction0<Unit>, modifier: Modifier = ..., overlineContent: ComposableFunction0<Unit>? = ..., supportingContent: ComposableFunction0<Unit>? = ..., leadingContent: ComposableFunction0<Unit>? = ..., trailingContent: ComposableFunction0<Unit>? = ..., colors: ListItemColors = ..., tonalElevation: Dp = ..., shadowElevation: Dp = ...): Unit' is deprecated. Use the overload where `headlineContent` is now a trailing `content` lambda.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/info/BookInfoViewModel.kt:662:32 'object CoverConfig : Any' is deprecated. 使用 CoverSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/manage/BookshelfManageScreenViewModel.kt:80:25 'object BookshelfConfig : Any' is deprecated. 使用 BookshelfSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/manage/BookshelfManageScreenViewModel.kt:81:30 'object BookshelfConfig : Any' is deprecated. 使用 BookshelfSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/manage/BookshelfManageScreenViewModel.kt:745:31 'object OtherConfig : Any' is deprecated. 使用 OtherSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/manga/MangaReaderViewModel.kt:404:42 Unnecessary safe call on a non-null receiver of type 'MangaBookState'.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/ReadBookController.kt:310:26 'static field SYSTEM_UI_FLAG_LAYOUT_STABLE: Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/ReadBookController.kt:311:25 'static field SYSTEM_UI_FLAG_IMMERSIVE: Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/ReadBookController.kt:312:25 'static field SYSTEM_UI_FLAG_IMMERSIVE_STICKY: Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/ReadBookController.kt:314:33 'static field SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN: Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/ReadBookController.kt:317:33 'static field SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION: Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/ReadBookController.kt:319:37 'static field SYSTEM_UI_FLAG_HIDE_NAVIGATION: Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/ReadBookController.kt:323:33 'static field SYSTEM_UI_FLAG_FULLSCREEN: Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/ReadBookController.kt:325:26 'var systemUiVisibility: Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/ReadBookController.kt:534:13 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/ReadBookController.kt:544:13 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/ReadBookController.kt:844:36 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/ReadBookController.kt:853:29 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/ReadBookController.kt:1579:37 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/ReadBookController.kt:1586:14 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/ReadBookController.kt:1589:14 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/ReadBookController.kt:1597:13 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/ReadBookController.kt:1636:31 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/ReadBookController.kt:1720:15 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/ReadBookMenuBarFloating.kt:194:62 'val Icons.Filled.Toc: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Toc.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/ReadBookMenuBarFloating.kt:244:50 'val Icons.Filled.Toc: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Toc.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/ReadBookMenuBarTitle.kt:843:46 'val Icons.Filled.Toc: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Toc.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/ReadBookMenuBarTitle.kt:1008:30 'val Icons.Filled.Toc: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Toc.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/config/BgImageSpan.kt:157:48 Redundant call of conversion method.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/config/BgImageSpan.kt:157:72 Redundant call of conversion method.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/page/AutoPager.kt:33:22 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/page/AutoPager.kt:52:39 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/page/ContentTextView.kt:46:22 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/page/ContentTextView.kt:82:27 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/page/ContentTextView.kt:289:41 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/page/PageView.kt:117:22 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/page/PageView.kt:268:13 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/page/ReadView.kt:291:40 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/page/ReadView.kt:653:23 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/page/ReadView.kt:657:23 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/page/ReadView.kt:661:23 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/page/ReadView.kt:665:23 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/page/ReadView.kt:669:23 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/page/ReadView.kt:673:23 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/page/ReadView.kt:677:23 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/page/ReadView.kt:681:23 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/page/ReadView.kt:685:23 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/page/ReadView.kt:798:57 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/page/ReadView.kt:869:29 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/page/ReadView.kt:996:14 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/page/ReadView.kt:1029:14 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/page/ReaderBookmarkBadge.kt:32:20 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/page/ReaderBookmarkBadge.kt:45:22 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/page/entities/TextLine.kt:375:33 Redundant call of conversion method.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/page/entities/TextLine.kt:909:62 'static field TRIM_MEMORY_COMPLETE: Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/page/entities/TextLine.kt:913:62 'static field TRIM_MEMORY_MODERATE: Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/page/entities/TextPage.kt:382:83 Redundant call of conversion method.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/page/provider/TextChapterLayout.kt:169:37 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/page/provider/TextChapterLayout.kt:533:42 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/sheet/CharsetConfigSheet.kt:51:45 'typealias MenuAnchorType = ExposedDropdownMenuAnchorType' is deprecated. Renamed to ExposedDropdownMenuAnchorType.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/sheet/ReaderMoreActionsSheet.kt:304:74 'val Icons.Filled.Toc: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Toc.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/sheet/ReaderMoreActionsSheet.kt:326:74 'val Icons.Filled.Toc: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Toc.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/sheet/TypographyTabs.kt:238:37 'val Icons.Filled.AlignHorizontalLeft: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.AlignHorizontalLeft.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/sheet/TypographyTabs.kt:245:37 'val Icons.Filled.AlignHorizontalRight: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.AlignHorizontalRight.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/sheet/TypographyTabs.kt:356:41 'val Icons.Filled.FormatIndentIncrease: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.FormatIndentIncrease.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/sheet/TypographyTabs.kt:391:41 'val Icons.Filled.Segment: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Segment.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/sheet/TypographyTabs.kt:520:41 'val Icons.Filled.CallSplit: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.CallSplit.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/sheet/TypographyTabs.kt:692:41 'val Icons.Filled.AlignHorizontalLeft: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.AlignHorizontalLeft.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/sheet/TypographyTabs.kt:708:41 'val Icons.Filled.AlignHorizontalRight: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.AlignHorizontalRight.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/sheet/TypographyTabs.kt:808:41 'val Icons.Filled.AlignHorizontalLeft: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.AlignHorizontalLeft.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/read/sheet/TypographyTabs.kt:824:41 'val Icons.Filled.AlignHorizontalRight: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.AlignHorizontalRight.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/readaloud/player/ReadAloudPlayerCoordinator.kt:94:21 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/readaloud/player/ReadAloudPlayerCoordinator.kt:121:21 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/search/SearchViewModel.kt:553:43 'object OtherConfig : Any' is deprecated. 使用 OtherSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/searchContent/SearchContentAdapter.kt:33:69 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/searchContent/SearchContentAdapter.kt:38:21 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/searchContent/SearchContentScreen.kt:371:21 'fun ListItem(headlineContent: ComposableFunction0<Unit>, modifier: Modifier = ..., overlineContent: ComposableFunction0<Unit>? = ..., supportingContent: ComposableFunction0<Unit>? = ..., leadingContent: ComposableFunction0<Unit>? = ..., trailingContent: ComposableFunction0<Unit>? = ..., colors: ListItemColors = ..., tonalElevation: Dp = ..., shadowElevation: Dp = ...): Unit' is deprecated. Use the overload where `headlineContent` is now a trailing `content` lambda.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/source/manage/BookSourceScreen.kt:515:45 Unchecked cast of 'Set<Any>' to 'Set<String>'.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/toc/TocScreen.kt:360:32 Unnecessary safe call on a non-null receiver of type 'Book'.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/toc/TocScreen.kt:485:64 Unnecessary safe call on a non-null receiver of type 'Book'.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/toc/TocScreen.kt:998:32 Unnecessary non-null assertion (!!) on a non-null receiver of type 'Book'.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/toc/TocViewModel.kt:522:18 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/book/toc/rule/TxtTocRuleViewModel.kt:89:18 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/config/bookshelfConfig/BookshelfManageScreenConfig.kt:10:27 'object BookshelfConfig : Any' is deprecated. 使用 BookshelfSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/config/bookshelfConfig/BookshelfManageScreenConfig.kt:15:17 'object BookshelfConfig : Any' is deprecated. 使用 BookshelfSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/main/bookshelf/BookshelfViewModel.kt:147:17 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/main/bookshelf/BookshelfViewModel.kt:316:29 'fun put(key: Long, value: ImmutableList<BookUiItem>): PersistentMap<Long, ImmutableList<BookUiItem>>' is deprecated. Use putting() instead. For more details, read the documentation for this function.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/main/bookshelf/BookshelfViewModel.kt:401:37 'fun put(key: Long, value: Int): PersistentMap<Long, Int>' is deprecated. Use putting() instead. For more details, read the documentation for this function.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/main/bookshelf/BookshelfViewModel.kt:402:41 'fun put(key: Long, value: ImmutableList<BookUiItem>): PersistentMap<Long, ImmutableList<BookUiItem>>' is deprecated. Use putting() instead. For more details, read the documentation for this function.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/main/bookshelf/BookshelfViewModel.kt:658:18 This declaration needs opt-in. Its usage should be marked with '@kotlinx.coroutines.ExperimentalCoroutinesApi' or '@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)'
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/main/bookshelf/BookshelfViewModel.kt:1094:13 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/main/bookshelf/BookshelfViewModel.kt:1096:66 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/main/bookshelf/BookshelfViewModel.kt:1110:13 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/main/explore/ExploreScreen.kt:792:9 'fun ListItem(headlineContent: ComposableFunction0<Unit>, modifier: Modifier = ..., overlineContent: ComposableFunction0<Unit>? = ..., supportingContent: ComposableFunction0<Unit>? = ..., leadingContent: ComposableFunction0<Unit>? = ..., trailingContent: ComposableFunction0<Unit>? = ..., colors: ListItemColors = ..., tonalElevation: Dp = ..., shadowElevation: Dp = ...): Unit' is deprecated. Use the overload where `headlineContent` is now a trailing `content` lambda.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/main/explore/ExploreSourceActionMenu.kt:48:56 'val Icons.Filled.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/main/homepage/modules/ButtonGroupModule.kt:118:62 Unnecessary non-null assertion (!!) on a non-null receiver of type 'String'.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/replace/ReplaceRuleViewModel.kt:422:57 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/replace/ReplaceRuleViewModel.kt:439:51 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/rss/read/ReadRssViewModel.kt:102:41 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/widget/BatteryViewOrgin.kt:78:13 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/widget/components/AppTextField.kt:44:68 'constructor(alwaysMinimize: Boolean = ..., minimizedAlignment: Alignment.Horizontal = ..., expandedAlignment: Alignment.Horizontal = ...): TextFieldLabelPosition.Attached' is deprecated. Use Inside for the default filled TextField behavior, or Cutout for the default OutlinedTextField behavior.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/widget/components/AppTextField.kt:244:68 'constructor(alwaysMinimize: Boolean = ..., minimizedAlignment: Alignment.Horizontal = ..., expandedAlignment: Alignment.Horizontal = ...): TextFieldLabelPosition.Attached' is deprecated. Use Inside for the default filled TextField behavior, or Cutout for the default OutlinedTextField behavior.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/widget/components/AppTextField.kt:300:68 'constructor(alwaysMinimize: Boolean = ..., minimizedAlignment: Alignment.Horizontal = ..., expandedAlignment: Alignment.Horizontal = ...): TextFieldLabelPosition.Attached' is deprecated. Use Inside for the default filled TextField behavior, or Cutout for the default OutlinedTextField behavior.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/widget/components/card/SelectionItemCard.kt:221:13 'fun ListItem(headlineContent: ComposableFunction0<Unit>, modifier: Modifier = ..., overlineContent: ComposableFunction0<Unit>? = ..., supportingContent: ComposableFunction0<Unit>? = ..., leadingContent: ComposableFunction0<Unit>? = ..., trailingContent: ComposableFunction0<Unit>? = ..., colors: ListItemColors = ..., tonalElevation: Dp = ..., shadowElevation: Dp = ...): Unit' is deprecated. Use the overload where `headlineContent` is now a trailing `content` lambda.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/widget/dialog/BottomWebViewDialog.kt:730:18 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/widget/dialog/BottomWebViewDialog.kt:768:51 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/widget/image/CoverImageView.kt:54:38 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/widget/image/CoverImageView.kt:55:52 'object CoverConfig : Any' is deprecated. 使用 CoverSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/widget/image/CoverImageView.kt:55:85 'object CoverConfig : Any' is deprecated. 使用 CoverSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/widget/image/CoverImageView.kt:56:53 'object CoverConfig : Any' is deprecated. 使用 CoverSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/widget/image/CoverImageView.kt:56:88 'object CoverConfig : Any' is deprecated. 使用 CoverSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/widget/image/CoverImageView.kt:131:42 'object CoverConfig : Any' is deprecated. 使用 CoverSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/widget/image/CoverImageView.kt:131:74 'object CoverConfig : Any' is deprecated. 使用 CoverSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/widget/image/CoverImageView.kt:138:21 'object CoverConfig : Any' is deprecated. 使用 CoverSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/widget/image/CoverImageView.kt:150:25 'object CoverConfig : Any' is deprecated. 使用 CoverSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/widget/image/CoverImageView.kt:155:25 'object CoverConfig : Any' is deprecated. 使用 CoverSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/widget/image/CoverImageView.kt:174:31 'object CoverConfig : Any' is deprecated. 使用 CoverSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/widget/image/CoverImageView.kt:174:65 'object CoverConfig : Any' is deprecated. 使用 CoverSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/widget/image/CoverImageView.kt:182:21 'object CoverConfig : Any' is deprecated. 使用 CoverSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/widget/image/CoverImageView.kt:194:25 'object CoverConfig : Any' is deprecated. 使用 CoverSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/widget/image/CoverImageView.kt:199:25 'object CoverConfig : Any' is deprecated. 使用 CoverSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/ui/widget/image/CoverImageView.kt:265:13 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/utils/AnimationExtensions.kt:11:9 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/utils/ContextExtensions.kt:73:42 'object ReadMangaConfig : Any' is deprecated. 使用 MangaSettingsGateway.currentSettings 读取，通过 update() 写入.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/utils/ContextExtensions.kt:79:59 'object ReadMangaConfig : Any' is deprecated. 使用 MangaSettingsGateway.currentSettings 读取，通过 update() 写入.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/utils/ContextExtensions.kt:92:42 'object ReadMangaConfig : Any' is deprecated. 使用 MangaSettingsGateway.currentSettings 读取，通过 update() 写入.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/utils/ContextExtensions.kt:98:59 'object ReadMangaConfig : Any' is deprecated. 使用 MangaSettingsGateway.currentSettings 读取，通过 update() 写入.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/utils/ContextExtensions.kt:462:9 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/utils/ContextExtensions.kt:464:9 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/utils/ContextExtensions.kt:469:9 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/utils/ContextExtensions.kt:471:9 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/utils/CustomExportUtils.kt:14:12 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/utils/CustomExportUtils.kt:14:44 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/utils/FirebaseManager.kt:11:17 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/utils/FragmentExtensions.kt:59:42 'object ReadMangaConfig : Any' is deprecated. 使用 MangaSettingsGateway.currentSettings 读取，通过 update() 写入.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/utils/FragmentExtensions.kt:65:59 'object ReadMangaConfig : Any' is deprecated. 使用 MangaSettingsGateway.currentSettings 读取，通过 update() 写入.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/utils/LogUtils.kt:78:29 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/utils/LogUtils.kt:92:25 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/utils/ToastUtils.kt:34:61 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/utils/ToastUtils.kt:56:61 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/utils/ToastUtils.kt:76:29 'var view: View?' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/utils/UrlUtil.kt:81:13 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/utils/ViewExtensions.kt:81:23 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/utils/ViewExtensions.kt:88:23 'object AppConfig : Any' is deprecated. 使用具体 SettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/utils/canvasrecorder/CanvasRecorderFactory.kt:15:14 'object ReadConfig : Any' is deprecated. 使用 ReadSettingsGateway / ReadAloudSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/web/KtorServer.kt:45:21 'fun setLenient(): GsonBuilder!' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/web/KtorServer.kt:90:34 'val dispose: () -> Unit' is deprecated. Use release instead.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/app/src/main/java/io/legado/app/web/socket/BookSearchWebSocket.kt:97:43 'object OtherConfig : Any' is deprecated. 使用 OtherSettingsGateway.currentSettings.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/modules/legado-enhance/java/io/legado/app/enhance/explore/screen/DiscoverySuiteScreen.kt:149:67 Unnecessary safe call on a non-null receiver of type 'DiscoverySuiteWidget'.
+w: file:///home/runner/work/legado-with-MD3/legado-with-MD3/modules/legado-enhance/java/io/legado/app/enhance/explore/screen/DiscoverySuiteScreen.kt:289:56 Unnecessary safe call on a non-null receiver of type 'DiscoverySuiteWidget'.
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/compile-1787074779180.json
 
 [Incubating] Problems report is available at: file:///home/runner/work/legado-with-MD3/legado-with-MD3/build/reports/problems/problems-report.html
-
-FAILURE: Build failed with an exception.
-
-* What went wrong:
-Execution failed for task ':app:compileAppDebugKotlin' (registered by plugin 'com.android.internal.application').
-> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.btapi.BuildToolsApiCompilationWork
-   > Compilation error. See log for more details
-
-* Try:
-> Run with --info or --debug option to get more log output.
-> Run with --scan to get full insights from a Build Scan (powered by Develocity).
-> Get more help at https://help.gradle.org.
-
-* Exception is:
-org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':app:compileAppDebugKotlin' (registered by plugin 'com.android.internal.application').
-	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.lambda$executeIfValid$1(ExecuteActionsTaskExecuter.java:135)
-	at org.gradle.internal.Try$Failure.ifSuccessfulOrElse(Try.java:288)
-	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.executeIfValid(ExecuteActionsTaskExecuter.java:133)
-	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.execute(ExecuteActionsTaskExecuter.java:121)
-	at org.gradle.api.internal.tasks.execution.ProblemsTaskPathTrackingTaskExecuter.execute(ProblemsTaskPathTrackingTaskExecuter.java:41)
-	at org.gradle.api.internal.tasks.execution.ResolveTaskExecutionModeExecuter.execute(ResolveTaskExecutionModeExecuter.java:51)
-	at org.gradle.api.internal.tasks.execution.FinalizePropertiesTaskExecuter.execute(FinalizePropertiesTaskExecuter.java:46)
-	at org.gradle.api.internal.tasks.execution.SkipTaskWithNoActionsExecuter.execute(SkipTaskWithNoActionsExecuter.java:57)
-	at org.gradle.api.internal.tasks.execution.SkipOnlyIfTaskExecuter.execute(SkipOnlyIfTaskExecuter.java:74)
-	at org.gradle.api.internal.tasks.execution.CatchExceptionTaskExecuter.execute(CatchExceptionTaskExecuter.java:36)
-	at org.gradle.api.internal.tasks.execution.EventFiringTaskExecuter$1.executeTask(EventFiringTaskExecuter.java:77)
-	at org.gradle.api.internal.tasks.execution.EventFiringTaskExecuter$1.call(EventFiringTaskExecuter.java:55)
-	at org.gradle.api.internal.tasks.execution.EventFiringTaskExecuter$1.call(EventFiringTaskExecuter.java:52)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:210)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:205)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:67)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:60)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:167)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:60)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:54)
-	at org.gradle.api.internal.tasks.execution.EventFiringTaskExecuter.execute(EventFiringTaskExecuter.java:52)
-	at org.gradle.execution.plan.DefaultNodeExecutor.executeLocalTaskNode(DefaultNodeExecutor.java:55)
-	at org.gradle.execution.plan.DefaultNodeExecutor.execute(DefaultNodeExecutor.java:34)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$InvokeNodeExecutorsAction.execute(DefaultTaskExecutionGraph.java:355)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$InvokeNodeExecutorsAction.execute(DefaultTaskExecutionGraph.java:343)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.lambda$execute$0(DefaultTaskExecutionGraph.java:339)
-	at org.gradle.internal.operations.CurrentBuildOperationRef.with(CurrentBuildOperationRef.java:84)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.execute(DefaultTaskExecutionGraph.java:339)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.execute(DefaultTaskExecutionGraph.java:328)
-	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.execute(DefaultPlanExecutor.java:459)
-	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.run(DefaultPlanExecutor.java:376)
-	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
-	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:47)
-Caused by: org.gradle.workers.internal.DefaultWorkerExecutor$WorkExecutionException: A failure occurred while executing org.jetbrains.kotlin.compilerRunner.btapi.BuildToolsApiCompilationWork
-	at org.gradle.workers.internal.DefaultWorkerExecutor$WorkItemExecution.waitForCompletion(DefaultWorkerExecutor.java:278)
-	at org.gradle.internal.work.DefaultAsyncWorkTracker.lambda$waitForItemsAndGatherFailures$2(DefaultAsyncWorkTracker.java:132)
-	at org.gradle.internal.Factories$1.create(Factories.java:30)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.lambda$withoutLocksBlocking$3(DefaultWorkerLeaseService.java:410)
-	at org.gradle.internal.work.ResourceLockStatistics$1.measure(ResourceLockStatistics.java:43)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.withoutLocksBlocking(DefaultWorkerLeaseService.java:405)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.blocking(DefaultWorkerLeaseService.java:255)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.blocking(DefaultWorkerLeaseService.java:237)
-	at org.gradle.internal.work.DefaultAsyncWorkTracker.lambda$waitForItemsAndGatherFailures$3(DefaultAsyncWorkTracker.java:128)
-	at org.gradle.internal.Factories$1.create(Factories.java:30)
-	at org.gradle.internal.resources.AbstractResourceLockRegistry.whileDisallowingLockChanges(AbstractResourceLockRegistry.java:50)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.whileDisallowingProjectLockChanges(DefaultWorkerLeaseService.java:260)
-	at org.gradle.internal.work.DefaultAsyncWorkTracker.waitForItemsAndGatherFailures(DefaultAsyncWorkTracker.java:127)
-	at org.gradle.internal.work.DefaultAsyncWorkTracker.waitForItemsAndGatherFailures(DefaultAsyncWorkTracker.java:93)
-	at org.gradle.internal.work.DefaultAsyncWorkTracker.waitForAll(DefaultAsyncWorkTracker.java:79)
-	at org.gradle.internal.work.DefaultAsyncWorkTracker.waitForCompletion(DefaultAsyncWorkTracker.java:67)
-	at org.gradle.api.internal.tasks.execution.TaskExecution$3.run(TaskExecution.java:267)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$1.execute(DefaultBuildOperationRunner.java:30)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$1.execute(DefaultBuildOperationRunner.java:27)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:67)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:60)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:167)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:60)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.run(DefaultBuildOperationRunner.java:48)
-	at org.gradle.api.internal.tasks.execution.TaskExecution.executeAction(TaskExecution.java:244)
-	at org.gradle.api.internal.tasks.execution.TaskExecution.executeActions(TaskExecution.java:227)
-	at org.gradle.api.internal.tasks.execution.TaskExecution.executeWithPreviousOutputFiles(TaskExecution.java:210)
-	at org.gradle.api.internal.tasks.execution.TaskExecution.execute(TaskExecution.java:176)
-	at org.gradle.internal.execution.steps.ExecuteStep.executeInternal(ExecuteStep.java:167)
-	at org.gradle.internal.execution.steps.ExecuteStep.access$000(ExecuteStep.java:47)
-	at org.gradle.internal.execution.steps.ExecuteStep$1.call(ExecuteStep.java:137)
-	at org.gradle.internal.execution.steps.ExecuteStep$1.call(ExecuteStep.java:134)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:210)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:205)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:67)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:60)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:167)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:60)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:54)
-	at org.gradle.internal.execution.steps.ExecuteStep.execute(ExecuteStep.java:134)
-	at org.gradle.internal.execution.steps.ExecuteStep$Mutable.execute(ExecuteStep.java:80)
-	at org.gradle.internal.execution.steps.CancelExecutionStep.execute(CancelExecutionStep.java:42)
-	at org.gradle.internal.execution.steps.TimeoutStep.executeWithoutTimeout(TimeoutStep.java:75)
-	at org.gradle.internal.execution.steps.TimeoutStep.execute(TimeoutStep.java:55)
-	at org.gradle.internal.execution.steps.PreCreateOutputParentsStep.execute(PreCreateOutputParentsStep.java:51)
-	at org.gradle.internal.execution.steps.PreCreateOutputParentsStep.execute(PreCreateOutputParentsStep.java:29)
-	at org.gradle.internal.execution.steps.RemovePreviousOutputsStep.executeMutable(RemovePreviousOutputsStep.java:67)
-	at org.gradle.internal.execution.steps.RemovePreviousOutputsStep.executeMutable(RemovePreviousOutputsStep.java:39)
-	at org.gradle.internal.execution.steps.MutableStep.execute(MutableStep.java:26)
-	at org.gradle.internal.execution.steps.BroadcastChangingOutputsStep.execute(BroadcastChangingOutputsStep.java:42)
-	at org.gradle.internal.execution.steps.BroadcastChangingOutputsStep.execute(BroadcastChangingOutputsStep.java:24)
-	at org.gradle.internal.execution.steps.CaptureOutputsAfterExecutionStep.execute(CaptureOutputsAfterExecutionStep.java:69)
-	at org.gradle.internal.execution.steps.CaptureOutputsAfterExecutionStep.execute(CaptureOutputsAfterExecutionStep.java:46)
-	at org.gradle.internal.execution.steps.ResolveInputChangesStep.executeMutable(ResolveInputChangesStep.java:39)
-	at org.gradle.internal.execution.steps.ResolveInputChangesStep.executeMutable(ResolveInputChangesStep.java:28)
-	at org.gradle.internal.execution.steps.MutableStep.execute(MutableStep.java:26)
-	at org.gradle.internal.execution.steps.BuildCacheStep.executeWithoutCache(BuildCacheStep.java:189)
-	at org.gradle.internal.execution.steps.BuildCacheStep.lambda$execute$1(BuildCacheStep.java:76)
-	at org.gradle.internal.Either$Right.fold(Either.java:176)
-	at org.gradle.internal.execution.caching.CachingState.fold(CachingState.java:62)
-	at org.gradle.internal.execution.steps.BuildCacheStep.execute(BuildCacheStep.java:74)
-	at org.gradle.internal.execution.steps.BuildCacheStep.execute(BuildCacheStep.java:49)
-	at org.gradle.internal.execution.steps.StoreExecutionStateStep.executeMutable(StoreExecutionStateStep.java:46)
-	at org.gradle.internal.execution.steps.StoreExecutionStateStep.executeMutable(StoreExecutionStateStep.java:35)
-	at org.gradle.internal.execution.steps.MutableStep.execute(MutableStep.java:26)
-	at org.gradle.internal.execution.steps.SkipUpToDateStep.executeBecause(SkipUpToDateStep.java:75)
-	at org.gradle.internal.execution.steps.SkipUpToDateStep.lambda$execute$2(SkipUpToDateStep.java:53)
-	at org.gradle.internal.execution.steps.SkipUpToDateStep.execute(SkipUpToDateStep.java:53)
-	at org.gradle.internal.execution.steps.SkipUpToDateStep.execute(SkipUpToDateStep.java:35)
-	at org.gradle.internal.execution.steps.legacy.MarkSnapshottingInputsFinishedStep.execute(MarkSnapshottingInputsFinishedStep.java:37)
-	at org.gradle.internal.execution.steps.legacy.MarkSnapshottingInputsFinishedStep.execute(MarkSnapshottingInputsFinishedStep.java:27)
-	at org.gradle.internal.execution.steps.ResolveMutableCachingStateStep.executeDelegate(ResolveMutableCachingStateStep.java:70)
-	at org.gradle.internal.execution.steps.ResolveMutableCachingStateStep.executeDelegate(ResolveMutableCachingStateStep.java:32)
-	at org.gradle.internal.execution.steps.AbstractResolveCachingStateStep.execute(AbstractResolveCachingStateStep.java:69)
-	at org.gradle.internal.execution.steps.AbstractResolveCachingStateStep.execute(AbstractResolveCachingStateStep.java:37)
-	at org.gradle.internal.execution.steps.ResolveChangesStep.executeMutable(ResolveChangesStep.java:63)
-	at org.gradle.internal.execution.steps.ResolveChangesStep.executeMutable(ResolveChangesStep.java:34)
-	at org.gradle.internal.execution.steps.MutableStep.execute(MutableStep.java:26)
-	at org.gradle.internal.execution.steps.ValidateStep$Mutable.executeDelegate(ValidateStep.java:79)
-	at org.gradle.internal.execution.steps.ValidateStep$Mutable.executeDelegate(ValidateStep.java:65)
-	at org.gradle.internal.execution.steps.ValidateStep.execute(ValidateStep.java:105)
-	at org.gradle.internal.execution.steps.ValidateStep$Mutable.execute(ValidateStep.java:65)
-	at org.gradle.internal.execution.steps.CaptureMutableStateBeforeExecutionStep.executeMutable(CaptureMutableStateBeforeExecutionStep.java:86)
-	at org.gradle.internal.execution.steps.CaptureMutableStateBeforeExecutionStep.execute(CaptureMutableStateBeforeExecutionStep.java:65)
-	at org.gradle.internal.execution.steps.CaptureMutableStateBeforeExecutionStep.execute(CaptureMutableStateBeforeExecutionStep.java:45)
-	at org.gradle.internal.execution.steps.SkipEmptyMutableWorkStep.executeWithNonEmptySources(SkipEmptyMutableWorkStep.java:210)
-	at org.gradle.internal.execution.steps.SkipEmptyMutableWorkStep.executeMutable(SkipEmptyMutableWorkStep.java:90)
-	at org.gradle.internal.execution.steps.SkipEmptyMutableWorkStep.executeMutable(SkipEmptyMutableWorkStep.java:53)
-	at org.gradle.internal.execution.steps.MutableStep.execute(MutableStep.java:26)
-	at org.gradle.internal.execution.steps.legacy.MarkSnapshottingInputsStartedStep.execute(MarkSnapshottingInputsStartedStep.java:38)
-	at org.gradle.internal.execution.steps.LoadPreviousExecutionStateStep.executeMutable(LoadPreviousExecutionStateStep.java:36)
-	at org.gradle.internal.execution.steps.LoadPreviousExecutionStateStep.executeMutable(LoadPreviousExecutionStateStep.java:23)
-	at org.gradle.internal.execution.steps.MutableStep.execute(MutableStep.java:26)
-	at org.gradle.internal.execution.steps.HandleStaleOutputsStep.executeMutable(HandleStaleOutputsStep.java:77)
-	at org.gradle.internal.execution.steps.HandleStaleOutputsStep.executeMutable(HandleStaleOutputsStep.java:43)
-	at org.gradle.internal.execution.steps.MutableStep.execute(MutableStep.java:26)
-	at org.gradle.internal.execution.steps.AssignMutableWorkspaceStep.lambda$executeMutable$0(AssignMutableWorkspaceStep.java:34)
-	at org.gradle.api.internal.tasks.execution.TaskExecution$4.withWorkspace(TaskExecution.java:305)
-	at org.gradle.internal.execution.steps.AssignMutableWorkspaceStep.executeMutable(AssignMutableWorkspaceStep.java:30)
-	at org.gradle.internal.execution.steps.AssignMutableWorkspaceStep.executeMutable(AssignMutableWorkspaceStep.java:21)
-	at org.gradle.internal.execution.steps.MutableStep.execute(MutableStep.java:26)
-	at org.gradle.internal.execution.steps.ChoosePipelineStep.execute(ChoosePipelineStep.java:40)
-	at org.gradle.internal.execution.steps.ChoosePipelineStep.execute(ChoosePipelineStep.java:23)
-	at org.gradle.internal.execution.steps.ExecuteWorkBuildOperationFiringStep.lambda$execute$2(ExecuteWorkBuildOperationFiringStep.java:67)
-	at org.gradle.internal.execution.steps.ExecuteWorkBuildOperationFiringStep.execute(ExecuteWorkBuildOperationFiringStep.java:67)
-	at org.gradle.internal.execution.steps.ExecuteWorkBuildOperationFiringStep.execute(ExecuteWorkBuildOperationFiringStep.java:39)
-	at org.gradle.internal.execution.steps.IdentityCacheStep.execute(IdentityCacheStep.java:46)
-	at org.gradle.internal.execution.steps.IdentityCacheStep.execute(IdentityCacheStep.java:34)
-	at org.gradle.internal.execution.steps.IdentifyStep.execute(IdentifyStep.java:56)
-	at org.gradle.internal.execution.steps.IdentifyStep.execute(IdentifyStep.java:38)
-	at org.gradle.internal.execution.impl.DefaultExecutionEngine$1.execute(DefaultExecutionEngine.java:68)
-	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.executeIfValid(ExecuteActionsTaskExecuter.java:132)
-	... 30 more
-Caused by: org.jetbrains.kotlin.gradle.tasks.CompilationErrorException: Compilation error. See log for more details
-	at org.jetbrains.kotlin.gradle.tasks.TasksUtilsKt.throwExceptionIfCompilationFailed(tasksUtils.kt:21)
-	at org.jetbrains.kotlin.compilerRunner.btapi.BuildToolsApiCompilationWork.execute(BuildToolsApiCompilationWork.kt:320)
-	at org.gradle.workers.internal.DefaultWorkerServer.execute(DefaultWorkerServer.java:68)
-	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolationWorkerFactory.java:64)
-	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolationWorkerFactory.java:61)
-	at org.gradle.internal.classloader.ClassLoaderUtils.executeInClassloader(ClassLoaderUtils.java:102)
-	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.lambda$execute$0(NoIsolationWorkerFactory.java:61)
-	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:44)
-	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:41)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:210)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:205)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:67)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:60)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:167)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:60)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:54)
-	at org.gradle.workers.internal.AbstractWorker.executeWrappedInBuildOperation(AbstractWorker.java:41)
-	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.execute(NoIsolationWorkerFactory.java:58)
-	at org.gradle.workers.internal.DefaultWorkerExecutor.lambda$submitWork$0(DefaultWorkerExecutor.java:174)
-	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.runExecution(DefaultConditionalExecutionQueue.java:191)
-	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.access$500(DefaultConditionalExecutionQueue.java:112)
-	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner$1.run(DefaultConditionalExecutionQueue.java:168)
-	at org.gradle.internal.Factories$1.create(Factories.java:30)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.lambda$runAndReleaseLocks$0(DefaultWorkerLeaseService.java:300)
-	at org.gradle.internal.work.ResourceLockStatistics$1.measure(ResourceLockStatistics.java:43)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.runAndReleaseLocks(DefaultWorkerLeaseService.java:298)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocksAcquired(DefaultWorkerLeaseService.java:294)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerLeaseService.java:286)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:130)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:135)
-	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.runBatch(DefaultConditionalExecutionQueue.java:163)
-	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.run(DefaultConditionalExecutionQueue.java:125)
-	... 2 more
-
 
 Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
 
@@ -303,7 +566,7 @@ You can use '--warning-mode all' to show the individual deprecation warnings and
 
 For more on this, please refer to https://docs.gradle.org/9.6.1/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
 
-BUILD FAILED in 2m 51s
+BUILD SUCCESSFUL in 3m 23s
 39 actionable tasks: 39 executed
 
-DIAGNOSTIC_EXIT_CODE=1
+DIAGNOSTIC_EXIT_CODE=0

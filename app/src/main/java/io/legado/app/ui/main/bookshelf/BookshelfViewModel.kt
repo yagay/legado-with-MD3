@@ -655,7 +655,6 @@ class BookshelfViewModel(
 
         viewModelScope.launch {
             isEditModeFlow
-                .distinctUntilChanged()
                 .flatMapLatest { isEditMode ->
                     if (!isEditMode) {
                         clearDragState()
