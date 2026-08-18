@@ -40,27 +40,45 @@ jobs:
         timeout-minutes: 30
         run: |
           chmod +x gradlew
-          ./gradlew \
-            :modules:rhino-upstream:testDebugUnitTest \
-            :app:testAppDebugUnitTest \
-            --tests "com.script.upstream.bridge.UpstreamLegadoRuntimeTest" \
-            --tests "io.legado.app.model.jsEngine.SourceJsEngineCompatibilityTest" \
-            --tests "io.legado.app.model.jsEngine.SourceJsEngineLifecycleTest" \
-            --tests "io.legado.app.model.jsEngine.AnalyzeUrlUpstreamCompatibilityTest" \
-            --tests "io.legado.app.ui.main.explore.ExploreUpstreamReuseTest" \
-            --tests "io.legado.app.enhance.explore.builder.ModernExploreClassificationEngineTest" \
-            --tests "io.legado.app.enhance.explore.builder.ModernExploreControlExtractorTest" \
-            --tests "io.legado.app.enhance.explore.builder.ModernExploreTreeControlTest" \
-            --tests "io.legado.app.enhance.explore.screen.AdaptiveExploreControlRowsTest" \
-            --no-daemon \
-            --no-configuration-cache
+          for attempt in 1 2 3; do
+            if ./gradlew \
+              :modules:rhino-upstream:testDebugUnitTest \
+              :app:testAppDebugUnitTest \
+              --tests "com.script.upstream.bridge.UpstreamLegadoRuntimeTest" \
+              --tests "io.legado.app.model.jsEngine.SourceJsEngineCompatibilityTest" \
+              --tests "io.legado.app.model.jsEngine.SourceJsEngineLifecycleTest" \
+              --tests "io.legado.app.model.jsEngine.AnalyzeUrlUpstreamCompatibilityTest" \
+              --tests "io.legado.app.ui.main.explore.ExploreUpstreamReuseTest" \
+              --tests "io.legado.app.enhance.explore.builder.ModernExploreClassificationEngineTest" \
+              --tests "io.legado.app.enhance.explore.builder.ModernExploreControlExtractorTest" \
+              --tests "io.legado.app.enhance.explore.builder.ModernExploreTreeControlTest" \
+              --tests "io.legado.app.enhance.explore.screen.AdaptiveExploreControlRowsTest" \
+              --no-daemon \
+              --no-configuration-cache; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            echo "Gradle test attempt $attempt failed; retrying after transient dependency/network error..."
+            sleep $((attempt * 20))
+          done
 
       - name: Build Universal Debug APK
         run: |
-          ./gradlew assembleAppDebug \
-            -PenableAbiSplits=false \
-            --no-daemon \
-            --no-configuration-cache
+          for attempt in 1 2 3; do
+            if ./gradlew assembleAppDebug \
+              -PenableAbiSplits=false \
+              --no-daemon \
+              --no-configuration-cache; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            echo "Gradle build attempt $attempt failed; retrying after transient dependency/network error..."
+            sleep $((attempt * 20))
+          done
 
       - name: Upload Universal Debug APK artifact
         uses: actions/upload-artifact@v4
