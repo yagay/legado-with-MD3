@@ -19,6 +19,7 @@ import io.legado.app.domain.usecase.ExploreKindUiUseCase
 import io.legado.app.enhance.explore.builder.ModernExploreControlExtractor
 import io.legado.app.enhance.explore.model.DiscoverySuiteWidgetType
 import io.legado.app.enhance.explore.ui.ModernDiscoveryFilterBar
+import io.legado.app.enhance.explore.ui.stripWrapSymbols
 import io.legado.app.ui.main.explore.ExploreIntent
 import io.legado.app.ui.main.explore.ExploreViewModel
 import io.legado.app.ui.widget.components.EmptyMessage
@@ -490,17 +491,11 @@ private fun buildExplorePathTitle(
 ): String {
     val path = selectors
         .mapNotNull { it.selectedTitle }
-        .map(::cleanExplorePathPart)
+        .map(::stripWrapSymbols)
         .filter { it.isNotBlank() }
         .distinct()
 
     return path.takeIf { it.isNotEmpty() }
         ?.joinToString(" > ")
-        ?: fallback
-}
-
-private fun cleanExplorePathPart(title: String): String {
-    return title
-        .trim()
-        .trim { !it.isLetterOrDigit() }
+        ?: stripWrapSymbols(fallback)
 }
