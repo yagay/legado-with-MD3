@@ -342,7 +342,7 @@ fun ExploreShowScreen(
                     ) {
                         itemsIndexed(
                             items = books,
-                            key = { index, item -> "${item.book.bookUrl}:$index" }
+                            key = { _, item -> item.book.bookUrl }
                         ) { index, item ->
                             val sharedCoverKey = bookCoverSharedElementKey(
                                 item.book.bookUrl,
@@ -393,7 +393,7 @@ fun ExploreShowScreen(
                     ) {
                         itemsIndexed(
                             items = books,
-                            key = { index, item -> "${item.book.bookUrl}:$index" }
+                            key = { _, item -> item.book.bookUrl }
                         ) { index, item ->
                             val sharedCoverKey = bookCoverSharedElementKey(
                                 item.book.bookUrl,
