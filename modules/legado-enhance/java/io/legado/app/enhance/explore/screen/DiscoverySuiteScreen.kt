@@ -360,9 +360,9 @@ private sealed interface OrderedExploreAtom {
 }
 
 /**
- * Rebuild the mixed source declaration order after enhance has separated select/category rows
- * from native text/button/toggle controls. Full-width URL entries keep their source-defined
- * standalone semantics instead of being folded into a generic category selector.
+ * Keep source order within utility rows and within category rows, but place utility/native rows
+ * before category selectors. This keeps normal category ordering/rules untouched while making
+ * source-defined actions such as refresh, bookshelf and config entries immediately accessible.
  */
 private fun buildOrderedExploreRows(
     selectors: List<ExploreViewModel.DynamicSelectorUi>,
@@ -413,6 +413,7 @@ private fun buildOrderedExploreRows(
         }
     }.sortedWith(
         compareBy<OrderedExploreAtom>(
+            { if (it is OrderedExploreAtom.Selector) 1 else 0 },
             { if (it.sourceIndex >= 0) it.sourceIndex else Int.MAX_VALUE },
             { it.fallbackOrder },
         )
