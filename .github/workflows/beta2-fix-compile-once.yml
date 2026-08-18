@@ -1,0 +1,77 @@
+name: Beta2 Fix Compile (one-shot)
+
+on:
+  push:
+    branches:
+      - beta2
+    paths:
+      - '.github/workflows/beta2-fix-compile-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout beta2
+        uses: actions/checkout@v5
+        with:
+          ref: beta2
+          fetch-depth: 0
+
+      - name: Apply exact compile fix
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('app/src/main/java/io/legado/app/ui/main/bookshelf/BookshelfViewModel.kt')
+          text = p.read_text()
+          old = '''            isEditModeFlow\n                .distinctUntilChanged()\n                .flatMapLatest { isEditMode ->\n'''
+          new = '''            isEditModeFlow\n                .flatMapLatest { isEditMode ->\n'''
+          if text.count(old) != 1:
+              raise SystemExit(f'expected exact StateFlow distinctUntilChanged block once, found {text.count(old)}')
+          p.write_text(text.replace(old, new))
+          PY
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Remove Aliyun mirrors for CI
+        run: sed -i '/maven.aliyun.com/d' settings.gradle
+
+      - name: Compile and capture result
+        id: compile
+        shell: bash
+        run: |
+          set +e
+          chmod +x gradlew
+          ./gradlew :app:compileAppDebugKotlin \
+            --no-daemon \
+            --no-configuration-cache \
+            --stacktrace > beta2-compile.log 2>&1
+          status=$?
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+          echo "" >> beta2-compile.log
+          echo "DIAGNOSTIC_EXIT_CODE=$status" >> beta2-compile.log
+          exit 0
+
+      - name: Save fix and diagnostic
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          rm -f .github/workflows/beta2-fix-compile-once.yml
+          git add app/src/main/java/io/legado/app/ui/main/bookshelf/BookshelfViewModel.kt beta2-compile.log .github/workflows/beta2-fix-compile-once.yml
+          git commit -m "fix: remove redundant StateFlow distinctUntilChanged"
+          git push origin HEAD:beta2
+
+      - name: Fail job if compile failed
+        if: steps.compile.outputs.exit_code != '0'
+        run: exit 1
