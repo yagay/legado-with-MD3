@@ -117,7 +117,7 @@ class BookshelfViewModel(
     )
 
     private val bookshelfSettings = bookshelfSettingsGateway.settings
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), initialSettings)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), initialSettings)
     private val initialAppShellSettings = appShellSettingsGateway.currentSettings
     private val initialThemeSettings = themeSettingsGateway.currentSettings
 
@@ -126,7 +126,7 @@ class BookshelfViewModel(
         .distinctUntilChanged()
         .stateIn(
             viewModelScope,
-            SharingStarted.WhileSubscribed(5000),
+            SharingStarted.WhileSubscribed(),
             BookshelfSortConfig(initialSettings.bookshelfSort, initialSettings.bookshelfSortOrder)
         )
 
@@ -159,17 +159,17 @@ class BookshelfViewModel(
                 isInitialLoadingFlow.value = false
             }
         }
-        .shareIn(viewModelScope, SharingStarted.WhileSubscribed(5000), replay = 1)
+        .shareIn(viewModelScope, SharingStarted.WhileSubscribed(), replay = 1)
 
     val allGroupsFlow: StateFlow<List<BookGroup>> = bookGroupRepository.flowAll()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptyList())
 
     private val hideEmptyGroupsFlow: StateFlow<Boolean> = bookshelfSettings
         .map { it.hideEmptyGroups }
         .distinctUntilChanged()
         .stateIn(
             viewModelScope,
-            SharingStarted.WhileSubscribed(5000),
+            SharingStarted.WhileSubscribed(),
             initialSettings.hideEmptyGroups
         )
 
@@ -207,7 +207,7 @@ class BookshelfViewModel(
         }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
-        .shareIn(viewModelScope, SharingStarted.WhileSubscribed(5000), replay = 1)
+        .shareIn(viewModelScope, SharingStarted.WhileSubscribed(), replay = 1)
 
     private fun computeHiddenGroupIds(
         groups: List<BookGroup>,
@@ -249,7 +249,7 @@ class BookshelfViewModel(
             selectedGroupId = selectedGroupId
         )
     }.distinctUntilChanged()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BookshelfGroupSelectorState())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), BookshelfGroupSelectorState())
 
     private data class SelectedGroupBooksState(
         val groupId: Long,
@@ -287,7 +287,7 @@ class BookshelfViewModel(
             }
         }.distinctUntilChanged()
         .flowOn(Dispatchers.Default)
-        .shareIn(viewModelScope, SharingStarted.WhileSubscribed(5000), replay = 1)
+        .shareIn(viewModelScope, SharingStarted.WhileSubscribed(), replay = 1)
 
     val booksFlow: Flow<List<BookUiItem>> = selectedGroupBooksFlow
         .map { it.books }
@@ -470,7 +470,7 @@ class BookshelfViewModel(
     private val groupPreviewsStateFlow: StateFlow<GroupPreviewState> = groupPreviewsFlow
         .stateIn(
             viewModelScope,
-            SharingStarted.WhileSubscribed(5000),
+            SharingStarted.WhileSubscribed(),
             GroupPreviewState(persistentMapOf(), persistentMapOf(), 0)
         )
 
@@ -611,7 +611,7 @@ class BookshelfViewModel(
         )
     }.stateIn(
         viewModelScope,
-        SharingStarted.WhileSubscribed(5000),
+        SharingStarted.WhileSubscribed(),
         BookshelfUiState(
             settings = initialSettings,
             selectedGroupId = initialSettings.saveTabPosition,
