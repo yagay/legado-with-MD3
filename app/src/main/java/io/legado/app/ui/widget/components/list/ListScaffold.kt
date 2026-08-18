@@ -8,15 +8,18 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.weight
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingToolbarDefaults.ScreenOffset
@@ -25,7 +28,10 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.animateFloatingActionButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -40,9 +46,11 @@ import io.legado.app.ui.widget.components.AppScaffold
 import io.legado.app.ui.widget.components.SelectionActions
 import io.legado.app.ui.widget.components.SelectionBottomBar
 import io.legado.app.ui.widget.components.icon.AppIcons
+import io.legado.app.ui.widget.components.menuItem.RoundDropdownMenu
 import io.legado.app.ui.widget.components.topbar.DynamicTopAppBar
 import io.legado.app.ui.widget.components.topbar.GlassTopAppBarDefaults
 import io.legado.app.ui.widget.components.topbar.GlassTopAppBarScrollBehavior
+import io.legado.app.ui.widget.components.topbar.TopBarActionButton
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -93,6 +101,43 @@ fun <T> ListScaffold(
     content: @Composable (PaddingValues) -> Unit
 ) {
     val scrollBehavior = scrollBehavior ?: GlassTopAppBarDefaults.defaultScrollBehavior()
+
+    // The waterfall source picker is the only ListScaffold menu that combines a
+    // fixed search header with fast scrolling. Keep its overflow action next to
+    // that search field instead of duplicating the same menu in the top app bar.
+    val relocateOverflowToSubtitleHeader =
+        subtitleDropdownMenuFastScroll &&
+            subtitleDropdownMenuFixedHeader != null &&
+            dropDownMenuContent != null
+    val effectiveSubtitleFixedHeader: (@Composable () -> Unit)? =
+        if (relocateOverflowToSubtitleHeader) {
+            {
+                var showRelocatedOverflow by remember { mutableStateOf(false) }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        subtitleDropdownMenuFixedHeader?.invoke()
+                    }
+                    Box {
+                        TopBarActionButton(
+                            onClick = { showRelocatedOverflow = true },
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = stringResource(R.string.more_menu)
+                        )
+                        RoundDropdownMenu(
+                            expanded = showRelocatedOverflow,
+                            onDismissRequest = { showRelocatedOverflow = false }
+                        ) {
+                            dropDownMenuContent?.invoke(this) {
+                                showRelocatedOverflow = false
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            subtitleDropdownMenuFixedHeader
+        }
+
     AppScaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         snackbarHost = {
@@ -112,7 +157,7 @@ fun <T> ListScaffold(
                 subtitleDropdownMenuHeight = subtitleDropdownMenuHeight,
                 subtitleDropdownMenuState = subtitleDropdownMenuState,
                 subtitleDropdownMenuFastScroll = subtitleDropdownMenuFastScroll,
-                subtitleDropdownMenuFixedHeader = subtitleDropdownMenuFixedHeader,
+                subtitleDropdownMenuFixedHeader = effectiveSubtitleFixedHeader,
                 subtitleMenuExpanded = subtitleMenuExpanded,
                 onSubtitleMenuExpandedChange = onSubtitleMenuExpandedChange,
                 onSubtitleLongClick = onSubtitleLongClick,
@@ -128,7 +173,7 @@ fun <T> ListScaffold(
                 searchPlaceholder = searchPlaceholder,
                 onClearSelection = { onClearSelection?.invoke() ?: selectionActions?.onClearSelection?.invoke() },
                 topBarActions = topBarActions,
-                dropDownMenuContent = dropDownMenuContent,
+                dropDownMenuContent = if (relocateOverflowToSubtitleHeader) null else dropDownMenuContent,
                 bottomContent = bottomContent
             )
         },
