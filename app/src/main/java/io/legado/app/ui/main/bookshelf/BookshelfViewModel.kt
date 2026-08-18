@@ -654,11 +654,23 @@ class BookshelfViewModel(
         }
 
         viewModelScope.launch {
-            combine(booksFlow, selectedGroupCanReorderFlow) { books, canReorderBooks ->
-                books to canReorderBooks
-            }.collect { (books, canReorderBooks) ->
-                syncDragState(books, canReorderBooks)
-            }
+            isEditModeFlow
+                .distinctUntilChanged()
+                .flatMapLatest { isEditMode ->
+                    if (!isEditMode) {
+                        clearDragState()
+                        flowOf(null)
+                    } else {
+                        combine(booksFlow, selectedGroupCanReorderFlow) { books, canReorderBooks ->
+                            books to canReorderBooks
+                        }.map { it as Pair<List<BookUiItem>, Boolean>? }
+                    }
+                }
+                .collect { state ->
+                    state?.let { (books, canReorderBooks) ->
+                        syncDragState(books, canReorderBooks)
+                    }
+                }
         }
 
         viewModelScope.launch {
