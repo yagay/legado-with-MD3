@@ -1,0 +1,61 @@
+name: Beta2 Explore Stable Key (one-shot)
+
+on:
+  push:
+    branches:
+      - beta2
+    paths:
+      - '.github/workflows/beta2-explore-stable-key-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  optimize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout beta2
+        uses: actions/checkout@v5
+        with:
+          ref: beta2
+          fetch-depth: 0
+
+      - name: Use stable Lazy keys for explore books
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE='app/src/main/java/io/legado/app/ui/book/explore/ExploreShowScreen.kt'
+          COUNT="$(grep -F 'key = { index, item -> "${item.book.bookUrl}:$index" }' "$FILE" | wc -l)"
+          test "$COUNT" -eq 2
+          sed -i 's/key = { index, item -> "${item.book.bookUrl}:$index" }/key = { _, item -> item.book.bookUrl }/g' "$FILE"
+          rm -f .github/workflows/beta2-explore-stable-key-once.yml
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Remove Aliyun mirrors for CI
+        run: sed -i '/maven.aliyun.com/d' settings.gradle
+
+      - name: Compile and test
+        timeout-minutes: 45
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleAppDebug :app:testAppDebugUnitTest \
+            --tests "io.legado.app.ui.main.explore.ExploreUpstreamReuseTest" \
+            -PenableAbiSplits=false \
+            --no-daemon \
+            --no-configuration-cache
+
+      - name: Commit verified optimization
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'perf: use stable keys for explore book lists'
+          git push origin HEAD:beta2
