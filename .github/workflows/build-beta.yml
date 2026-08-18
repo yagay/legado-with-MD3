@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - beta
+      - beta2
     paths-ignore:
       - '**/modules/web/**'
   workflow_dispatch:
