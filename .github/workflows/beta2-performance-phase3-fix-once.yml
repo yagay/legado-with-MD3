@@ -1,5 +1,6 @@
 name: Beta2 Performance Phase 3 Fixed (one-shot)
 
+# retriggered after enabling beta2 build verification
 on:
   push:
     branches:
