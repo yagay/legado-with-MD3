@@ -9,15 +9,19 @@ import io.legado.app.data.repository.RssRepository
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -33,15 +37,34 @@ class RssViewModel(
     private val groupFlow = MutableStateFlow("")
     private val _effects = MutableSharedFlow<RssEffect>(extraBufferCapacity = 8)
     val effects = _effects.asSharedFlow()
+    private var groupDataJob: Job? = null
+    private var rssDataJob: Job? = null
 
     init {
         _uiState.update { it.copy(isLoading = true) }
-        initGroupData()
-        initRssData()
+        observeActiveSubscriptions()
+    }
+
+    private fun observeActiveSubscriptions() {
+        viewModelScope.launch {
+            _uiState.subscriptionCount
+                .map { it > 0 }
+                .distinctUntilChanged()
+                .collectLatest { active ->
+                    if (active) {
+                        initGroupData()
+                        initRssData()
+                    } else {
+                        groupDataJob?.cancel()
+                        rssDataJob?.cancel()
+                    }
+                }
+        }
     }
 
     private fun initGroupData() {
-        viewModelScope.launch {
+        groupDataJob?.cancel()
+        groupDataJob = viewModelScope.launch {
             rssRepository.getEnabledGroups()
                 .flowOn(IO)
                 .collect { groups ->
@@ -52,7 +75,8 @@ class RssViewModel(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun initRssData() {
-        combine(
+        rssDataJob?.cancel()
+        rssDataJob = combine(
             searchKeyFlow,
             groupFlow
         ) { searchKey, group ->
