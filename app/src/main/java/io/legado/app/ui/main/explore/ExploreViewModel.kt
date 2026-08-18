@@ -35,15 +35,14 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -58,11 +57,12 @@ class ExploreViewModel(
 
     private val _uiState = MutableStateFlow(ExploreUiState())
     val uiState: StateFlow<ExploreUiState> = _uiState
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ExploreUiState())
     private val _effects = MutableSharedFlow<ExploreEffect>(extraBufferCapacity = 8)
     val effects = _effects.asSharedFlow()
 
     private var exploreJob: Job? = null
+    private var groupsJob: Job? = null
+    private var settingsJob: Job? = null
     private var kindsJob: Job? = null
     private var pendingDiscoverySuiteLoadAfterSources = false
     val enhance = ExploreViewModelEnhance(this)
@@ -76,18 +76,7 @@ class ExploreViewModel(
                 layoutSwitcherEnabled = if (customSettings.masterSwitch) customSettings.discoveryLayoutSwitcherEnabled else true
             )
         }
-        observeGroups()
-        observeExplore()
-
-        viewModelScope.launch {
-            customSettingsGateway.settings.collectLatest { settings ->
-                _uiState.update {
-                    it.copy(
-                        layoutSwitcherEnabled = if (settings.masterSwitch) settings.discoveryLayoutSwitcherEnabled else true,
-                    )
-                }
-            }
-        }
+        observeActiveSubscriptions()
 
         if (initialMode == 1) {
             if (_uiState.value.items.isEmpty()) {
@@ -141,11 +130,42 @@ class ExploreViewModel(
         }
     }
 
+    private fun observeActiveSubscriptions() {
+        viewModelScope.launch {
+            _uiState.subscriptionCount
+                .map { it > 0 }
+                .distinctUntilChanged()
+                .collectLatest { active ->
+                    if (active) {
+                        observeGroups()
+                        observeExplore()
+                        observeSettings()
+                    } else {
+                        groupsJob?.cancel()
+                        exploreJob?.cancel()
+                        settingsJob?.cancel()
+                        kindsJob?.cancel()
+                    }
+                }
+        }
+    }
 
-
+    private fun observeSettings() {
+        settingsJob?.cancel()
+        settingsJob = viewModelScope.launch {
+            customSettingsGateway.settings.collectLatest { settings ->
+                _uiState.update {
+                    it.copy(
+                        layoutSwitcherEnabled = if (settings.masterSwitch) settings.discoveryLayoutSwitcherEnabled else true,
+                    )
+                }
+            }
+        }
+    }
 
     private fun observeGroups() {
-        viewModelScope.launch {
+        groupsJob?.cancel()
+        groupsJob = viewModelScope.launch {
             exploreRepository.getExploreGroups()
                 .flowOn(IO)
                 .collectLatest { groups ->
