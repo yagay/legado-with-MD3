@@ -7,8 +7,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -246,13 +244,7 @@ fun MainScreen(
             return
         }
         coroutineScope.launch {
-            pagerState.animateScrollToPage(
-                page = index,
-                animationSpec = tween(
-                    durationMillis = 180,
-                    easing = FastOutSlowInEasing,
-                )
-            )
+            pagerState.animateScrollToPage(index)
         }
     }
     LaunchedEffect(destinations) {
@@ -267,7 +259,6 @@ fun MainScreen(
     val useLiquidGlass = useFloatingBottomBar &&
             mainUiState.useFloatingBottomBarLiquidGlass &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
-    val enableLiquidGlassRendering = useLiquidGlass && !pagerState.isScrollInProgress
     val alwaysShowLabel = labelVisibilityMode == "labeled"
     val showLabel = !isUnlabeled
 
@@ -506,7 +497,7 @@ fun MainScreen(
             ) {
                 Box(
                     modifier = Modifier.then(
-                        if (enableLiquidGlassRendering) {
+                        if (useLiquidGlass) {
                             Modifier
                                 .hazeSource(hazeState)
                                 .layerBackdrop(floatingBarBackdrop)
@@ -526,7 +517,7 @@ fun MainScreen(
                                 }
                             ),
                         userScrollEnabled = true,
-                        beyondViewportPageCount = 1
+                        beyondViewportPageCount = 4
                     ) { page ->
                         val destination = destinations.getOrNull(page) ?: return@HorizontalPager
                         val pageLifecycleOwner = rememberMainPageLifecycleOwner(
@@ -666,7 +657,7 @@ fun MainScreen(
                             },
                             backdrop = floatingBarBackdrop,
                             tabsCount = destinations.size,
-                            isBlurEnabled = enableLiquidGlassRendering,
+                            isBlurEnabled = useLiquidGlass,
                             hasCustomIcons = destinations.any { dest ->
                                 mainUiState.customIconPath(dest).isNotEmpty() ||
                                         mainUiState.selectedCustomIconPath(dest).isNotEmpty()
