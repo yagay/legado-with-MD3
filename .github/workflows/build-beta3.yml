@@ -1,0 +1,67 @@
+name: Beta3 Build Verification
+
+on:
+  push:
+    branches:
+      - beta3
+    paths-ignore:
+      - '**/modules/web/**'
+  pull_request:
+    branches:
+      - beta3
+    paths-ignore:
+      - '**/modules/web/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: beta3-build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Remove Aliyun mirrors (unreliable in CI)
+        run: |
+          sed -i '/maven.aliyun.com/d' settings.gradle
+
+      - name: Build Universal Debug APK
+        run: |
+          chmod +x gradlew
+          for attempt in 1 2 3; do
+            if ./gradlew assembleAppDebug \
+              -PenableAbiSplits=false \
+              --no-daemon \
+              --no-configuration-cache; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            echo "Gradle build attempt $attempt failed; retrying after transient dependency/network error..."
+            sleep $((attempt * 20))
+          done
+
+      - name: Upload Universal Debug APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: beta3-debug-universal-apk
+          if-no-files-found: error
+          retention-days: 14
+          path: app/build/outputs/apk/app/debug/*.apk
