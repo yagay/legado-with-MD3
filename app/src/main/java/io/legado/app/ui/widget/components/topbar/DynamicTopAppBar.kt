@@ -9,6 +9,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -20,6 +24,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import io.legado.app.R
 import io.legado.app.ui.theme.adaptiveHorizontalPadding
 import io.legado.app.ui.widget.components.SearchBar
@@ -33,6 +39,16 @@ import io.legado.app.ui.widget.components.menuItem.RoundDropdownMenu
 fun <T> DynamicTopAppBar(
     title: String,
     subtitle: String? = null,
+    subtitleDropdownMenu: (@Composable (dismiss: () -> Unit) -> Unit)? = null,
+    subtitleDropdownMenuLazy: (LazyListScope.(dismiss: () -> Unit) -> Unit)? = null,
+    subtitleDropdownMenuWidth: Dp = 280.dp,
+    subtitleDropdownMenuHeight: Dp = 320.dp,
+    subtitleDropdownMenuState: LazyListState = rememberLazyListState(),
+    subtitleDropdownMenuFastScroll: Boolean = false,
+    subtitleDropdownMenuFixedHeader: (@Composable () -> Unit)? = null,
+    subtitleMenuExpanded: Boolean? = null,
+    onSubtitleMenuExpandedChange: ((Boolean) -> Unit)? = null,
+    onSubtitleLongClick: (() -> Unit)? = null,
     state: ListUiState<T>,
     scrollBehavior: GlassTopAppBarScrollBehavior,
     onBackClick: (() -> Unit)? = null,
@@ -68,6 +84,16 @@ fun <T> DynamicTopAppBar(
         },
         useCharMode = isSelecting || state.isLoading,
         subtitle = subtitle,
+        subtitleDropdownMenu = subtitleDropdownMenu,
+        subtitleDropdownMenuLazy = subtitleDropdownMenuLazy,
+        subtitleDropdownMenuWidth = subtitleDropdownMenuWidth,
+        subtitleDropdownMenuHeight = subtitleDropdownMenuHeight,
+        subtitleDropdownMenuState = subtitleDropdownMenuState,
+        subtitleDropdownMenuFastScroll = subtitleDropdownMenuFastScroll,
+        subtitleDropdownMenuFixedHeader = subtitleDropdownMenuFixedHeader,
+        subtitleMenuExpanded = subtitleMenuExpanded,
+        onSubtitleMenuExpandedChange = onSubtitleMenuExpandedChange,
+        onSubtitleLongClick = onSubtitleLongClick,
         navigationIcon = {
             if (isSelecting || onBackClick != null) {
                 TopBarNavigationButton(
@@ -117,14 +143,16 @@ fun <T> DynamicTopAppBar(
                 enter = expandVertically() + fadeIn(),
                 exit = shrinkVertically() + fadeOut()
             ) {
-                SearchBar(
-                    query = state.searchKey,
-                    onQueryChange = onSearchQueryChange,
-                    onSearch = onSearchSubmit,
-                    placeholder = searchPlaceholder,
-                    trailingIcon = searchTrailingIcon,
-                    dropdownMenu = searchDropdownMenu
-                )
+                Box(modifier = Modifier.padding(bottom = 8.dp)) {
+                    SearchBar(
+                        query = state.searchKey,
+                        onQueryChange = onSearchQueryChange,
+                        onSearch = onSearchSubmit,
+                        placeholder = searchPlaceholder,
+                        trailingIcon = searchTrailingIcon,
+                        dropdownMenu = searchDropdownMenu
+                    )
+                }
             }
 
             bottomContent?.invoke(this, scrollBehavior)
