@@ -24,7 +24,7 @@ android {
 }
 
 dependencies {
-    api("org.htmlunit:htmlunit-core-js:5.3.0-legado.3")
+    api("org.htmlunit:htmlunit-core-js:5.3.0-legado.4")
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.okhttp)
     implementation(libs.androidx.collection)
