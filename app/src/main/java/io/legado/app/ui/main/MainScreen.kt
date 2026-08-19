@@ -249,7 +249,7 @@ fun MainScreen(
             pagerState.animateScrollToPage(
                 page = index,
                 animationSpec = tween(
-                    durationMillis = 220,
+                    durationMillis = 180,
                     easing = FastOutSlowInEasing,
                 )
             )
@@ -526,7 +526,7 @@ fun MainScreen(
                                 }
                             ),
                         userScrollEnabled = true,
-                        beyondViewportPageCount = 4
+                        beyondViewportPageCount = 1
                     ) { page ->
                         val destination = destinations.getOrNull(page) ?: return@HorizontalPager
                         val pageLifecycleOwner = rememberMainPageLifecycleOwner(
