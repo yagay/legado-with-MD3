@@ -147,7 +147,7 @@ android {
     }
 
     sourceSets {
-        getByName("main").java.srcDir("../modules/legado-enhance/java")
+        getByName("main").kotlin.directories.add("../modules/legado-enhance/java")
         getByName("androidTest").assets.directories.add("$projectDir/schemas")
     }
 
