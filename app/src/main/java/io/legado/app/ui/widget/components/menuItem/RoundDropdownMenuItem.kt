@@ -1,9 +1,7 @@
 package io.legado.app.ui.widget.components.menuItem
 
 import androidx.compose.foundation.LocalIndication
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,7 +40,6 @@ import top.yukonga.miuix.kmp.icon.basic.Check
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.basic.Text as MiuixText
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun RoundDropdownMenuItem(
     text: String,
@@ -55,15 +52,10 @@ fun RoundDropdownMenuItem(
     enabled: Boolean = true,
     contentPadding: PaddingValues = MenuDefaults.DropdownMenuItemContentPadding,
     interactionSource: MutableInteractionSource? = null,
-    onLongClick: (() -> Unit)? = null,
-    marquee: Boolean = false,
 ) {
     val isMiuix = ThemeResolver.isMiuixEngine(LegadoTheme.composeEngine)
     val interaction = interactionSource ?: remember { MutableInteractionSource() }
     val hasCustomContentColor = color != Color.Unspecified
-    val textModifier = Modifier
-        .widthIn(max = 200.dp)
-        .then(if (marquee) Modifier.basicMarquee() else Modifier)
 
     if (isMiuix) {
         val legadoColorScheme = LegadoTheme.colorScheme
@@ -77,12 +69,11 @@ fun RoundDropdownMenuItem(
             modifier = modifier
                 .fillMaxWidth()
                 .drawBehind { drawRect(backgroundColor) }
-                .combinedClickable(
+                .clickable(
                     interactionSource = interaction,
                     indication = LocalIndication.current,
                     enabled = enabled,
-                    onClick = onClick,
-                    onLongClick = onLongClick
+                    onClick = onClick
                 )
                 .padding(horizontal = 20.dp, vertical = 12.dp)
         ) {
@@ -97,9 +88,8 @@ fun RoundDropdownMenuItem(
                     contentAlignment = Alignment.CenterStart
                 ) {
                     MiuixText(
-                        modifier = textModifier,
+                        modifier = Modifier.widthIn(max = 200.dp),
                         text = text,
-                        maxLines = if (marquee) 1 else Int.MAX_VALUE,
                         fontSize = MiuixTheme.textStyles.body1.fontSize,
                         fontWeight = FontWeight.Medium,
                         color = textColor,
@@ -140,19 +130,15 @@ fun RoundDropdownMenuItem(
         val containerColor = legadoColorScheme.surface
 
         Surface(
+            onClick = onClick,
             modifier = modifier
                 .padding(horizontal = 8.dp)
-                .fillMaxWidth()
-                .combinedClickable(
-                    interactionSource = interaction,
-                    indication = LocalIndication.current,
-                    enabled = enabled,
-                    onClick = onClick,
-                    onLongClick = onLongClick
-                ),
+                .fillMaxWidth(),
+            enabled = enabled,
             shape = MaterialTheme.shapes.small,
             color = containerColor,
-            contentColor = contentColor
+            contentColor = contentColor,
+            interactionSource = interaction
         ) {
             Row(
                 modifier = Modifier
@@ -171,9 +157,8 @@ fun RoundDropdownMenuItem(
                     contentAlignment = Alignment.CenterStart
                 ) {
                     Text(
-                        modifier = textModifier,
+                        modifier = Modifier.widthIn(max = 200.dp),
                         text = text,
-                        maxLines = if (marquee) 1 else Int.MAX_VALUE,
                         style = LegadoTheme.typography.labelLargeEmphasized,
                         color = contentColor
                     )
