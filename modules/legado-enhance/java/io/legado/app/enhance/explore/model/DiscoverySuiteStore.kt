@@ -27,7 +27,9 @@ object DiscoverySuiteStore {
                 createDefaultConfig()
             } else {
                 try {
-                    GSON.fromJson(json, DiscoverySuiteConfig::class.java).sanitize()
+                    GSON.fromJson(json, DiscoverySuiteConfig::class.java)
+                        .sanitize()
+                        .removeLegacyDefaultSlots()
                         .takeIf { it.suites.isNotEmpty() }
                         ?: createDefaultConfig()
                 } catch (e: Exception) {
@@ -36,12 +38,16 @@ object DiscoverySuiteStore {
                 }
             }
             cachedConfig = config
+            val migratedJson = GSON.toJson(config)
+            if (json != migratedJson) {
+                sharedPrefs.edit().putString(KEY_CONFIG, migratedJson).apply()
+            }
             config
         }
     }
 
     fun save(config: DiscoverySuiteConfig) {
-        val sanitized = config.sanitize()
+        val sanitized = config.sanitize().removeLegacyDefaultSlots()
         cachedConfig = sanitized
         val json = GSON.toJson(sanitized)
         sharedPrefs.edit().putString(KEY_CONFIG, json).apply()
@@ -64,28 +70,44 @@ object DiscoverySuiteStore {
     private fun createDefaultConfig(): DiscoverySuiteConfig {
         val defaultSuite = newSuite("示例首页").copy(
             widgets = listOf(
-                newWidget("分类", DiscoverySuiteWidgetType.TagBar).copy(
-                    isDynamic = true,
-                    targets = listOf(
-                        DiscoverySuiteWidgetTarget(title = "玄幻"),
-                        DiscoverySuiteWidgetTarget(title = "修真"),
-                        DiscoverySuiteWidgetTarget(title = "都市"),
-                        DiscoverySuiteWidgetTarget(title = "穿越")
-                    )
-                ),
-                newWidget("榜单", DiscoverySuiteWidgetType.RankButtons).copy(
-                    targets = listOf(
-                        DiscoverySuiteWidgetTarget(title = "推荐"),
-                        DiscoverySuiteWidgetTarget(title = "评分"),
-                        DiscoverySuiteWidgetTarget(title = "热门")
-                    )
-                ),
                 newWidget("推荐图书", DiscoverySuiteWidgetType.WaterfallBooks).copy(
                     displayStyle = 1 // Default to List style
                 )
             )
         )
         return DiscoverySuiteConfig(suites = listOf(defaultSuite))
+    }
+
+    /**
+     * Older builds always created one fixed "分类" TagBar and one fixed "榜单" RankButtons
+     * widget. Modern discovery already renders source-defined dynamicSelectors, so those two
+     * template slots duplicate and distort the source's real category structure.
+     *
+     * Match the exact historical defaults only; user-created widgets remain untouched.
+     */
+    private fun DiscoverySuiteConfig.removeLegacyDefaultSlots(): DiscoverySuiteConfig {
+        val legacyCategoryTargets = listOf("玄幻", "修真", "都市", "穿越")
+        val legacyRankTargets = listOf("推荐", "评分", "热门")
+
+        return copy(
+            suites = suites.map { suite ->
+                suite.copy(
+                    widgets = suite.widgets.filterNot { widget ->
+                        val targetTitles = widget.targets.map { it.title }
+                        val legacyCategory =
+                            widget.type == DiscoverySuiteWidgetType.TagBar.type &&
+                                widget.title == "分类" &&
+                                widget.isDynamic &&
+                                targetTitles == legacyCategoryTargets
+                        val legacyRank =
+                            widget.type == DiscoverySuiteWidgetType.RankButtons.type &&
+                                widget.title == "榜单" &&
+                                targetTitles == legacyRankTargets
+                        legacyCategory || legacyRank
+                    }
+                )
+            }
+        )
     }
 
     fun newSuite(name: String): DiscoverySuite {
