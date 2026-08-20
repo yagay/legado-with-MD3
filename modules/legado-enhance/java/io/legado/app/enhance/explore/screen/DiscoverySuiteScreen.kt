@@ -360,25 +360,51 @@ private sealed interface OrderedExploreAtom {
     ) : OrderedExploreAtom
 }
 
+private val priorityUtilityTokens = listOf(
+    "更新配置",
+    "更新规则",
+    "刷新",
+    "书架",
+    "配置",
+    "设置",
+    "update config",
+    "update rule",
+    "refresh",
+    "bookshelf",
+    "book shelf",
+    "settings",
+    "config",
+)
+
+private fun isPriorityUtilityTitle(title: String): Boolean {
+    val normalized = stripWrapSymbols(title)
+        .trim()
+        .lowercase()
+    if (normalized.isBlank()) return false
+    return priorityUtilityTokens.any { token -> normalized.contains(token) }
+}
+
 /**
- * Keep source order within utility rows and within category rows, but place utility/native rows
- * before category selectors. This keeps normal category ordering/rules untouched while making
- * source-defined actions such as refresh, bookshelf and config entries immediately accessible.
+ * Keep ordinary categories in their original source-defined selector structure. Only explicit
+ * utility entries are promoted ahead of category selectors; a full-width URL alone is not enough
+ * to classify a row as a utility action.
  */
 private fun buildOrderedExploreRows(
     selectors: List<ExploreViewModel.DynamicSelectorUi>,
     controls: List<ExploreKind>,
 ): List<OrderedExploreRow> {
     val standaloneEntries = ModernExploreControlExtractor.standaloneUrlEntries()
+        .filter { isPriorityUtilityTitle(it.title) }
     if (selectors.isEmpty() && controls.isEmpty() && standaloneEntries.isEmpty()) return emptyList()
 
     val atoms = buildList<OrderedExploreAtom> {
         selectors.forEachIndexed { index, selector ->
             val filteredTargets = selector.targets.filterNot { target ->
-                ModernExploreControlExtractor.isStandaloneUrlTarget(
-                    title = target.title,
-                    url = target.tagUrl,
-                )
+                isPriorityUtilityTitle(target.title) &&
+                    ModernExploreControlExtractor.isStandaloneUrlTarget(
+                        title = target.title,
+                        url = target.tagUrl,
+                    )
             }
             if (filteredTargets.isEmpty()) return@forEachIndexed
             val visibleSelector = if (filteredTargets.size == selector.targets.size) {
