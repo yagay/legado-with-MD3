@@ -65,3 +65,64 @@ jobs:
           if-no-files-found: error
           retention-days: 14
           path: app/build/outputs/apk/app/debug/*.apk
+
+  release-performance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Remove Aliyun mirrors (unreliable in CI)
+        run: |
+          sed -i '/maven.aliyun.com/d' settings.gradle
+
+      - name: Create temporary CI signing key
+        run: |
+          keytool -genkeypair \
+            -keystore "$RUNNER_TEMP/beta3-ci.jks" \
+            -storepass android \
+            -keypass android \
+            -alias beta3 \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Beta3 CI,O=Legado,C=GB"
+
+      - name: Build signed Universal Release APK
+        run: |
+          chmod +x gradlew
+          for attempt in 1 2 3; do
+            if ./gradlew assembleAppRelease \
+              -PenableAbiSplits=false \
+              -PRELEASE_STORE_FILE="$RUNNER_TEMP/beta3-ci.jks" \
+              -PRELEASE_STORE_PASSWORD=android \
+              -PRELEASE_KEY_ALIAS=beta3 \
+              -PRELEASE_KEY_PASSWORD=android \
+              --no-daemon \
+              --no-configuration-cache; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            echo "Release build attempt $attempt failed; retrying after transient dependency/network error..."
+            sleep $((attempt * 20))
+          done
+
+      - name: Upload signed Release APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: beta3-release-performance-apk
+          if-no-files-found: error
+          retention-days: 14
+          path: app/build/outputs/apk/app/release/*.apk
