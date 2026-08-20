@@ -86,6 +86,11 @@ jobs:
         run: |
           sed -i '/maven.aliyun.com/d' settings.gradle
 
+      - name: Use isolated performance package id
+        run: |
+          sed -i 's/applicationId = "io.legato.kazusa"/applicationId = "io.legato.kazusa.perf"/' app/build.gradle.kts
+          grep -n 'applicationId = ' app/build.gradle.kts
+
       - name: Create temporary CI signing key
         run: |
           keytool -genkeypair \
@@ -119,10 +124,19 @@ jobs:
             sleep $((attempt * 20))
           done
 
-      - name: Upload signed Release APK artifact
+      - name: Verify Release APK signature
+        run: |
+          APK="$(find app/build/outputs/apk/app/release -maxdepth 1 -name '*.apk' -type f | head -n 1)"
+          test -n "$APK"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -x "$APKSIGNER"
+          "$APKSIGNER" verify --verbose --print-certs "$APK"
+          cp "$APK" app/build/outputs/apk/app/release/beta3-performance-release.apk
+
+      - name: Upload verified Release APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: beta3-release-performance-apk
           if-no-files-found: error
           retention-days: 14
-          path: app/build/outputs/apk/app/release/*.apk
+          path: app/build/outputs/apk/app/release/beta3-performance-release.apk
