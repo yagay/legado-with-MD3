@@ -89,7 +89,24 @@ jobs:
       - name: Use isolated performance package id
         run: |
           sed -i 's/applicationId = "io.legato.kazusa"/applicationId = "io.legato.kazusa.perf"/' app/build.gradle.kts
+          python3 - <<'PY'
+          import json
+          path = "app/google-services.json"
+          with open(path, "r", encoding="utf-8") as f:
+              data = json.load(f)
+          changed = False
+          for client in data.get("client", []):
+              android_info = client.get("client_info", {}).get("android_client_info", {})
+              if android_info.get("package_name") == "io.legato.kazusa":
+                  android_info["package_name"] = "io.legato.kazusa.perf"
+                  changed = True
+          if not changed:
+              raise SystemExit("No io.legato.kazusa client found in google-services.json")
+          with open(path, "w", encoding="utf-8") as f:
+              json.dump(data, f, ensure_ascii=False)
+          PY
           grep -n 'applicationId = ' app/build.gradle.kts
+          grep -o 'io\.legato\.kazusa\.perf' app/google-services.json | head -n 1
 
       - name: Create temporary CI signing key
         run: |
