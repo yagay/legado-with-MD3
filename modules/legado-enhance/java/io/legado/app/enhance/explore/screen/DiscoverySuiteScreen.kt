@@ -385,9 +385,8 @@ private fun isPriorityUtilityTitle(title: String): Boolean {
 }
 
 /**
- * Keep ordinary categories in their original source-defined selector structure. Only explicit
- * utility entries are promoted ahead of category selectors; a full-width URL alone is not enough
- * to classify a row as a utility action.
+ * Keep ordinary categories visible in their selector, but use beta's selector ordering basis:
+ * standalone URL targets do not participate in the selector's source index calculation.
  */
 private fun buildOrderedExploreRows(
     selectors: List<ExploreViewModel.DynamicSelectorUi>,
@@ -399,22 +398,36 @@ private fun buildOrderedExploreRows(
 
     val atoms = buildList<OrderedExploreAtom> {
         selectors.forEachIndexed { index, selector ->
-            val filteredTargets = selector.targets.filterNot { target ->
+            val visibleTargets = selector.targets.filterNot { target ->
                 isPriorityUtilityTitle(target.title) &&
                     ModernExploreControlExtractor.isStandaloneUrlTarget(
                         title = target.title,
                         url = target.tagUrl,
                     )
             }
-            if (filteredTargets.isEmpty()) return@forEachIndexed
-            val visibleSelector = if (filteredTargets.size == selector.targets.size) {
+            if (visibleTargets.isEmpty()) return@forEachIndexed
+
+            val visibleSelector = if (visibleTargets.size == selector.targets.size) {
                 selector
             } else {
-                selector.copy(targets = filteredTargets.toImmutableList())
+                selector.copy(targets = visibleTargets.toImmutableList())
             }
+
+            val betaSortTargets = selector.targets.filterNot { target ->
+                ModernExploreControlExtractor.isStandaloneUrlTarget(
+                    title = target.title,
+                    url = target.tagUrl,
+                )
+            }
+            val sortSelector = if (betaSortTargets.isNotEmpty()) {
+                selector.copy(targets = betaSortTargets.toImmutableList())
+            } else {
+                visibleSelector
+            }
+
             add(
                 OrderedExploreAtom.Selector(
-                    sourceIndex = sourceIndexOfSelector(visibleSelector),
+                    sourceIndex = sourceIndexOfSelector(sortSelector),
                     fallbackOrder = index * 3,
                     selector = visibleSelector,
                 )
