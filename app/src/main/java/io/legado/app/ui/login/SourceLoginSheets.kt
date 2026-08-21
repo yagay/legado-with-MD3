@@ -304,6 +304,20 @@ private fun SourceLoginWebView(
 ) {
     val currentIntent by rememberUpdatedState(onIntent)
     val currentOpenExternalUrl by rememberUpdatedState(onOpenExternalUrl)
+    val configuredUserAgent = remember(state.headers) {
+        state.headers.entries.firstOrNull {
+            it.key == AppConst.UA_NAME && it.value.isNotBlank()
+        }?.value ?: state.headers.entries.firstOrNull {
+            it.key.equals(AppConst.UA_NAME, ignoreCase = true) && it.value.isNotBlank()
+        }?.value
+    }
+    val requestHeaders = remember(state.headers) {
+        state.headers.filterKeys { name ->
+            !name.equals(AppConst.UA_NAME, ignoreCase = true) &&
+                !name.equals("CookieJar", ignoreCase = true) &&
+                !name.equals("proxy", ignoreCase = true)
+        }
+    }
     var webView by remember { mutableStateOf<WebView?>(null) }
     Box(
         Modifier
@@ -325,7 +339,7 @@ private fun SourceLoginWebView(
                         allowContentAccess = true
                         displayZoomControls = false
                         textZoom = 100
-                        state.headers[AppConst.UA_NAME]?.let { userAgentString = it }
+                        configuredUserAgent?.let { userAgentString = it }
                     }
                     onResume()
                     val cookieManager = CookieManager.getInstance().apply {
@@ -373,7 +387,7 @@ private fun SourceLoginWebView(
                             cookieManager.setCookie(url, cookie)
                             cookieManager.flush()
                         }
-                        loadUrl(url, state.headers)
+                        loadUrl(url, requestHeaders)
                     }
                     webView = this
                 }
@@ -400,7 +414,7 @@ private fun SourceLoginWebView(
     }
     LaunchedEffect(state.checkingCookie) {
         if (state.checkingCookie) {
-            state.webUrl?.let { webView?.loadUrl(it, state.headers) }
+            state.webUrl?.let { webView?.loadUrl(it, requestHeaders) }
         }
     }
 }
