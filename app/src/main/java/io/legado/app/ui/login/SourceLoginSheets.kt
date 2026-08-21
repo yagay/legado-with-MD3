@@ -49,7 +49,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import io.legado.app.R
 import io.legado.app.constant.AppConst
 import io.legado.app.data.entities.rule.ExploreKind
-import io.legado.app.help.config.AppConfig
 import io.legado.app.help.http.CookieStore
 import io.legado.app.ui.about.MarkdownSheet
 import io.legado.app.ui.rss.read.VisibleWebView
@@ -344,7 +343,7 @@ private fun SourceLoginWebView(
             it.key == AppConst.UA_NAME && it.value.isNotBlank()
         }?.value ?: state.headers.entries.firstOrNull {
             it.key.equals(AppConst.UA_NAME, ignoreCase = true) && it.value.isNotBlank()
-        }?.value ?: AppConfig.userAgent
+        }?.value
     }
     val requestHeaders = remember(state.headers) {
         state.headers.filterKeys { name ->
@@ -370,7 +369,7 @@ private fun SourceLoginWebView(
                         allowContentAccess = true
                         displayZoomControls = false
                         textZoom = 100
-                        userAgentString = configuredUserAgent
+                        configuredUserAgent?.let { userAgentString = it }
                     }
                     onResume()
                     val cookieManager = CookieManager.getInstance().apply {
