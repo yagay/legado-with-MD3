@@ -86,6 +86,27 @@ jobs:
         run: |
           sed -i '/maven.aliyun.com/d' settings.gradle
 
+      - name: Apply smoother pager click animation experiment
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("app/src/main/java/io/legado/app/ui/main/MainScreen.kt")
+          text = path.read_text(encoding="utf-8")
+          old = "            pagerState.animateScrollToPage(index)"
+          new = '''            pagerState.animateScrollToPage(
+                page = index,
+                animationSpec = androidx.compose.animation.core.tween(
+                    durationMillis = 260,
+                    easing = androidx.compose.animation.core.FastOutSlowInEasing,
+                ),
+            )'''
+          if text.count(old) != 1:
+              raise SystemExit(f"animateScrollToPage(index) match count: {text.count(old)}")
+          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
+          grep -n -A9 -B3 'animateScrollToPage' app/src/main/java/io/legado/app/ui/main/MainScreen.kt
+
       - name: Use isolated performance package id
         run: |
           sed -i 's/applicationId = "io.legato.kazusa"/applicationId = "io.legato.kazusa.perf"/' app/build.gradle.kts
