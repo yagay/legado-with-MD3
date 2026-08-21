@@ -134,7 +134,6 @@ fun <T> DiscoveryDynamicTopAppBar(
                         contentDescription = stringResource(R.string.search),
                     )
                 }
-                topBarActions()
                 dropDownMenuContent?.let { content ->
                     Box {
                         TopBarActionButton(
@@ -148,6 +147,7 @@ fun <T> DiscoveryDynamicTopAppBar(
                         ) { dismiss -> content(dismiss) }
                     }
                 }
+                topBarActions()
             }
         },
         scrollBehavior = scrollBehavior,
