@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.net.Uri
 import android.net.http.SslError
+import android.webkit.CookieManager
 import android.webkit.SslErrorHandler
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -316,8 +317,14 @@ private fun SourceLoginWebView(
                         loadWithOverviewMode = true
                         builtInZoomControls = true
                         javaScriptEnabled = true
+                        javaScriptCanOpenWindowsAutomatically = true
+                        setSupportMultipleWindows(false)
                         displayZoomControls = false
                         state.headers[AppConst.UA_NAME]?.let { userAgentString = it }
+                    }
+                    CookieManager.getInstance().apply {
+                        setAcceptCookie(true)
+                        setAcceptThirdPartyCookies(this@apply, true)
                     }
                     isNestedScrollingEnabled = true
                     webViewClient = object : WebViewClient() {
