@@ -51,7 +51,6 @@ import io.legado.app.constant.AppConst
 import io.legado.app.data.entities.rule.ExploreKind
 import io.legado.app.help.http.CookieStore
 import io.legado.app.ui.about.MarkdownSheet
-import io.legado.app.ui.rss.read.VisibleWebView
 import io.legado.app.ui.theme.LegadoTheme
 import io.legado.app.ui.theme.ThemeResolver
 import io.legado.app.ui.widget.components.AppTextField
@@ -357,7 +356,7 @@ private fun SourceLoginWebView(
         AndroidView(
             modifier = Modifier.fillMaxSize(),
             factory = { context ->
-                VisibleWebView(context).apply {
+                SourceLoginBrowserView(context).apply {
                     settings.apply {
                         mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                         domStorageEnabled = true
