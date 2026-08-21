@@ -50,6 +50,10 @@ class VisibleWebView(
         evaluateJavascript(js, null)
     }
 
+    override fun onWindowVisibilityChanged(visibility: Int) {
+        super.onWindowVisibilityChanged(VISIBLE)
+    }
+
     override fun performClick(): Boolean {
         return super.performClick()
     }
