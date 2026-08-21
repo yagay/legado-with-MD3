@@ -46,6 +46,7 @@ import io.legado.app.constant.AppConst
 import io.legado.app.data.entities.rule.ExploreKind
 import io.legado.app.help.http.CookieStore
 import io.legado.app.ui.about.MarkdownSheet
+import io.legado.app.ui.rss.read.VisibleWebView
 import io.legado.app.ui.theme.LegadoTheme
 import io.legado.app.ui.theme.ThemeResolver
 import io.legado.app.ui.widget.components.AppTextField
@@ -304,13 +305,15 @@ private fun SourceLoginWebView(
     val currentIntent by rememberUpdatedState(onIntent)
     val currentOpenExternalUrl by rememberUpdatedState(onOpenExternalUrl)
     var webView by remember { mutableStateOf<WebView?>(null) }
-    Box(Modifier
-        .fillMaxWidth()
-        .heightIn(min = 520.dp)) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 520.dp)
+    ) {
         AndroidView(
             modifier = Modifier.fillMaxSize(),
             factory = { context ->
-                WebView(context).apply {
+                VisibleWebView(context).apply {
                     settings.apply {
                         mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                         domStorageEnabled = true
@@ -318,11 +321,13 @@ private fun SourceLoginWebView(
                         loadWithOverviewMode = true
                         builtInZoomControls = true
                         javaScriptEnabled = true
-                        javaScriptCanOpenWindowsAutomatically = true
-                        setSupportMultipleWindows(true)
+                        mediaPlaybackRequiresUserGesture = false
+                        allowContentAccess = true
                         displayZoomControls = false
+                        textZoom = 100
                         state.headers[AppConst.UA_NAME]?.let { userAgentString = it }
                     }
+                    onResume()
                     val cookieManager = CookieManager.getInstance().apply {
                         setAcceptCookie(true)
                     }
@@ -340,8 +345,7 @@ private fun SourceLoginWebView(
                         override fun shouldOverrideUrlLoading(
                             view: WebView,
                             request: WebResourceRequest
-                        ) =
-                            handleUrl(request.url)
+                        ) = handleUrl(request.url)
 
                         @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
                         override fun shouldOverrideUrlLoading(view: WebView, url: String) =
@@ -362,54 +366,6 @@ private fun SourceLoginWebView(
                     webChromeClient = object : WebChromeClient() {
                         override fun onProgressChanged(view: WebView?, progress: Int) {
                             currentIntent(SourceLoginIntent.WebProgressChanged(progress))
-                        }
-
-                        override fun onCreateWindow(
-                            view: WebView,
-                            isDialog: Boolean,
-                            isUserGesture: Boolean,
-                            resultMsg: android.os.Message,
-                        ): Boolean {
-                            val transport = resultMsg.obj as? WebView.WebViewTransport ?: return false
-                            val popupWebView = WebView(view.context).apply {
-                                settings.apply {
-                                    javaScriptEnabled = true
-                                    domStorageEnabled = true
-                                    mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-                                    state.headers[AppConst.UA_NAME]?.let { userAgentString = it }
-                                }
-                                CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
-                                webViewClient = object : WebViewClient() {
-                                    override fun onPageStarted(
-                                        popup: WebView?,
-                                        url: String?,
-                                        favicon: Bitmap?,
-                                    ) {
-                                        if (url.isNullOrBlank() || url == "about:blank") return
-                                        view.loadUrl(url, state.headers)
-                                        popup?.stopLoading()
-                                        popup?.destroy()
-                                    }
-
-                                    override fun shouldOverrideUrlLoading(
-                                        popup: WebView,
-                                        request: WebResourceRequest,
-                                    ): Boolean {
-                                        val uri = request.url
-                                        if (uri.scheme == "http" || uri.scheme == "https") {
-                                            view.loadUrl(uri.toString(), state.headers)
-                                        } else {
-                                            currentOpenExternalUrl(uri.toString())
-                                        }
-                                        popup.stopLoading()
-                                        popup.destroy()
-                                        return true
-                                    }
-                                }
-                            }
-                            transport.webView = popupWebView
-                            resultMsg.sendToTarget()
-                            return true
                         }
                     }
                     state.webUrl?.let { url ->
@@ -434,7 +390,13 @@ private fun SourceLoginWebView(
         }
     }
     DisposableEffect(Unit) {
-        onDispose { webView?.destroy() }
+        onDispose {
+            webView?.run {
+                stopLoading()
+                onPause()
+                destroy()
+            }
+        }
     }
     LaunchedEffect(state.checkingCookie) {
         if (state.checkingCookie) {
