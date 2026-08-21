@@ -319,7 +319,7 @@ private fun SourceLoginWebView(
                         builtInZoomControls = true
                         javaScriptEnabled = true
                         javaScriptCanOpenWindowsAutomatically = true
-                        setSupportMultipleWindows(false)
+                        setSupportMultipleWindows(true)
                         displayZoomControls = false
                         state.headers[AppConst.UA_NAME]?.let { userAgentString = it }
                     }
@@ -362,6 +362,54 @@ private fun SourceLoginWebView(
                     webChromeClient = object : WebChromeClient() {
                         override fun onProgressChanged(view: WebView?, progress: Int) {
                             currentIntent(SourceLoginIntent.WebProgressChanged(progress))
+                        }
+
+                        override fun onCreateWindow(
+                            view: WebView,
+                            isDialog: Boolean,
+                            isUserGesture: Boolean,
+                            resultMsg: android.os.Message,
+                        ): Boolean {
+                            val transport = resultMsg.obj as? WebView.WebViewTransport ?: return false
+                            val popupWebView = WebView(view.context).apply {
+                                settings.apply {
+                                    javaScriptEnabled = true
+                                    domStorageEnabled = true
+                                    mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                                    state.headers[AppConst.UA_NAME]?.let { userAgentString = it }
+                                }
+                                CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+                                webViewClient = object : WebViewClient() {
+                                    override fun onPageStarted(
+                                        popup: WebView?,
+                                        url: String?,
+                                        favicon: Bitmap?,
+                                    ) {
+                                        if (url.isNullOrBlank() || url == "about:blank") return
+                                        view.loadUrl(url, state.headers)
+                                        popup?.stopLoading()
+                                        popup?.destroy()
+                                    }
+
+                                    override fun shouldOverrideUrlLoading(
+                                        popup: WebView,
+                                        request: WebResourceRequest,
+                                    ): Boolean {
+                                        val uri = request.url
+                                        if (uri.scheme == "http" || uri.scheme == "https") {
+                                            view.loadUrl(uri.toString(), state.headers)
+                                        } else {
+                                            currentOpenExternalUrl(uri.toString())
+                                        }
+                                        popup.stopLoading()
+                                        popup.destroy()
+                                        return true
+                                    }
+                                }
+                            }
+                            transport.webView = popupWebView
+                            resultMsg.sendToTarget()
+                            return true
                         }
                     }
                     state.webUrl?.let { url ->
