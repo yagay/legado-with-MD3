@@ -322,10 +322,8 @@ private fun SourceLoginWebView(
                         displayZoomControls = false
                         state.headers[AppConst.UA_NAME]?.let { userAgentString = it }
                     }
-                    CookieManager.getInstance().apply {
-                        setAcceptCookie(true)
-                        setAcceptThirdPartyCookies(this@apply, true)
-                    }
+                    CookieManager.getInstance().setAcceptCookie(true)
+                    CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
                     isNestedScrollingEnabled = true
                     webViewClient = object : WebViewClient() {
                         override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
