@@ -44,6 +44,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import io.legado.app.R
 import io.legado.app.constant.AppConst
 import io.legado.app.data.entities.rule.ExploreKind
+import io.legado.app.help.http.CookieStore
 import io.legado.app.ui.about.MarkdownSheet
 import io.legado.app.ui.theme.LegadoTheme
 import io.legado.app.ui.theme.ThemeResolver
@@ -322,8 +323,10 @@ private fun SourceLoginWebView(
                         displayZoomControls = false
                         state.headers[AppConst.UA_NAME]?.let { userAgentString = it }
                     }
-                    CookieManager.getInstance().setAcceptCookie(true)
-                    CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+                    val cookieManager = CookieManager.getInstance().apply {
+                        setAcceptCookie(true)
+                    }
+                    cookieManager.setAcceptThirdPartyCookies(this, true)
                     isNestedScrollingEnabled = true
                     webViewClient = object : WebViewClient() {
                         override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
@@ -361,7 +364,13 @@ private fun SourceLoginWebView(
                             currentIntent(SourceLoginIntent.WebProgressChanged(progress))
                         }
                     }
-                    state.webUrl?.let { loadUrl(it, state.headers) }
+                    state.webUrl?.let { url ->
+                        CookieStore.getCookie(url).takeIf { it.isNotBlank() }?.let { cookie ->
+                            cookieManager.setCookie(url, cookie)
+                            cookieManager.flush()
+                        }
+                        loadUrl(url, state.headers)
+                    }
                     webView = this
                 }
             },
