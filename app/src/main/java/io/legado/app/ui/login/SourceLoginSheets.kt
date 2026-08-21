@@ -18,13 +18,18 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -80,7 +85,7 @@ fun SourceLoginSheetHost(
             ) { CircularProgressIndicator() }
         }
 
-        state.mode == SourceLoginMode.Web -> SourceLoginWebSheet(
+        state.mode == SourceLoginMode.Web -> SourceLoginWebPage(
             state = state,
             onIntent = onIntent,
             onOpenExternalUrl = onOpenExternalUrl,
@@ -270,28 +275,56 @@ private fun LoginRowUi.toExploreKind() = ExploreKind(
     viewName = title,
 )
 
-@SuppressLint("SetJavaScriptEnabled", "WebViewClientOnReceivedSslError")
 @Composable
-private fun SourceLoginWebSheet(
+private fun SourceLoginWebPage(
     state: SourceLoginUiState,
     onIntent: (SourceLoginIntent) -> Unit,
     onOpenExternalUrl: (String) -> Unit,
 ) {
-    AppModalBottomSheet(
-        show = state.mode == SourceLoginMode.Web && !state.loading,
-        onDismissRequest = { onIntent(SourceLoginIntent.Back) },
-        title = state.title,
-        endAction = {
-            MediumTonalButton(
-                icon = AppIcons.Check,
-                contentDescription = stringResource(R.string.ok),
-                onClick = { onIntent(SourceLoginIntent.Confirm) },
-            )
-        },
-        contentPaddingEnabled = false,
-        sheetGesturesEnabled = false,
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = LegadoTheme.colorScheme.surface,
     ) {
-        SourceLoginWebView(state, onIntent, onOpenExternalUrl)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding(),
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                MediumTonalButton(
+                    icon = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(R.string.back),
+                    onClick = { onIntent(SourceLoginIntent.Back) },
+                )
+                Text(
+                    text = state.title,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 12.dp),
+                    style = LegadoTheme.typography.titleMediumEmphasized,
+                    color = LegadoTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                )
+                MediumTonalButton(
+                    icon = AppIcons.Check,
+                    contentDescription = stringResource(R.string.ok),
+                    onClick = { onIntent(SourceLoginIntent.Confirm) },
+                )
+            }
+            SourceLoginWebView(
+                state = state,
+                onIntent = onIntent,
+                onOpenExternalUrl = onOpenExternalUrl,
+                modifier = Modifier.weight(1f),
+            )
+        }
     }
 }
 
@@ -301,6 +334,7 @@ private fun SourceLoginWebView(
     state: SourceLoginUiState,
     onIntent: (SourceLoginIntent) -> Unit,
     onOpenExternalUrl: (String) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val currentIntent by rememberUpdatedState(onIntent)
     val currentOpenExternalUrl by rememberUpdatedState(onOpenExternalUrl)
@@ -319,11 +353,7 @@ private fun SourceLoginWebView(
         }
     }
     var webView by remember { mutableStateOf<WebView?>(null) }
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .heightIn(min = 520.dp)
-    ) {
+    Box(modifier.fillMaxSize()) {
         AndroidView(
             modifier = Modifier.fillMaxSize(),
             factory = { context ->
