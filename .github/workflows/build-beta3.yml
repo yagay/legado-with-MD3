@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - beta3
+      - beta4
     paths-ignore:
       - '**/modules/web/**'
   pull_request:
