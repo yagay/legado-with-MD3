@@ -136,6 +136,7 @@ private fun buildModernBrowserSheetConfig(
         put("isDraggable", true)
         put("isDraggableOnNestedScroll", true)
         put("isNestedScrollingEnabled", true)
+        put("isGestureInsetBottomIgnored", true)
         put("scrollNoDraggable", true)
         put("dismissOnTouchOutside", true)
         put("expandedCornersRadius", 20)
