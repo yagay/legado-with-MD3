@@ -1,0 +1,4 @@
+outcome=success
+beta5_head=38748d324ac434d0580a952e04a3655e1588e6ec
+---- compiler diagnostics ----
+ASSEMBLE SUCCESS
