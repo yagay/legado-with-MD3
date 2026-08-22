@@ -9,6 +9,7 @@ import android.net.Uri
 import android.net.http.SslError
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.SslErrorHandler
@@ -111,11 +112,48 @@ fun SourceLoginWebDialog(
                 )
             }
 
+            var sheetBehavior: BottomSheetBehavior<View>? = null
+            var handleDownY = 0f
+            val dragThreshold = dp(36).toFloat()
+
             val dragHandleHost = FrameLayout(context).apply {
                 layoutParams = LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
-                    dp(24),
+                    dp(28),
                 )
+                isClickable = true
+                setOnTouchListener { view, event ->
+                    when (event.actionMasked) {
+                        MotionEvent.ACTION_DOWN -> {
+                            handleDownY = event.rawY
+                            view.parent?.requestDisallowInterceptTouchEvent(true)
+                            true
+                        }
+
+                        MotionEvent.ACTION_UP -> {
+                            val deltaY = event.rawY - handleDownY
+                            when {
+                                deltaY >= dragThreshold -> {
+                                    sheetBehavior?.state = BottomSheetBehavior.STATE_COLLAPSED
+                                }
+
+                                deltaY <= -dragThreshold -> {
+                                    sheetBehavior?.state = BottomSheetBehavior.STATE_EXPANDED
+                                }
+                            }
+                            view.parent?.requestDisallowInterceptTouchEvent(false)
+                            view.performClick()
+                            true
+                        }
+
+                        MotionEvent.ACTION_CANCEL -> {
+                            view.parent?.requestDisallowInterceptTouchEvent(false)
+                            true
+                        }
+
+                        else -> true
+                    }
+                }
             }
             val dragHandle = View(context).apply {
                 background = GradientDrawable().apply {
@@ -266,12 +304,16 @@ fun SourceLoginWebDialog(
                     )?.let { bottomSheet ->
                         bottomSheet.background = sheetBackground
                         bottomSheet.layoutParams = bottomSheet.layoutParams.apply {
-                            height = (context.resources.displayMetrics.heightPixels * 0.85f).toInt()
+                            height = ViewGroup.LayoutParams.MATCH_PARENT
                         }
-                        BottomSheetBehavior.from(bottomSheet).apply {
-                            this.state = BottomSheetBehavior.STATE_EXPANDED
-                            skipCollapsed = true
+                        sheetBehavior = BottomSheetBehavior.from(bottomSheet).apply {
+                            isFitToContents = false
+                            expandedOffset = 0
+                            peekHeight = (context.resources.displayMetrics.heightPixels * 0.85f).toInt()
+                            skipCollapsed = false
+                            isHideable = false
                             isDraggable = false
+                            this.state = BottomSheetBehavior.STATE_COLLAPSED
                         }
                     }
                 }
@@ -280,6 +322,7 @@ fun SourceLoginWebDialog(
 
             onDispose {
                 disposing = true
+                sheetBehavior = null
                 webView = null
                 nativeWebView.stopLoading()
                 nativeWebView.webChromeClient = null
