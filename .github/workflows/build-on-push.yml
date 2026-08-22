@@ -6,7 +6,6 @@ on:
       - main
     paths-ignore:
       - '**/modules/web/**'
-      - '.github/beta5-build-result.txt'
 
 permissions:
   contents: write
@@ -19,11 +18,8 @@ jobs:
   debug:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout beta5
+      - name: Checkout
         uses: actions/checkout@v5
-        with:
-          ref: beta5
-          fetch-depth: 0
 
       - name: Set up JDK 21
         uses: actions/setup-java@v5
@@ -38,47 +34,41 @@ jobs:
         run: |
           sed -i '/maven.aliyun.com/d' settings.gradle
 
-      - name: Build beta5 Universal Debug APK
-        id: assemble
-        continue-on-error: true
+      - name: Build Universal Debug APK
         run: |
           chmod +x gradlew
           ./gradlew assembleAppDebug \
             -PenableAbiSplits=false \
             --no-daemon \
-            --no-configuration-cache 2>&1 | tee /tmp/beta5-assemble.log
+            --no-configuration-cache
 
-      - name: Write beta5 diagnostic result to main
-        if: ${{ always() }}
-        env:
-          OUTCOME: ${{ steps.assemble.outcome }}
-          SOURCE_SHA: ${{ github.sha }}
+      - name: Prepare direct-download APK
+        shell: bash
         run: |
-          {
-            echo "outcome=$OUTCOME"
-            echo "beta5_head=$(git rev-parse HEAD)"
-            echo "---- compiler diagnostics ----"
-            if [ "$OUTCOME" = "success" ]; then
-              echo "ASSEMBLE SUCCESS"
-            else
-              grep -E '(^e: |error:|Unresolved reference|Cannot find a parameter|No value passed|None of the following|Type mismatch|Overload resolution ambiguity|Cannot infer|Conflicting overloads|Redeclaration|FAILURE:|Compilation error)' /tmp/beta5-assemble.log | head -n 160 || true
-              echo "---- tail ----"
-              tail -n 120 /tmp/beta5-assemble.log || true
-            fi
-          } > /tmp/beta5-build-result.txt
+          set -euo pipefail
+          APK="$(find app/build/outputs/apk/app/debug -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          test -n "$APK"
+          cp "$APK" legado-debug-universal.apk
 
-          git fetch origin main
-          git switch main
-          mkdir -p .github
-          cp /tmp/beta5-build-result.txt .github/beta5-build-result.txt
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add .github/beta5-build-result.txt
-          if ! git diff --cached --quiet; then
-            git commit -m "ci: record beta5 build diagnostics [skip ci]"
-            git push origin main
+      - name: Upload Universal Debug APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-universal-apk
+          if-no-files-found: error
+          path: legado-debug-universal.apk
+
+      - name: Publish direct APK to debug-latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view debug-latest >/dev/null 2>&1; then
+            gh release upload debug-latest legado-debug-universal.apk --clobber
+          else
+            gh release create debug-latest legado-debug-universal.apk \
+              --title "Debug Latest" \
+              --notes "Latest universal Debug APK from main." \
+              --prerelease \
+              --target "${GITHUB_SHA}"
           fi
-
-      - name: Fail when beta5 debug build failed
-        if: ${{ steps.assemble.outcome != 'success' }}
-        run: exit 1
