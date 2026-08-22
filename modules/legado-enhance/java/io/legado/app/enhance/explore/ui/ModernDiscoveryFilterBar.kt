@@ -49,13 +49,18 @@ fun ModernDiscoveryFilterBar(
 ) {
     if (targets.isEmpty()) return
 
+    val visibleTargets = remember(targets) {
+        targets.filter { target -> stripWrapSymbols(target.title).isNotBlank() }
+    }
+    if (visibleTargets.isEmpty()) return
+
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 3.dp)
     ) {
-        var expanded by remember(title, targets) { mutableStateOf(false) }
-        var expandedVisibleCount by remember(title, targets) { mutableIntStateOf(EXPANDED_BATCH_SIZE) }
+        var expanded by remember(title, visibleTargets) { mutableStateOf(false) }
+        var expandedVisibleCount by remember(title, visibleTargets) { mutableIntStateOf(EXPANDED_BATCH_SIZE) }
         val density = LocalDensity.current
         val textMeasurer = rememberTextMeasurer()
         val titleColumnWidth = 62.dp
@@ -64,8 +69,8 @@ fun ModernDiscoveryFilterBar(
         val optionSpacing = 6.dp
         val optionStyle = LegadoTheme.typography.bodyMedium.copy(fontSize = 14.sp)
         val displayTitle = remember(title) { stripWrapSymbols(title) }
-        val selectedIndex = remember(targets, selectedTargetTitle) {
-            targets.indexOfFirst { it.title == selectedTargetTitle }
+        val selectedIndex = remember(visibleTargets, selectedTargetTitle) {
+            visibleTargets.indexOfFirst { it.title == selectedTargetTitle }
         }
 
         val contentWidthPx = with(density) {
@@ -74,7 +79,7 @@ fun ModernDiscoveryFilterBar(
         val markerWidthPx = with(density) { markerWidth.toPx() }.roundToInt()
 
         val firstLine = remember(
-            targets,
+            visibleTargets,
             selectedIndex,
             contentWidthPx,
             markerWidthPx,
@@ -90,8 +95,9 @@ fun ModernDiscoveryFilterBar(
                 val result = ArrayList<Int>(8)
                 var usedWidth = 0
                 for (index in indices) {
-                    if (index !in targets.indices) continue
-                    val option = stripWrapSymbols(targets[index].title)
+                    if (index !in visibleTargets.indices) continue
+                    val option = stripWrapSymbols(visibleTargets[index].title)
+                    if (option.isBlank()) continue
                     val textWidth = textMeasurer.measure(
                         text = AnnotatedString(option),
                         style = optionStyle,
@@ -105,33 +111,33 @@ fun ModernDiscoveryFilterBar(
                 return result
             }
 
-            val naturalFirst = fitIndices(targets.indices.asSequence(), contentWidthPx)
-            val needMarker = naturalFirst.size < targets.size
+            val naturalFirst = fitIndices(visibleTargets.indices.asSequence(), contentWidthPx)
+            val needMarker = naturalFirst.size < visibleTargets.size
             val actualWidthPx = (contentWidthPx - if (needMarker) markerWidthPx else 0)
                 .coerceAtLeast(0)
 
-            if (selectedIndex in targets.indices && selectedIndex >= naturalFirst.size) {
+            if (selectedIndex in visibleTargets.indices && selectedIndex >= naturalFirst.size) {
                 val promoted = sequence {
                     yield(selectedIndex)
-                    targets.indices.forEach { index ->
+                    visibleTargets.indices.forEach { index ->
                         if (index != selectedIndex) yield(index)
                     }
                 }
                 fitIndices(promoted, actualWidthPx).takeIf { it.isNotEmpty() }
-                    ?: fitIndices(targets.indices.asSequence(), actualWidthPx)
+                    ?: fitIndices(visibleTargets.indices.asSequence(), actualWidthPx)
             } else {
-                fitIndices(targets.indices.asSequence(), actualWidthPx)
+                fitIndices(visibleTargets.indices.asSequence(), actualWidthPx)
             }
         }
 
-        val expandable = firstLine.size < targets.size
-        val restSize = (targets.size - firstLine.size).coerceAtLeast(0)
-        val restLine = remember(expanded, firstLine, targets.size) {
+        val expandable = firstLine.size < visibleTargets.size
+        val restSize = (visibleTargets.size - firstLine.size).coerceAtLeast(0)
+        val restLine = remember(expanded, firstLine, visibleTargets.size) {
             if (!expanded || restSize == 0) {
                 emptyList()
             } else {
                 val firstSet = firstLine.toHashSet()
-                targets.indices.filterNot { it in firstSet }
+                visibleTargets.indices.filterNot { it in firstSet }
             }
         }
 
@@ -176,12 +182,12 @@ fun ModernDiscoveryFilterBar(
                 ) {
                     firstLine.forEach { optionIndex ->
                         ModernDiscoveryFilterOption(
-                            target = targets[optionIndex],
+                            target = visibleTargets[optionIndex],
                             selected = optionIndex == selectedIndex,
                             textStyle = optionStyle,
                             onClick = {
                                 expanded = false
-                                onTargetClick(targets[optionIndex])
+                                onTargetClick(visibleTargets[optionIndex])
                             }
                         )
                     }
@@ -210,12 +216,12 @@ fun ModernDiscoveryFilterBar(
                 ) {
                     restLine.take(expandedVisibleCount).forEach { optionIndex ->
                         ModernDiscoveryFilterOption(
-                            target = targets[optionIndex],
+                            target = visibleTargets[optionIndex],
                             selected = optionIndex == selectedIndex,
                             textStyle = optionStyle,
                             onClick = {
                                 expanded = false
-                                onTargetClick(targets[optionIndex])
+                                onTargetClick(visibleTargets[optionIndex])
                             }
                         )
                     }
@@ -234,8 +240,11 @@ private fun ModernDiscoveryFilterOption(
     textStyle: androidx.compose.ui.text.TextStyle,
     onClick: () -> Unit
 ) {
+    val displayText = stripWrapSymbols(target.title)
+    if (displayText.isBlank()) return
+
     TextCard(
-        text = stripWrapSymbols(target.title),
+        text = displayText,
         onClick = onClick,
         backgroundColor = if (selected) LegadoTheme.colorScheme.primary else Color.Transparent,
         contentColor = if (selected) LegadoTheme.colorScheme.onPrimary else LegadoTheme.colorScheme.onSurface,
@@ -246,6 +255,11 @@ private fun ModernDiscoveryFilterOption(
     )
 }
 
+/**
+ * Modern-layout category-name normalizer.
+ * Keeps semantic text while removing decorative symbols wrapped around it.
+ * A value made only of symbols has no semantic category name and normalizes to an empty string.
+ */
 internal fun stripWrapSymbols(raw: String): String {
     val value = raw.trim()
     if (value.isEmpty()) return value
@@ -260,6 +274,6 @@ internal fun stripWrapSymbols(raw: String): String {
         first = value.indexOfFirst { it.isLetterOrDigit() }
         last = value.indexOfLast { it.isLetterOrDigit() }
     }
-    if (first < 0 || last < first) return value
+    if (first < 0 || last < first) return ""
     return value.substring(first, last + 1).trim()
 }
