@@ -115,8 +115,6 @@ fun <T> DynamicTopAppBar(
                     )
                 }
 
-                topBarActions()
-
                 dropDownMenuContent?.let { content ->
                     Box {
                         TopBarActionButton(
@@ -132,6 +130,8 @@ fun <T> DynamicTopAppBar(
                         }
                     }
                 }
+
+                topBarActions()
             }
         },
         scrollBehavior = scrollBehavior,
