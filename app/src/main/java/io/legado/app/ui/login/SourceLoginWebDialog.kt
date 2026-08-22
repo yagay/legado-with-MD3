@@ -48,7 +48,7 @@ fun SourceLoginWebDialog(
     val show = state.mode == SourceLoginMode.Web && !state.loading
     var webView by remember { mutableStateOf<WebView?>(null) }
 
-    DisposableEffect(show, state.webUrl) {
+    DisposableEffect(show) {
         if (!show) {
             onDispose { }
         } else {
