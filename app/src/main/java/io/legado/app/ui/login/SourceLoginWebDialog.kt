@@ -10,13 +10,10 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -28,20 +25,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import io.legado.app.R
 import io.legado.app.constant.AppConst
+import io.legado.app.ui.theme.LegadoTheme
 import io.legado.app.ui.widget.components.button.series.MediumTonalButton
 import io.legado.app.ui.widget.components.icon.AppIcons
+import io.legado.app.ui.widget.components.modalBottomSheet.AppModalBottomSheet
 
 /**
- * Temporary standalone login window used to isolate WebView from AppModalBottomSheet.
- * The old SourceLoginWebSheet is intentionally kept in SourceLoginSheets.kt so this
- * experiment can be reverted without losing the existing implementation.
+ * Temporary login implementation that reuses the same AppModalBottomSheet container
+ * used by the modern Explore source-name long-press preview, while keeping a fresh,
+ * minimal WebView implementation instead of the legacy SourceLoginWebSheet content.
  */
 @SuppressLint("SetJavaScriptEnabled", "WebViewClientOnReceivedSslError")
 @Composable
@@ -50,45 +46,29 @@ fun SourceLoginWebDialog(
     onIntent: (SourceLoginIntent) -> Unit,
     onOpenExternalUrl: (String) -> Unit,
 ) {
-    if (state.mode != SourceLoginMode.Web || state.loading) return
-
-    Dialog(
+    AppModalBottomSheet(
+        show = state.mode == SourceLoginMode.Web && !state.loading,
         onDismissRequest = { onIntent(SourceLoginIntent.Back) },
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false,
-        ),
+        title = state.title,
+        containerColor = LegadoTheme.colorScheme.background,
+        endAction = {
+            MediumTonalButton(
+                icon = AppIcons.Check,
+                contentDescription = stringResource(R.string.ok),
+                onClick = { onIntent(SourceLoginIntent.Confirm) },
+            )
+        },
+        contentPaddingEnabled = false,
+        sheetGesturesEnabled = false,
     ) {
-        Surface(modifier = Modifier.fillMaxSize()) {
-            androidx.compose.foundation.layout.Column(Modifier.fillMaxSize()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = state.title,
-                        modifier = Modifier.weight(1f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    MediumTonalButton(
-                        icon = AppIcons.Check,
-                        contentDescription = stringResource(R.string.ok),
-                        onClick = { onIntent(SourceLoginIntent.Confirm) },
-                    )
-                }
-                StandaloneLoginWebView(
-                    state = state,
-                    onIntent = onIntent,
-                    onOpenExternalUrl = onOpenExternalUrl,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                )
-            }
-        }
+        StandaloneLoginWebView(
+            state = state,
+            onIntent = onIntent,
+            onOpenExternalUrl = onOpenExternalUrl,
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 520.dp),
+        )
     }
 }
 
