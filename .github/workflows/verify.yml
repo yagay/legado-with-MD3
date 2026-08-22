@@ -8,15 +8,13 @@ on:
       - beta5
     paths-ignore:
       - '**/modules/web/**'
-      - '.github/beta5-build-result.txt'
   pull_request:
     paths-ignore:
       - '**/modules/web/**'
-      - '.github/beta5-build-result.txt'
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: verify-${{ github.workflow }}-${{ github.ref }}
@@ -38,44 +36,42 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      # 与 auto-release.yml 同一处理：settings.gradle 里的 aliyun 镜像面向国内开发机，
+      # 在 GitHub runner 上会 502，且 Gradle 一旦判定某仓库失败就整个禁用它。
       - name: Remove Aliyun mirrors (unreliable in CI)
         run: |
           sed -i '/maven.aliyun.com/d' settings.gradle
 
-      - name: Assemble debug APK
-        id: assemble
-        continue-on-error: true
+      - name: Run tests, lint, architecture check, and debug build
         run: |
           chmod +x gradlew
-          ./gradlew assembleAppDebug --no-daemon --no-configuration-cache 2>&1 | tee assemble.log
+          ./gradlew \
+            testAppDebugUnitTest \
+            lintAppDebug \
+            verifyConfigArchitecture \
+            assembleAppDebug \
+            --continue \
+            --no-daemon \
+            --no-configuration-cache
 
-      - name: Persist beta5 build diagnostics
-        if: ${{ always() && github.ref == 'refs/heads/beta5' }}
-        env:
-          ASSEMBLE_OUTCOME: ${{ steps.assemble.outcome }}
-          SOURCE_SHA: ${{ github.sha }}
-        run: |
-          mkdir -p .github
-          {
-            echo "source_sha=$SOURCE_SHA"
-            echo "outcome=$ASSEMBLE_OUTCOME"
-            echo "---- compiler diagnostics ----"
-            if [ "$ASSEMBLE_OUTCOME" = "success" ]; then
-              echo "ASSEMBLE SUCCESS"
-            else
-              grep -E '(^e: |error:|Unresolved reference|Cannot find a parameter|No value passed|None of the following|Type mismatch|Overload resolution ambiguity|Cannot infer|FAILURE:|Compilation error)' assemble.log | head -n 120 || true
-              echo "---- tail ----"
-              tail -n 100 assemble.log || true
-            fi
-          } > .github/beta5-build-result.txt
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add .github/beta5-build-result.txt
-          if ! git diff --cached --quiet; then
-            git commit -m "ci(beta5): update build diagnostics [skip ci]"
-            git push
-          fi
+      - name: Upload unit test reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-unit-test-reports
+          if-no-files-found: warn
+          path: |
+            app/build/test-results/testAppDebugUnitTest/**
+            app/build/reports/tests/testAppDebugUnitTest/**
 
-      - name: Fail when debug build failed
-        if: ${{ steps.assemble.outcome != 'success' }}
-        run: exit 1
+      - name: Upload lint reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-lint-reports
+          if-no-files-found: warn
+          path: |
+            app/build/reports/lint-results-appDebug.html
+            app/build/reports/lint-results-appDebug.xml
+            app/build/reports/lint-results-appDebug.txt
+            app/build/reports/lint-results-appDebug.sarif
