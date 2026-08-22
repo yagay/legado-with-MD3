@@ -26,6 +26,8 @@ import io.legado.app.utils.showDialogFragment
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
+internal const val MODERN_SOURCE_LOGIN_ACTION = "legado-modern://source-login"
+
 /**
  * Renders source-native controls with the same flex/span rules as the upstream list layout.
  * The modern layout only decides where these rows appear; sizing and item styling stay upstream.
@@ -36,7 +38,6 @@ fun AdaptiveExploreControlRows(
     sourceUrl: String?,
     useCase: ExploreKindUiUseCase,
     onOpenUrl: (ExploreKind, String) -> Unit,
-    onOpenLogin: (String) -> Unit,
     onRefreshKinds: () -> Unit,
     onRunAction: ((ExploreKind) -> Unit)? = null,
     modifier: Modifier = Modifier,
@@ -65,8 +66,10 @@ fun AdaptiveExploreControlRows(
                 activity = activity,
                 onRefreshKinds = onRefreshKinds,
                 onOpenLogin = login@{
-                    val key = sourceUrl?.takeIf { it.isNotBlank() } ?: return@login false
-                    activity?.runOnUiThread { onOpenLogin(key) } ?: return@login false
+                    if (sourceUrl.isNullOrBlank()) return@login false
+                    activity?.runOnUiThread {
+                        onOpenUrl(kind, MODERN_SOURCE_LOGIN_ACTION)
+                    } ?: return@login false
                     true
                 },
                 onShowBrowser = browser@{ url, html, preloadJs, config ->
