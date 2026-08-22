@@ -190,7 +190,7 @@ fun SourceLoginWebDialog(
                             height = (context.resources.displayMetrics.heightPixels * 0.85f).toInt()
                         }
                         BottomSheetBehavior.from(bottomSheet).apply {
-                            state = BottomSheetBehavior.STATE_EXPANDED
+                            this.state = BottomSheetBehavior.STATE_EXPANDED
                             skipCollapsed = true
                             isDraggable = false
                         }
