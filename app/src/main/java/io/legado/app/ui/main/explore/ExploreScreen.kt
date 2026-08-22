@@ -386,12 +386,14 @@ fun ExploreScreen(
             }
         } else stringResource(R.string.search),
         topBarActions = {
-            if (state.layoutMode == 1) {
-                TopBarActionButton(
-                    onClick = { onIntent(ExploreIntent.RefreshSuite) },
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = stringResource(R.string.refresh)
-                )
+            Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                if (state.layoutMode == 1) {
+                    TopBarActionButton(
+                        onClick = { onIntent(ExploreIntent.RefreshSuite) },
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = stringResource(R.string.refresh)
+                    )
+                }
             }
             if (state.layoutSwitcherEnabled) {
                 TopBarActionButton(
