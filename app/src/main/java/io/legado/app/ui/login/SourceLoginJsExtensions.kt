@@ -31,6 +31,7 @@ class SourceLoginJsExtensions(
     interface Callback {
         fun upUiData(data: Map<String, Any?>?)
         fun reUiView(deltaUp: Boolean = false)
+        fun openLogin(url: String?, title: String?, origin: String?): Boolean = false
         fun showBrowser(
             url: String,
             html: String?,
@@ -55,6 +56,7 @@ class SourceLoginJsExtensions(
 
     override fun open(name: String, url: String?, title: String?, origin: String?) {
         if (name == "login") {
+            if (callbackRef.get()?.openLogin(url, title, origin) == true) return
             activityRef.get()?.toastOnUi("已在登录界面")
             return
         }
