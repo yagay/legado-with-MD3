@@ -10,6 +10,7 @@ object DiscoverySuiteStore {
     private const val PREF_NAME = "discovery_suite_config"
     private const val KEY_CONFIG = "config"
     private const val KEY_SELECTED_ID = "selected_id"
+    private const val KEY_LAYOUT_MODE = "layout_mode"
 
     private val sharedPrefs by lazy {
         appCtx.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
@@ -53,6 +54,14 @@ object DiscoverySuiteStore {
 
     fun setSelectedSuiteId(id: String?) {
         sharedPrefs.edit().putString(KEY_SELECTED_ID, id).apply()
+    }
+
+    fun getLayoutMode(): Int {
+        return sharedPrefs.getInt(KEY_LAYOUT_MODE, 0).coerceIn(0, 1)
+    }
+
+    fun setLayoutMode(mode: Int) {
+        sharedPrefs.edit().putInt(KEY_LAYOUT_MODE, mode.coerceIn(0, 1)).apply()
     }
 
     fun resetDefault(): DiscoverySuiteConfig {
