@@ -52,11 +52,20 @@ fun SourceLoginRoute(
             }
         }
     }
-    SourceLoginSheetHost(
-        state = state,
-        onIntent = viewModel::onIntent,
-        onOpenExternalUrl = host::openUrl,
-    )
+
+    if (state.mode == SourceLoginMode.Web && !state.loading) {
+        SourceLoginWebDialog(
+            state = state,
+            onIntent = viewModel::onIntent,
+            onOpenExternalUrl = host::openUrl,
+        )
+    } else {
+        SourceLoginSheetHost(
+            state = state,
+            onIntent = viewModel::onIntent,
+            onOpenExternalUrl = host::openUrl,
+        )
+    }
 }
 
 private fun SourceLoginType.toBookType(): Int = when (this) {
