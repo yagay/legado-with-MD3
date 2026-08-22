@@ -144,11 +144,11 @@ fun NativeDraggableComposeBottomSheet(
                                     ?: context.resources.displayMetrics.heightPixels) -
                                     (behavior?.peekHeight ?: 0)
                             } ?: 0
-                            val relativeTo85 = releaseTop - collapsedTop
+                            val relativeTo75 = releaseTop - collapsedTop
 
                             when (lastDirection) {
                                 1 -> {
-                                    if (relativeTo85 > releaseSlop) {
+                                    if (relativeTo75 > releaseSlop) {
                                         dialogRef?.dismiss()
                                     } else {
                                         behavior?.state = BottomSheetBehavior.STATE_COLLAPSED
@@ -156,7 +156,7 @@ fun NativeDraggableComposeBottomSheet(
                                 }
 
                                 -1 -> {
-                                    if (relativeTo85 < -releaseSlop) {
+                                    if (relativeTo75 < -releaseSlop) {
                                         behavior?.state = BottomSheetBehavior.STATE_EXPANDED
                                     } else {
                                         behavior?.state = BottomSheetBehavior.STATE_COLLAPSED
@@ -244,7 +244,7 @@ fun NativeDraggableComposeBottomSheet(
                             sheetBehavior = BottomSheetBehavior.from(bottomSheet).apply {
                                 isFitToContents = false
                                 expandedOffset = 0
-                                peekHeight = (context.resources.displayMetrics.heightPixels * 0.85f).toInt()
+                                peekHeight = (context.resources.displayMetrics.heightPixels * 0.75f).toInt()
                                 skipCollapsed = false
                                 isHideable = false
                                 isDraggable = false
