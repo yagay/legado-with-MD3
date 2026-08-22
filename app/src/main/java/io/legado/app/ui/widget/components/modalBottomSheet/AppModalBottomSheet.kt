@@ -28,8 +28,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.style.TextAlign
@@ -58,6 +58,7 @@ fun AppModalBottomSheet(
     contentPaddingEnabled: Boolean = true,
     sheetGesturesEnabled: Boolean = true,
     containerColor: Color? = null,
+    maxHeightFraction: Float = 0.8f,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val colorScheme = LocalLegadoThemeColors.current.colorScheme
@@ -134,7 +135,7 @@ fun AppModalBottomSheet(
             )
             val density = LocalDensity.current
             val maxHeight = with(density) {
-                LocalWindowInfo.current.containerSize.height.toDp() * 0.8f
+                LocalWindowInfo.current.containerSize.height.toDp() * maxHeightFraction.coerceIn(0f, 1f)
             }
 
             MaterialExpressiveTheme(
@@ -246,6 +247,7 @@ fun <T> AppModalBottomSheet(
     animateContentSize: Boolean = true,
     contentWindowInsets: @Composable () -> WindowInsets = { BottomSheetDefaults.modalWindowInsets },
     sheetGesturesEnabled: Boolean = true,
+    maxHeightFraction: Float = 0.8f,
     content: @Composable ColumnScope.(T) -> Unit
 ) {
     var cachedData by remember { mutableStateOf(data) }
@@ -265,6 +267,7 @@ fun <T> AppModalBottomSheet(
         animateContentSize = animateContentSize,
         contentWindowInsets = contentWindowInsets,
         sheetGesturesEnabled = sheetGesturesEnabled,
+        maxHeightFraction = maxHeightFraction,
         content = {
             if (currentData != null) {
                 content(currentData)
