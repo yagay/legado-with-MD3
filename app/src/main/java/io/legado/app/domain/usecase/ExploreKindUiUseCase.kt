@@ -90,6 +90,12 @@ class ExploreKindUiUseCase(
                     preloadJs: String?,
                     config: String?,
                 ): Boolean = onShowBrowser?.invoke(url, html, preloadJs, config) == true
+
+                override fun startBrowser(
+                    url: String,
+                    title: String,
+                    html: String?,
+                ): Boolean = onShowBrowser?.invoke(url, html, null, null) == true
             }
         )
         withContext(Dispatchers.IO) {
