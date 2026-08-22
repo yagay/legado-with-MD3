@@ -194,6 +194,7 @@ fun ExploreScreen(
     val scope = rememberCoroutineScope()
     val previewExploreKindUseCase: ExploreKindUiUseCase = koinInject()
     var sourceKindPreviewUrl by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingListFocusSourceUrl by rememberSaveable { mutableStateOf<String?>(null) }
     val sourceKindPreviewRows = state.enhance.sourceKindPreviewRows
     val sourceKindPreviewLoading = !state.enhance.sourceKindPreviewReady
     val sourceKindPreviewSource = remember(sourceKindPreviewUrl, state.items) {
@@ -394,7 +395,13 @@ fun ExploreScreen(
             }
             if (state.layoutSwitcherEnabled) {
                 TopBarActionButton(
-                    onClick = { onIntent(ExploreIntent.ToggleLayoutMode) },
+                    onClick = {
+                        if (state.layoutMode == 1) {
+                            pendingListFocusSourceUrl = state.enhance.selectedSuite?.defaultSourceUrl
+                                ?: state.items.firstOrNull()?.bookSourceUrl
+                        }
+                        onIntent(ExploreIntent.ToggleLayoutMode)
+                    },
                     imageVector = if (state.layoutMode == 0) Icons.Default.Dashboard else Icons.AutoMirrored.Filled.ViewList,
                     contentDescription = stringResource(R.string.a11y_switch_layout)
                 )
@@ -436,7 +443,9 @@ fun ExploreScreen(
                     onOpenExploreShow = onOpenExploreShow,
                     onDeleteSource = { sourceToDeleteUrl = it.bookSourceUrl },
                     paddingValues = paddingValues,
-                    isMiuix = composeEngine
+                    isMiuix = composeEngine,
+                    focusSourceUrl = pendingListFocusSourceUrl,
+                    onFocusConsumed = { pendingListFocusSourceUrl = null },
                 )
             }
         }
@@ -554,13 +563,26 @@ private fun ExploreListContent(
     onOpenExploreShow: (title: String?, sourceUrl: String, exploreUrl: String?) -> Unit,
     onDeleteSource: (BookSourcePart) -> Unit,
     paddingValues: androidx.compose.foundation.layout.PaddingValues,
-    isMiuix: Boolean
+    isMiuix: Boolean,
+    focusSourceUrl: String? = null,
+    onFocusConsumed: () -> Unit = {},
 ) {
     val listItems by remember(state.items, state.expandedId, state.exploreKinds) {
         derivedStateOf { buildExploreListItems(state) }
     }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(focusSourceUrl, listItems) {
+        val sourceUrl = focusSourceUrl?.takeIf { it.isNotBlank() } ?: return@LaunchedEffect
+        val index = listItems.indexOfFirst {
+            it is ExploreListItem.Header && it.source.bookSourceUrl == sourceUrl
+        }
+        if (index >= 0) {
+            listState.scrollToItem(index)
+            onFocusConsumed()
+        }
+    }
 
     val stickyHeaderSource by remember(listItems, state.items) {
         derivedStateOf {
