@@ -102,34 +102,6 @@ fun DiscoveryConfigSheet(
                             }
                         )
                     }
-
-                    if (bookWidget.displayStyle == 1) {
-                        SliderSettingItem(
-                            title = "封面高度",
-                            value = bookWidget.coverHeight.toFloat(),
-                            defaultValue = 110f,
-                            valueRange = 80f..200f,
-                            onValueChange = { value ->
-                                onIntent(ExploreIntent.UpdateDiscoverySettings { config ->
-                                    config.copy(
-                                        suites = config.suites.map { s ->
-                                            if (s.id == suite.id) {
-                                                s.copy(widgets = s.widgets.map { w ->
-                                                    if (w.id == bookWidget.id) {
-                                                        w.copy(coverHeight = value.toInt())
-                                                    } else {
-                                                        w
-                                                    }
-                                                })
-                                            } else {
-                                                s
-                                            }
-                                        }
-                                    )
-                                })
-                            }
-                        )
-                    }
                 }
 
                 val tagBarWidget = suite.widgets.find {
