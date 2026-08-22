@@ -58,6 +58,7 @@ fun SourceLoginRoute(
             state = state,
             onIntent = viewModel::onIntent,
             onOpenExternalUrl = host::openUrl,
+            enableContentSheetDrag = true,
         )
     } else {
         SourceLoginSheetHost(
