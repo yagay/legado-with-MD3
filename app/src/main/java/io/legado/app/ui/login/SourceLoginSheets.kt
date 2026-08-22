@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.net.Uri
 import android.net.http.SslError
+import android.view.View
 import android.webkit.SslErrorHandler
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -315,6 +316,7 @@ private fun SourceLoginWebView(
                 .clipToBounds(),
             factory = { context ->
                 WebView(context).apply {
+                    setLayerType(View.LAYER_TYPE_SOFTWARE, null)
                     settings.apply {
                         mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                         domStorageEnabled = true
