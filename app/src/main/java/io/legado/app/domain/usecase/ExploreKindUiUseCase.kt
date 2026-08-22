@@ -50,6 +50,7 @@ class ExploreKindUiUseCase(
         sourceUrl: String?,
         activity: AppCompatActivity?,
         onRefreshKinds: () -> Unit,
+        onOpenLogin: (() -> Boolean)? = null,
         onShowBrowser: ((url: String, html: String?, preloadJs: String?, config: String?) -> Boolean)? = null,
     ) {
         val effectiveSourceUrl = sourceUrl ?: return
@@ -61,6 +62,7 @@ class ExploreKindUiUseCase(
             infoMap,
             activity,
             onRefreshKinds,
+            onOpenLogin,
             onShowBrowser,
         )
     }
@@ -72,6 +74,7 @@ class ExploreKindUiUseCase(
         infoMap: InfoMap?,
         activity: AppCompatActivity?,
         onRefreshKinds: () -> Unit,
+        onOpenLogin: (() -> Boolean)? = null,
         onShowBrowser: ((url: String, html: String?, preloadJs: String?, config: String?) -> Boolean)? = null,
     ) {
         val actionText = action?.takeIf { it.isNotBlank() } ?: return
@@ -84,6 +87,12 @@ class ExploreKindUiUseCase(
             callback = object : SourceLoginJsExtensions.Callback {
                 override fun upUiData(data: Map<String, Any?>?) = Unit
                 override fun reUiView(deltaUp: Boolean) = onRefreshKinds()
+                override fun openLogin(
+                    url: String?,
+                    title: String?,
+                    origin: String?,
+                ): Boolean = onOpenLogin?.invoke() == true
+
                 override fun showBrowser(
                     url: String,
                     html: String?,
