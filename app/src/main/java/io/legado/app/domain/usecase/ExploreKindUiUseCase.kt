@@ -49,11 +49,20 @@ class ExploreKindUiUseCase(
         title: String,
         sourceUrl: String?,
         activity: AppCompatActivity?,
-        onRefreshKinds: () -> Unit
+        onRefreshKinds: () -> Unit,
+        onShowBrowser: ((url: String, html: String?, preloadJs: String?, config: String?) -> Boolean)? = null,
     ) {
         val effectiveSourceUrl = sourceUrl ?: return
         val infoMap = getExploreInfoMap(effectiveSourceUrl)
-        executeAction(action, title, effectiveSourceUrl, infoMap, activity, onRefreshKinds)
+        executeAction(
+            action,
+            title,
+            effectiveSourceUrl,
+            infoMap,
+            activity,
+            onRefreshKinds,
+            onShowBrowser,
+        )
     }
 
     suspend fun executeAction(
@@ -62,7 +71,8 @@ class ExploreKindUiUseCase(
         sourceUrl: String?,
         infoMap: InfoMap?,
         activity: AppCompatActivity?,
-        onRefreshKinds: () -> Unit
+        onRefreshKinds: () -> Unit,
+        onShowBrowser: ((url: String, html: String?, preloadJs: String?, config: String?) -> Boolean)? = null,
     ) {
         val actionText = action?.takeIf { it.isNotBlank() } ?: return
         val effectiveSourceUrl = sourceUrl ?: return
@@ -74,6 +84,12 @@ class ExploreKindUiUseCase(
             callback = object : SourceLoginJsExtensions.Callback {
                 override fun upUiData(data: Map<String, Any?>?) = Unit
                 override fun reUiView(deltaUp: Boolean) = onRefreshKinds()
+                override fun showBrowser(
+                    url: String,
+                    html: String?,
+                    preloadJs: String?,
+                    config: String?,
+                ): Boolean = onShowBrowser?.invoke(url, html, preloadJs, config) == true
             }
         )
         withContext(Dispatchers.IO) {
