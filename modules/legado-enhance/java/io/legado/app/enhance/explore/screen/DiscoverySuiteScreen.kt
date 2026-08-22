@@ -17,6 +17,7 @@ import io.legado.app.data.entities.rule.ExploreKind
 import io.legado.app.domain.model.BookShelfState
 import io.legado.app.domain.usecase.ExploreKindUiUseCase
 import io.legado.app.enhance.explore.builder.ModernExploreControlExtractor
+import io.legado.app.enhance.explore.model.DiscoverySuiteWidgetTarget
 import io.legado.app.enhance.explore.model.DiscoverySuiteWidgetType
 import io.legado.app.enhance.explore.ui.ModernDiscoveryFilterBar
 import io.legado.app.enhance.explore.ui.stripWrapSymbols
@@ -45,6 +46,21 @@ fun DiscoverySuiteScreen(
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val exploreKindUseCase: ExploreKindUiUseCase = koinInject()
+
+    fun handleTargetClick(widgetId: String, target: DiscoverySuiteWidgetTarget) {
+        val rawUrl = target.tagUrl
+        val isBrowserAction = rawUrl.contains("java.startBrowser(") ||
+            rawUrl.contains("java.startBrowserDp(")
+        if (isBrowserAction) {
+            onOpenExploreShow(
+                target.title,
+                target.sourceUrl.ifBlank { suite?.defaultSourceUrl.orEmpty() },
+                rawUrl,
+            )
+        } else {
+            onIntent(ExploreIntent.SelectWidgetTarget(widgetId, target))
+        }
+    }
 
     val mainBookWidget = remember(suite) {
         suite?.widgets?.find {
@@ -133,12 +149,7 @@ fun DiscoverySuiteScreen(
                                 targets = selector.targets,
                                 selectedTargetTitle = selector.selectedTitle,
                                 onTargetClick = { target ->
-                                    onIntent(
-                                        ExploreIntent.SelectWidgetTarget(
-                                            selector.id,
-                                            target
-                                        )
-                                    )
+                                    handleTargetClick(selector.id, target)
                                 }
                             )
                         }
@@ -168,7 +179,7 @@ fun DiscoverySuiteScreen(
                                 },
                                 selectedTargetTitle = state.enhance.selectedWidgetTargets[widget.id],
                                 onTargetClick = { target ->
-                                    onIntent(ExploreIntent.SelectWidgetTarget(widget.id, target))
+                                    handleTargetClick(widget.id, target)
                                 }
                             )
                         }
@@ -185,7 +196,7 @@ fun DiscoverySuiteScreen(
                                 targets = group,
                                 selectedTargetTitle = state.enhance.selectedWidgetTargets[widget.id],
                                 onTargetClick = { target ->
-                                    onIntent(ExploreIntent.SelectWidgetTarget(widget.id, target))
+                                    handleTargetClick(widget.id, target)
                                 }
                             )
                         }
