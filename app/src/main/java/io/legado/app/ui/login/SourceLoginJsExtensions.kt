@@ -2,10 +2,12 @@ package io.legado.app.ui.login
 
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.script.rhino.rhinoContext
 import io.legado.app.R
 import io.legado.app.constant.EventBus
 import io.legado.app.data.entities.BaseSource
 import io.legado.app.data.entities.HttpTTS
+import io.legado.app.help.source.SourceVerificationHelp
 import io.legado.app.model.ReadAloud
 import io.legado.app.ui.rss.read.RssJsExtensions
 import io.legado.app.ui.widget.dialog.BottomWebViewDialog
@@ -35,6 +37,7 @@ class SourceLoginJsExtensions(
             preloadJs: String?,
             config: String?
         ): Boolean = false
+        fun startBrowser(url: String, title: String, html: String?): Boolean = false
     }
 
     fun upLoginData(data: Map<String, Any?>?) {
@@ -56,6 +59,12 @@ class SourceLoginJsExtensions(
             return
         }
         super.open(name, url, title, origin)
+    }
+
+    override fun startBrowser(url: String, title: String, html: String?) {
+        if (callbackRef.get()?.startBrowser(url, title, html) == true) return
+        rhinoContext.ensureActive()
+        SourceVerificationHelp.startBrowser(getSource(), url, title, html = html)
     }
 
     fun refreshBookInfo() {
