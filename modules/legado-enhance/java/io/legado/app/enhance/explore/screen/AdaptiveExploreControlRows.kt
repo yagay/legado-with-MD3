@@ -63,9 +63,9 @@ fun AdaptiveExploreControlRows(
                 sourceUrl = sourceUrl,
                 activity = activity,
                 onRefreshKinds = onRefreshKinds,
-                onShowBrowser = { url, html, preloadJs, config ->
-                    val host = activity ?: return@executeAction false
-                    val key = sourceUrl?.takeIf { it.isNotBlank() } ?: return@executeAction false
+                onShowBrowser = browser@{ url, html, preloadJs, config ->
+                    val host = activity ?: return@browser false
+                    val key = sourceUrl?.takeIf { it.isNotBlank() } ?: return@browser false
                     val forcedConfig = buildModernBrowserSheetConfig(
                         activity = host,
                         originalConfig = config,
