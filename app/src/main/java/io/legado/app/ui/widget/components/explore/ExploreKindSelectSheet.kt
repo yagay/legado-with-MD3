@@ -36,6 +36,12 @@ import org.koin.compose.koinInject
 
 private const val UNCATEGORIZED_TITLE = "不带类别"
 
+private fun ExploreKind.displayTitle(): String {
+    return viewName?.takeIf { it.isNotBlank() }
+        ?: title.takeIf { it.isNotBlank() }
+        ?: UNCATEGORIZED_TITLE
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExploreKindSelectSheet(
@@ -63,16 +69,10 @@ fun ExploreKindSelectSheet(
         }
     }
 
-    val displayKinds = remember(kinds) {
-        kinds.map { kind ->
-            if (kind.title.isBlank()) kind.copy(title = UNCATEGORIZED_TITLE) else kind
-        }
-    }
-
-    val filteredKinds = remember(query, displayKinds) {
-        if (query.isBlank()) displayKinds
-        else displayKinds.filter { kind ->
-            kind.title.contains(query, ignoreCase = true) ||
+    val filteredKinds = remember(query, kinds) {
+        if (query.isBlank()) kinds
+        else kinds.filter { kind ->
+            kind.displayTitle().contains(query, ignoreCase = true) ||
                     (kind.url?.contains(query, ignoreCase = true) == true)
         }
     }
@@ -87,7 +87,7 @@ fun ExploreKindSelectSheet(
             if (multiple && selectedTitles.isNotEmpty()) {
                 MediumTonalButton(
                     onClick = {
-                        val selectedKinds = displayKinds.filter { it.title in selectedTitles }
+                        val selectedKinds = kinds.filter { it.title in selectedTitles }
                         onSelected(selectedKinds)
                         onDismissRequest()
                     },
@@ -133,6 +133,7 @@ fun ExploreKindSelectSheet(
                                         onDismissRequest()
                                     }
                                 },
+                                displayNameOverride = kind.displayTitle(),
                                 isSelected = isSelected,
                                 onClick = {
                                     if (multiple) {
