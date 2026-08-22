@@ -26,6 +26,7 @@ fun AdaptiveExploreControlRows(
     useCase: ExploreKindUiUseCase,
     onOpenUrl: (ExploreKind, String) -> Unit,
     onRefreshKinds: () -> Unit,
+    onRunAction: ((ExploreKind) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     if (controls.isEmpty()) return
@@ -61,6 +62,7 @@ fun AdaptiveExploreControlRows(
                         modifier = Modifier.weight(span.toFloat()),
                         isMiuix = false,
                         displayNameOverride = stripWrapSymbols(kind.title),
+                        onRunAction = onRunAction?.let { runAction -> { runAction(kind) } },
                         useCase = useCase,
                     )
                 }
