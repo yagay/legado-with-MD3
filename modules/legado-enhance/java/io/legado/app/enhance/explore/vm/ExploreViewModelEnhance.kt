@@ -15,6 +15,7 @@ import io.legado.app.enhance.explore.model.DiscoverySuiteConfig
 import io.legado.app.enhance.explore.model.DiscoverySuiteStore
 import io.legado.app.enhance.explore.model.DiscoverySuiteWidgetTarget
 import io.legado.app.enhance.explore.model.DiscoverySuiteWidgetType
+import io.legado.app.enhance.explore.ui.stripWrapSymbols
 import io.legado.app.help.source.clearExploreKindsCache
 import io.legado.app.help.source.exploreKinds
 import io.legado.app.help.source.exploreKindsJson
@@ -573,7 +574,7 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
                 currentLevelItems.first().children.isNotEmpty()
             ) {
                 val container = currentLevelItems.first()
-                inheritedTitle = cleanExploreTitle(container.title).ifBlank { inheritedTitle }
+                inheritedTitle = stripWrapSymbols(container.title).ifBlank { inheritedTitle }
                 currentLevelItems = container.children.orEmpty()
                 if (currentLevelItems.isEmpty()) break
             }
@@ -607,7 +608,7 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
             selectorKeys[widgetId] = dynamicTargetKey(selectedTarget)
             selectors += DynamicSelectorUi(
                 id = widgetId,
-                title = inferSelectorTitle(level, visibleItems, inheritedTitle),
+                title = inferSelectorTitle(inheritedTitle),
                 targets = targets.toImmutableList(),
                 selectedTitle = selectedTitle,
                 type = inferSelectorType(visibleItems)
@@ -641,10 +642,6 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
             )
         }
 
-        // Flat sources have no structural parent/child ordering, so sourceIndex may be used
-        // to restore independent controls to their original declaration order. Once SECTION
-        // or TREE has recovered hierarchy, traversal order is authoritative and must not be
-        // sorted again by raw source positions.
         val orderedSelectors = if (allSourceMode == ExploreMode.FLAT) {
             selectors.withIndex()
                 .sortedWith(compareBy({ selectorSourceIndex(it.value) }, { it.index }))
@@ -689,12 +686,12 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
             return selector.id.removePrefix(DYNAMIC_SELECT_PREFIX).toIntOrNull() ?: Int.MAX_VALUE
         }
         val optionTitles = selector.targets.asSequence()
-            .map { cleanExploreTitle(it.title) }
+            .map { stripWrapSymbols(it.title) }
             .filter { it.isNotBlank() }
             .toSet()
         if (optionTitles.isEmpty()) return Int.MAX_VALUE
         return allSourceRawKinds.indexOfFirst { kind ->
-            cleanExploreTitle(kind.title) in optionTitles
+            stripWrapSymbols(kind.title) in optionTitles
         }.takeIf { it >= 0 } ?: Int.MAX_VALUE
     }
 
@@ -713,28 +710,14 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
         return count
     }
 
-    private fun inferSelectorTitle(
-        level: Int,
-        items: List<ExploreNode>,
-        inheritedTitle: String?
-    ): String {
-        // 现代布局不再根据名称猜测频道/状态/榜单等业务语义。
-        val inherited = cleanExploreTitle(inheritedTitle.orEmpty())
-        return inherited.takeIf { it.isNotBlank() } ?: "分类"
-    }
+    private fun inferSelectorTitle(inheritedTitle: String?): String =
+        stripWrapSymbols(inheritedTitle.orEmpty())
 
     private fun inferSelectorType(
         items: List<ExploreNode>
     ): DynamicSelectorUi.SelectorType {
-        // RankButtons 仅由显式 DiscoverySuite widget 配置决定。
         return DynamicSelectorUi.SelectorType.TagBar
     }
-
-    private fun cleanExploreTitle(title: String): String = title
-        .replace(Regex("[\\[\\]【】?（）<>《》]"), "")
-        .replace(Regex("[\\p{So}\\p{Sk}]+"), "")
-        .replace(Regex("[༺༻ˇ»«`´ʚɞ]+"), "")
-        .trim()
 
     private fun loadBookWidgetData(suite: DiscoverySuite, tagUrl: String, defaultSourceUrl: String) {
         if (tagUrl.isEmpty()) return
@@ -862,9 +845,6 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
             val field = state.enhance.suiteSearchField
             val localMatches = filterLoadedSuiteBooks(state, suite, query, field)
 
-            // Top-bar search is always local-first. Source-native explore text/button controls
-            // are presentation-only here: they are hidden by ModernExploreControlExtractor and
-            // never executed by the top-bar search path.
             vm.updateUiState {
                 it.copy(
                     enhance = it.enhance.copy(
@@ -986,7 +966,6 @@ class ExploreViewModelEnhance(private val vm: ExploreViewModel) {
 
     private fun dynamicTargetKey(target: DiscoverySuiteWidgetTarget): String =
         "${target.title}\u001F${target.tagUrl}"
-
 
     private companion object {
         const val DYNAMIC_LEVEL_PREFIX = "dynamic_level_"
