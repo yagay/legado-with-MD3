@@ -1,14 +1,18 @@
 package io.legado.app.ui.widget.components.menuItem
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialExpressiveTheme
@@ -27,8 +31,8 @@ import io.legado.app.ui.theme.ProvideAppContentColor
 import io.legado.app.ui.theme.ProvideAppDensity
 import io.legado.app.ui.theme.ThemeResolver
 import io.legado.app.ui.theme.rememberOpaqueColorScheme
+import io.legado.app.ui.widget.components.lazylist.FastScrollLazyColumn
 import top.yukonga.miuix.kmp.basic.ListPopupColumn
-import top.yukonga.miuix.kmp.overlay.OverlayListPopup
 import top.yukonga.miuix.kmp.window.WindowListPopup
 
 val LocalUseMiuixWindowPopup = staticCompositionLocalOf { false }
@@ -68,7 +72,7 @@ fun RoundDropdownMenu(
         }
     } else {
         val colorScheme = rememberOpaqueColorScheme()
-        val popupContainerColor = LegadoTheme.colorScheme.surfaceContainerLow
+        val materialContainerColor = LegadoTheme.colorScheme.surfaceContainerLow
 
         DropdownMenu(
             expanded = expanded,
@@ -76,7 +80,7 @@ fun RoundDropdownMenu(
             modifier = modifier,
             shape = shape,
             shadowElevation = shadowElevation,
-            containerColor = popupContainerColor
+            containerColor = materialContainerColor
         ) {
             ProvideAppDensity {
                 MaterialExpressiveTheme(
@@ -105,11 +109,44 @@ fun RoundDropdownMenuLazy(
     shape: Shape = MaterialTheme.shapes.medium,
     shadowElevation: Dp = 4.dp,
     verticalSpacing: Dp = 8.dp,
-    maxHeight: Dp = 320.dp,
+    width: Dp = 280.dp,
+    height: Dp = 320.dp,
+    state: LazyListState = rememberLazyListState(),
+    showFastScroll: Boolean = false,
+    fixedHeader: (@Composable () -> Unit)? = null,
     content: LazyListScope.(dismiss: () -> Unit) -> Unit
 ) {
     val isMiuix = ThemeResolver.isMiuixEngine(LegadoTheme.composeEngine)
     val popupContainerColor = LegadoTheme.colorScheme.surfaceContainer
+
+    @Composable
+    fun MenuList() {
+        Column(
+            modifier = Modifier.requiredSize(width = width, height = height)
+        ) {
+            fixedHeader?.invoke()
+            val listModifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+            if (showFastScroll) {
+                FastScrollLazyColumn(
+                    modifier = listModifier,
+                    state = state,
+                    verticalArrangement = Arrangement.spacedBy(verticalSpacing)
+                ) {
+                    content(onDismissRequest)
+                }
+            } else {
+                LazyColumn(
+                    modifier = listModifier,
+                    state = state,
+                    verticalArrangement = Arrangement.spacedBy(verticalSpacing)
+                ) {
+                    content(onDismissRequest)
+                }
+            }
+        }
+    }
 
     if (isMiuix) {
         val popupContentColor = LegadoTheme.colorScheme.onSurface
@@ -121,15 +158,10 @@ fun RoundDropdownMenuLazy(
             ProvideAppDensity {
                 ProvideAppContentColor(popupContentColor) {
                     ListPopupColumn {
-                        LazyColumn(
-                            modifier = Modifier
-                                .background(popupContainerColor)
-                                .heightIn(max = maxHeight),
-                            verticalArrangement = Arrangement.spacedBy(verticalSpacing)
-                        ) {
-                            item { Spacer(Modifier.height(12.dp)) }
-                            content(onDismissRequest)
-                            item { Spacer(Modifier.height(12.dp)) }
+                        Column(modifier = Modifier.background(popupContainerColor)) {
+                            Spacer(Modifier.height(12.dp))
+                            MenuList()
+                            Spacer(Modifier.height(12.dp))
                         }
                     }
                 }
@@ -137,7 +169,7 @@ fun RoundDropdownMenuLazy(
         }
     } else {
         val colorScheme = rememberOpaqueColorScheme()
-        val popupContainerColor = LegadoTheme.colorScheme.surfaceContainerLow
+        val materialContainerColor = LegadoTheme.colorScheme.surfaceContainerLow
 
         DropdownMenu(
             expanded = expanded,
@@ -145,7 +177,7 @@ fun RoundDropdownMenuLazy(
             modifier = modifier,
             shape = shape,
             shadowElevation = shadowElevation,
-            containerColor = popupContainerColor
+            containerColor = materialContainerColor
         ) {
             ProvideAppDensity {
                 MaterialExpressiveTheme(
@@ -154,12 +186,7 @@ fun RoundDropdownMenuLazy(
                     motionScheme = MotionScheme.expressive(),
                     shapes = Shapes()
                 ) {
-                    LazyColumn(
-                        modifier = Modifier.heightIn(max = maxHeight),
-                        verticalArrangement = Arrangement.spacedBy(verticalSpacing)
-                    ) {
-                        content(onDismissRequest)
-                    }
+                    MenuList()
                 }
             }
         }

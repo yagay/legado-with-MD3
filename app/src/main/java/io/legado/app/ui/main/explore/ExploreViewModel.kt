@@ -4,13 +4,19 @@ import android.app.Application
 import androidx.lifecycle.viewModelScope
 import io.legado.app.base.BaseViewModel
 import io.legado.app.data.entities.BookSourcePart
+import io.legado.app.data.entities.SearchBook
 import io.legado.app.data.entities.rule.ExploreKind
 import io.legado.app.data.repository.ExploreRepository
+import io.legado.app.domain.usecase.ExploreBooksUseCase
 import io.legado.app.domain.usecase.ExploreKindUiUseCase
+import io.legado.app.enhance.explore.model.DiscoverySuite
+import io.legado.app.enhance.explore.model.DiscoverySuiteConfig
+import io.legado.app.enhance.explore.model.DiscoverySuiteWidgetTarget
+import io.legado.app.enhance.explore.vm.EnhanceState
+import io.legado.app.enhance.explore.vm.ExploreViewModelEnhance
 import io.legado.app.help.source.clearExploreKindsCache
 import io.legado.app.help.source.exploreKinds
 import io.legado.app.help.source.getExploreInfoMap
-import io.legado.app.ui.widget.components.explore.calculateExploreKindRows
 import io.legado.app.ui.widget.components.list.ListUiState
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableMap
@@ -35,8 +41,9 @@ import kotlinx.coroutines.launch
 
 class ExploreViewModel(
     application: Application,
-    private val exploreRepository: ExploreRepository,
-    private val exploreKindUseCase: ExploreKindUiUseCase
+    internal val exploreRepository: ExploreRepository,
+    internal val exploreKindUseCase: ExploreKindUiUseCase,
+    internal val exploreBooksUseCase: ExploreBooksUseCase,
 ) : BaseViewModel(application) {
 
     private val _uiState = MutableStateFlow(ExploreUiState())
@@ -47,13 +54,24 @@ class ExploreViewModel(
 
     private var exploreJob: Job? = null
     private var kindsJob: Job? = null
+    private var pendingDiscoverySuiteLoadAfterSources = false
+    val enhance = ExploreViewModelEnhance(this)
 
     init {
         observeGroups()
         observeExplore()
     }
 
+    internal fun updateUiState(transform: (ExploreUiState) -> ExploreUiState) {
+        _uiState.update(transform)
+    }
+
+    internal fun emitEffect(effect: ExploreEffect) {
+        _effects.tryEmit(effect)
+    }
+
     fun onIntent(intent: ExploreIntent) {
+        if (intent !is ExploreIntent.Search && enhance.onIntent(intent)) return
         when (intent) {
             is ExploreIntent.Search -> search(intent.query)
             is ExploreIntent.ToggleSearch -> toggleSearchVisible(intent.visible)
@@ -72,6 +90,18 @@ class ExploreViewModel(
             is ExploreIntent.OpenLogin -> _effects.tryEmit(
                 ExploreEffect.OpenLogin(intent.source.bookSourceUrl)
             )
+            is ExploreIntent.ToggleLayoutMode -> toggleLayoutMode()
+            is ExploreIntent.OpenBook -> _effects.tryEmit(
+                ExploreEffect.OpenBookInfo(
+                    name = intent.book.name,
+                    author = intent.book.author,
+                    bookUrl = intent.book.bookUrl,
+                    origin = intent.book.origin,
+                    coverPath = intent.book.coverUrl,
+                    sharedCoverKey = intent.sharedCoverKey
+                )
+            )
+            else -> Unit
         }
     }
 
@@ -85,9 +115,44 @@ class ExploreViewModel(
         }
     }
 
-    fun search(key: String) {
-        _uiState.update { it.copy(searchKey = key, expandedId = null) }
+    internal fun toggleLayoutMode() {
+        val newMode = if (_uiState.value.layoutMode == 0) 1 else 0
+        enhance.clearSuiteSearchJob()
+        _uiState.update {
+            it.copy(
+                layoutMode = newMode,
+                searchKey = "",
+                isSearch = false,
+                enhance = it.enhance.copy(
+                    suiteSearchBooks = null,
+                    suiteSearchLoading = false,
+                    suiteSearchRemote = false,
+                    suiteSearchPage = 1,
+                    suiteSearchIsEnd = true
+                )
+            )
+        }
         observeExplore()
+        if (newMode == 1) {
+            if (_uiState.value.items.isEmpty()) {
+                pendingDiscoverySuiteLoadAfterSources = true
+            } else {
+                pendingDiscoverySuiteLoadAfterSources = false
+                enhance.loadDiscoverySuite()
+            }
+        } else {
+            pendingDiscoverySuiteLoadAfterSources = false
+        }
+    }
+
+    fun search(key: String) {
+        val query = key.trim()
+        _uiState.update { it.copy(searchKey = key, expandedId = null) }
+        if (_uiState.value.layoutMode == 0) {
+            observeExplore()
+            return
+        }
+        enhance.searchSuiteBooks(query)
     }
 
     fun setGroup(group: String) {
@@ -98,6 +163,7 @@ class ExploreViewModel(
     fun toggleSearchVisible(visible: Boolean) {
         _uiState.update { it.copy(isSearch = visible) }
         if (!visible) {
+            enhance.clearSuiteSearchJob()
             search("")
         }
     }
@@ -106,13 +172,21 @@ class ExploreViewModel(
         exploreJob?.cancel()
         exploreJob = viewModelScope.launch {
             val state = _uiState.value
-            val query = state.searchKey
+            val query = if (state.layoutMode == 0) state.searchKey else ""
             val selectedGroup = state.selectedGroup
 
             exploreRepository.getExploreSources(query, selectedGroup)
                 .flowOn(IO)
                 .collectLatest { items ->
                     _uiState.update { it.copy(items = items.toImmutableList()) }
+                    if (_uiState.value.layoutMode == 1) {
+                        if (pendingDiscoverySuiteLoadAfterSources && items.isNotEmpty()) {
+                            pendingDiscoverySuiteLoadAfterSources = false
+                            enhance.loadDiscoverySuite()
+                        } else {
+                            enhance.resolveSelectedSourceName()
+                        }
+                    }
                 }
         }
     }
@@ -160,7 +234,7 @@ class ExploreViewModel(
                         )
                     } else it
                 }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiState.update { it.copy(loadingKinds = false) }
             }
         }
@@ -208,6 +282,17 @@ class ExploreViewModel(
         }
     }
 
+    @androidx.compose.runtime.Immutable
+    data class DynamicSelectorUi(
+        val id: String,
+        val title: String,
+        val targets: ImmutableList<DiscoverySuiteWidgetTarget>,
+        val selectedTitle: String?,
+        val type: SelectorType = SelectorType.TagBar
+    ) {
+        enum class SelectorType { TagBar, RankButtons }
+    }
+
     data class ExploreUiState(
         override val items: ImmutableList<BookSourcePart> = persistentListOf(),
         override val selectedIds: ImmutableSet<String> = persistentSetOf(),
@@ -220,7 +305,10 @@ class ExploreViewModel(
         val exploreKinds: ImmutableList<ExploreKind> = persistentListOf(),
         val kindDisplayNames: ImmutableMap<String, String> = persistentMapOf(),
         val kindValues: ImmutableMap<String, String> = persistentMapOf(),
-        val loadingKinds: Boolean = false
+        val loadingKinds: Boolean = false,
+        val layoutMode: Int = 0,
+        val layoutSwitcherEnabled: Boolean = true,
+        val enhance: EnhanceState = EnhanceState()
     ) : ListUiState<BookSourcePart>
 
     private fun buildKindValues(
@@ -231,59 +319,25 @@ class ExploreViewModel(
         var shouldSave = false
         val values = HashMap<String, String>()
         kinds.forEach { kind ->
-            when (kind.type) {
-                ExploreKind.Type.text -> {
-                    values[kind.title] = infoMap[kind.title].orEmpty()
-                }
-
-                ExploreKind.Type.toggle,
-                ExploreKind.Type.select -> {
-                    val chars = kind.chars
-                        ?.filterNotNull()
-                        ?.takeIf { it.isNotEmpty() }
-                        ?: listOf("chars", "is null")
-                    val value = infoMap[kind.title]
-                        ?.takeUnless { it.isEmpty() }
-                        ?: (kind.default ?: chars.first()).also {
-                            infoMap[kind.title] = it
-                            shouldSave = true
-                        }
-                    values[kind.title] = value
+            val value = infoMap[kind.title]
+            if (value != null) {
+                values[kind.title] = value
+            } else {
+                val defaultValue = kind.default
+                if (defaultValue != null) {
+                    values[kind.title] = defaultValue
+                    infoMap[kind.title] = defaultValue
+                    shouldSave = true
                 }
             }
         }
         if (shouldSave) {
-            infoMap.saveNow()
+            viewModelScope.launch(IO) {
+                infoMap.saveNow()
+            }
         }
         return values
     }
-
-}
-
-sealed interface ExploreListItem {
-    val key: String
-
-    data class Header(val source: BookSourcePart) : ExploreListItem {
-        override val key: String = source.bookSourceUrl
-    }
-
-    data class KindRow(
-        val sourceUrl: String,
-        val rowIndex: Int,
-        val rowItems: ImmutableList<Pair<ExploreKind, Int>>
-    ) : ExploreListItem {
-        override val key: String = "${sourceUrl}_$rowIndex"
-    }
-}
-
-sealed interface ExploreEffect {
-    data class ExecuteKindAction(
-        val sourceUrl: String,
-        val kind: ExploreKind
-    ) : ExploreEffect
-    data class OpenEdit(val sourceUrl: String) : ExploreEffect
-    data class OpenSearch(val source: BookSourcePart) : ExploreEffect
-    data class OpenLogin(val sourceUrl: String) : ExploreEffect
 }
 
 sealed interface ExploreIntent {
@@ -294,39 +348,37 @@ sealed interface ExploreIntent {
     data class TopSource(val source: BookSourcePart) : ExploreIntent
     data class RefreshKinds(val source: BookSourcePart) : ExploreIntent
     data class DeleteSource(val source: BookSourcePart) : ExploreIntent
-    data class UpdateKindValue(
-        val sourceUrl: String,
-        val kind: ExploreKind,
-        val value: String,
-    ) : ExploreIntent
+    data class UpdateKindValue(val sourceUrl: String, val kind: ExploreKind, val value: String) : ExploreIntent
     data class RunKindAction(val sourceUrl: String, val kind: ExploreKind) : ExploreIntent
     data class OpenEdit(val source: BookSourcePart) : ExploreIntent
     data class OpenSearch(val source: BookSourcePart) : ExploreIntent
     data class OpenLogin(val source: BookSourcePart) : ExploreIntent
+    data object ToggleLayoutMode : ExploreIntent
+    data class SwitchSuite(val suite: DiscoverySuite) : ExploreIntent
+    data object RefreshSuite : ExploreIntent
+    data class SetSuiteDefaultSource(val sourceUrl: String) : ExploreIntent
+    data class ShowDiscoveryConfig(val show: Boolean) : ExploreIntent
+    data class UpdateDiscoverySettings(val transform: (DiscoverySuiteConfig) -> DiscoverySuiteConfig) : ExploreIntent
+    data class PreviewDiscoverySettings(val transform: (DiscoverySuiteConfig) -> DiscoverySuiteConfig) : ExploreIntent
+    data class SelectWidgetTarget(val widgetId: String, val target: DiscoverySuiteWidgetTarget) : ExploreIntent
+    data class LoadMoreWidgetData(val widgetId: String) : ExploreIntent
+    data object LoadMoreSuiteSearch : ExploreIntent
+    data class SetSuiteSearchField(val field: String) : ExploreIntent
+    data class ToggleCategorySheet(val show: Boolean) : ExploreIntent
+    data class OpenBook(val book: SearchBook, val sharedCoverKey: String?) : ExploreIntent
 }
 
-fun buildExploreListItems(state: ExploreViewModel.ExploreUiState): ImmutableList<ExploreListItem> {
-    if (state.items.isEmpty()) return persistentListOf()
-    val expandedId = state.expandedId
-    val kindRows = if (expandedId != null) {
-        calculateExploreKindRows(state.exploreKinds, 6)
-    } else {
-        emptyList()
-    }
-    return buildList {
-        state.items.forEach { source ->
-            add(ExploreListItem.Header(source))
-            if (source.bookSourceUrl == expandedId) {
-                kindRows.forEachIndexed { index, row ->
-                    add(
-                        ExploreListItem.KindRow(
-                            sourceUrl = source.bookSourceUrl,
-                            rowIndex = index,
-                            rowItems = row.toImmutableList(),
-                        )
-                    )
-                }
-            }
-        }
-    }.toImmutableList()
+sealed interface ExploreEffect {
+    data class OpenEdit(val sourceUrl: String) : ExploreEffect
+    data class OpenSearch(val source: BookSourcePart) : ExploreEffect
+    data class OpenLogin(val sourceUrl: String) : ExploreEffect
+    data class ExecuteKindAction(val sourceUrl: String, val kind: ExploreKind) : ExploreEffect
+    data class OpenBookInfo(
+        val name: String,
+        val author: String,
+        val bookUrl: String,
+        val origin: String?,
+        val coverPath: String?,
+        val sharedCoverKey: String?
+    ) : ExploreEffect
 }
