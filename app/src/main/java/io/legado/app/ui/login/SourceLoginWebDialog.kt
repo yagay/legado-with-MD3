@@ -15,6 +15,7 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.webkit.SslErrorHandler
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -416,6 +417,7 @@ fun SourceLoginWebDialog(
 
             val dialog = BottomSheetDialog(context).apply {
                 setContentView(root)
+                window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
                 setCanceledOnTouchOutside(true)
                 setOnDismissListener {
                     if (!disposing) currentIntent(SourceLoginIntent.Back)
