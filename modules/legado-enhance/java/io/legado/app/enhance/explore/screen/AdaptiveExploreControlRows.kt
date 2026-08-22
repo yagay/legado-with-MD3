@@ -36,6 +36,7 @@ fun AdaptiveExploreControlRows(
     sourceUrl: String?,
     useCase: ExploreKindUiUseCase,
     onOpenUrl: (ExploreKind, String) -> Unit,
+    onOpenLogin: (String) -> Unit,
     onRefreshKinds: () -> Unit,
     onRunAction: ((ExploreKind) -> Unit)? = null,
     modifier: Modifier = Modifier,
@@ -63,6 +64,11 @@ fun AdaptiveExploreControlRows(
                 sourceUrl = sourceUrl,
                 activity = activity,
                 onRefreshKinds = onRefreshKinds,
+                onOpenLogin = login@{
+                    val key = sourceUrl?.takeIf { it.isNotBlank() } ?: return@login false
+                    activity?.runOnUiThread { onOpenLogin(key) } ?: return@login false
+                    true
+                },
                 onShowBrowser = browser@{ url, html, preloadJs, config ->
                     val host = activity ?: return@browser false
                     val key = sourceUrl?.takeIf { it.isNotBlank() } ?: return@browser false
