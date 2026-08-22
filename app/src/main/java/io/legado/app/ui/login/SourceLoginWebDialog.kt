@@ -1,17 +1,22 @@
 package io.legado.app.ui.login
 
 import android.annotation.SuppressLint
+import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.net.http.SslError
+import android.util.TypedValue
+import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
 import android.webkit.SslErrorHandler
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.Button
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
@@ -26,14 +31,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.button.MaterialButton
 import io.legado.app.constant.AppConst
 
 /**
  * Native WebView login bottom sheet.
  *
- * This intentionally avoids Compose ModalBottomSheet + AndroidView(WebView). The WebView is
- * attached directly to an Android BottomSheetDialog so its fixed/transform layers and touch
- * handling are not affected by Compose layout animation, clipping or pointer interop.
+ * The sheet intentionally stays in the Android View hierarchy instead of embedding WebView in
+ * Compose ModalBottomSheet. This preserves the WebView rendering/touch behavior required by
+ * source login pages while visually matching the app's regular bottom sheets.
  */
 @SuppressLint("SetJavaScriptEnabled", "WebViewClientOnReceivedSslError")
 @Composable
@@ -56,28 +62,101 @@ fun SourceLoginWebDialog(
             val density = context.resources.displayMetrics.density
             fun dp(value: Int) = (value * density).toInt()
 
-            val root = LinearLayout(context).apply {
-                orientation = LinearLayout.VERTICAL
-                setBackgroundColor(Color.WHITE)
-                layoutParams = ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
+            fun resolveColor(attr: Int, fallback: Int): Int {
+                val value = TypedValue()
+                return if (context.theme.resolveAttribute(attr, value, true)) {
+                    if (value.resourceId != 0) {
+                        runCatching { context.getColor(value.resourceId) }.getOrDefault(value.data)
+                    } else {
+                        value.data
+                    }
+                } else {
+                    fallback
+                }
+            }
+
+            val surfaceColor = resolveColor(
+                com.google.android.material.R.attr.colorSurfaceContainer,
+                resolveColor(com.google.android.material.R.attr.colorSurface, Color.WHITE),
+            )
+            val onSurfaceColor = resolveColor(
+                com.google.android.material.R.attr.colorOnSurface,
+                Color.BLACK,
+            )
+            val onSurfaceVariantColor = resolveColor(
+                com.google.android.material.R.attr.colorOnSurfaceVariant,
+                onSurfaceColor,
+            )
+            val primaryColor = resolveColor(
+                com.google.android.material.R.attr.colorPrimary,
+                onSurfaceColor,
+            )
+            val onPrimaryColor = resolveColor(
+                com.google.android.material.R.attr.colorOnPrimary,
+                surfaceColor,
+            )
+
+            val sheetBackground = GradientDrawable().apply {
+                setColor(surfaceColor)
+                cornerRadii = floatArrayOf(
+                    dp(28).toFloat(), dp(28).toFloat(),
+                    dp(28).toFloat(), dp(28).toFloat(),
+                    0f, 0f,
+                    0f, 0f,
                 )
             }
 
+            val root = LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                background = sheetBackground
+                layoutParams = ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                )
+            }
+
+            val dragHandleHost = FrameLayout(context).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    dp(24),
+                )
+            }
+            val dragHandle = View(context).apply {
+                background = GradientDrawable().apply {
+                    setColor(onSurfaceVariantColor)
+                    cornerRadius = dp(2).toFloat()
+                }
+                alpha = 0.45f
+            }
+            dragHandleHost.addView(
+                dragHandle,
+                FrameLayout.LayoutParams(dp(32), dp(4), Gravity.CENTER),
+            )
+
             val header = LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
-                gravity = android.view.Gravity.CENTER_VERTICAL
-                setPadding(dp(16), dp(8), dp(12), dp(8))
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(16), 0, dp(12), dp(8))
             }
             val titleView = TextView(context).apply {
                 text = state.title
                 textSize = 18f
+                setTextColor(onSurfaceColor)
+                gravity = Gravity.CENTER
                 maxLines = 1
                 ellipsize = android.text.TextUtils.TruncateAt.END
+                setPadding(dp(56), 0, 0, 0)
             }
-            val confirmButton = Button(context).apply {
+            val confirmButton = MaterialButton(context).apply {
                 text = context.getString(android.R.string.ok)
+                isAllCaps = false
+                minWidth = dp(48)
+                minimumWidth = 0
+                insetTop = 0
+                insetBottom = 0
+                cornerRadius = dp(20)
+                backgroundTintList = ColorStateList.valueOf(primaryColor)
+                setTextColor(onPrimaryColor)
                 setOnClickListener { currentIntent(SourceLoginIntent.Confirm) }
             }
             header.addView(
@@ -88,7 +167,7 @@ fun SourceLoginWebDialog(
                 confirmButton,
                 LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
-                    dp(48),
+                    dp(40),
                 ),
             )
 
@@ -99,11 +178,12 @@ fun SourceLoginWebDialog(
             ).apply {
                 max = 100
                 progress = state.webProgress.coerceIn(0, 100)
-                visibility = if (state.webProgress in 0..99) android.view.View.VISIBLE
-                else android.view.View.GONE
+                progressTintList = ColorStateList.valueOf(primaryColor)
+                visibility = if (state.webProgress in 0..99) View.VISIBLE else View.GONE
             }
 
             val nativeWebView = WebView(context).apply {
+                setBackgroundColor(surfaceColor)
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true
                 state.headers[AppConst.UA_NAME]?.let { settings.userAgentString = it }
@@ -144,8 +224,7 @@ fun SourceLoginWebDialog(
                 webChromeClient = object : WebChromeClient() {
                     override fun onProgressChanged(view: WebView?, newProgress: Int) {
                         progress.progress = newProgress
-                        progress.visibility = if (newProgress in 0..99) android.view.View.VISIBLE
-                        else android.view.View.GONE
+                        progress.visibility = if (newProgress in 0..99) View.VISIBLE else View.GONE
                         currentIntent(SourceLoginIntent.WebProgressChanged(newProgress))
                     }
                 }
@@ -154,6 +233,7 @@ fun SourceLoginWebDialog(
             }
             webView = nativeWebView
 
+            root.addView(dragHandleHost)
             root.addView(
                 header,
                 LinearLayout.LayoutParams(
@@ -172,7 +252,8 @@ fun SourceLoginWebDialog(
                 nativeWebView,
                 LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
-                    dp(560),
+                    0,
+                    1f,
                 ),
             )
 
@@ -183,9 +264,10 @@ fun SourceLoginWebDialog(
                     if (!disposing) currentIntent(SourceLoginIntent.Back)
                 }
                 setOnShowListener {
-                    findViewById<android.view.View>(
+                    findViewById<View>(
                         com.google.android.material.R.id.design_bottom_sheet
                     )?.let { bottomSheet ->
+                        bottomSheet.background = sheetBackground
                         bottomSheet.layoutParams = bottomSheet.layoutParams.apply {
                             height = (context.resources.displayMetrics.heightPixels * 0.85f).toInt()
                         }
