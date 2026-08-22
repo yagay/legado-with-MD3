@@ -134,8 +134,13 @@ fun AppModalBottomSheet(
                 enabledValues = setOf(Hidden, Expanded)
             )
             val density = LocalDensity.current
+            val effectiveMaxHeightFraction = if (!contentPaddingEnabled && !sheetGesturesEnabled) {
+                1f
+            } else {
+                maxHeightFraction
+            }
             val maxHeight = with(density) {
-                LocalWindowInfo.current.containerSize.height.toDp() * maxHeightFraction.coerceIn(0f, 1f)
+                LocalWindowInfo.current.containerSize.height.toDp() * effectiveMaxHeightFraction.coerceIn(0f, 1f)
             }
 
             MaterialExpressiveTheme(
