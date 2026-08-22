@@ -157,7 +157,8 @@ fun DiscoverySuiteScreen(
                 }
             }
 
-            suite.widgets.sortedBy { it.order }.forEach { widget ->
+            val orderedWidgets = suite.widgets.sortedBy { it.order }
+            orderedWidgets.forEachIndexed { widgetIndex, widget ->
                 val isMainBookWidget = widget.id == mainBookWidget?.id
                 val suiteSearchBooks = state.enhance.suiteSearchBooks
                 val books = if (isMainBookWidget && suiteSearchBooks != null) {
@@ -188,7 +189,9 @@ fun DiscoverySuiteScreen(
                     DiscoverySuiteWidgetType.RankButtons -> {
                         item(key = widget.id) {
                             val rankTargets = state.enhance.dynamicRankTargets
-                            val groupIndex = if (widget.title == "榜单") 1 else 0
+                            val groupIndex = orderedWidgets
+                                .take(widgetIndex)
+                                .count { DiscoverySuiteWidgetType.from(it.type) == DiscoverySuiteWidgetType.RankButtons }
                             val group = rankTargets.getOrNull(groupIndex) ?: widget.targets
 
                             ModernDiscoveryFilterBar(
