@@ -1,4 +1,4 @@
-name: Beta6 Debug Build Once
+name: Debug Build on Push
 
 on:
   push:
@@ -6,24 +6,20 @@ on:
       - main
     paths-ignore:
       - '**/modules/web/**'
-      - '.github/beta6-build-result.txt'
 
 permissions:
   contents: write
 
 concurrency:
-  group: beta6-debug-once
+  group: debug-build-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   debug:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout beta6
+      - name: Checkout
         uses: actions/checkout@v5
-        with:
-          ref: beta6
-          fetch-depth: 0
 
       - name: Set up JDK 21
         uses: actions/setup-java@v5
@@ -39,67 +35,40 @@ jobs:
           sed -i '/maven.aliyun.com/d' settings.gradle
 
       - name: Build Universal Debug APK
-        id: assemble
-        continue-on-error: true
         run: |
           chmod +x gradlew
           ./gradlew assembleAppDebug \
             -PenableAbiSplits=false \
             --no-daemon \
-            --no-configuration-cache 2>&1 | tee /tmp/beta6-assemble.log
+            --no-configuration-cache
 
-      - name: Prepare APK
-        if: ${{ steps.assemble.outcome == 'success' }}
+      - name: Prepare direct-download APK
         shell: bash
         run: |
           set -euo pipefail
           APK="$(find app/build/outputs/apk/app/debug -maxdepth 1 -type f -name '*.apk' | head -n 1)"
           test -n "$APK"
-          cp "$APK" beta6-debug-universal.apk
+          cp "$APK" legado-debug-universal.apk
 
-      - name: Upload beta6 Debug APK
-        if: ${{ steps.assemble.outcome == 'success' }}
+      - name: Upload Universal Debug APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: beta6-debug-universal-apk
+          name: debug-universal-apk
           if-no-files-found: error
-          retention-days: 14
-          path: beta6-debug-universal.apk
+          path: legado-debug-universal.apk
 
-      - name: Record beta6 build result on main
-        if: ${{ always() }}
+      - name: Publish direct APK to debug-latest release
         env:
-          OUTCOME: ${{ steps.assemble.outcome }}
-          RUN_ID: ${{ github.run_id }}
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          BETA6_SHA="$(git rev-parse HEAD)"
-          {
-            echo "beta6_sha=$BETA6_SHA"
-            echo "outcome=$OUTCOME"
-            echo "run_id=$RUN_ID"
-            if [ "$OUTCOME" = "success" ]; then
-              echo "ASSEMBLE SUCCESS"
-            else
-              echo "---- compiler diagnostics ----"
-              grep -E '(^e: |error:|Unresolved reference|Cannot find a parameter|No value passed|None of the following|Type mismatch|Overload resolution ambiguity|Cannot infer|Conflicting overloads|Redeclaration|FAILURE:|Compilation error)' /tmp/beta6-assemble.log | head -n 160 || true
-              echo "---- tail ----"
-              tail -n 100 /tmp/beta6-assemble.log || true
-            fi
-          } > /tmp/beta6-build-result.txt
-          git fetch origin main
-          git switch main
-          mkdir -p .github
-          cp /tmp/beta6-build-result.txt .github/beta6-build-result.txt
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add .github/beta6-build-result.txt
-          if ! git diff --cached --quiet; then
-            git commit -m "ci: record beta6 debug build result [skip ci]"
-            git push origin main
+          if gh release view debug-latest >/dev/null 2>&1; then
+            gh release upload debug-latest legado-debug-universal.apk --clobber
+          else
+            gh release create debug-latest legado-debug-universal.apk \
+              --title "Debug Latest" \
+              --notes "Latest universal Debug APK from main." \
+              --prerelease \
+              --target "${GITHUB_SHA}"
           fi
-
-      - name: Fail when beta6 debug build failed
-        if: ${{ steps.assemble.outcome != 'success' }}
-        run: exit 1
