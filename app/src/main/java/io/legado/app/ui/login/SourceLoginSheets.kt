@@ -77,7 +77,7 @@ fun SourceLoginSheetHost(
             ) { CircularProgressIndicator() }
         }
 
-        state.mode == SourceLoginMode.Web -> SourceLoginWebSheet(
+        state.mode == SourceLoginMode.Web -> SourceLoginWebDialog(
             state = state,
             onIntent = onIntent,
             onOpenExternalUrl = onOpenExternalUrl,
