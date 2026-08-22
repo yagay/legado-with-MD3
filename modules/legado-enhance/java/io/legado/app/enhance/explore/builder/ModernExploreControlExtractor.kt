@@ -128,7 +128,6 @@ object ModernExploreControlExtractor {
         val byUrl = linkedMapOf<String, Int>()
         val byTitle = linkedMapOf<String, Int>()
         val selectByTitle = linkedMapOf<String, Int>()
-        val familyByIndex = Array(snapshot.size) { "" }
 
         snapshot.forEachIndexed { index, kind ->
             identity[kind] = index
@@ -140,56 +139,22 @@ object ModernExploreControlExtractor {
                     selectByTitle.putIfAbsent(cleaned, index)
                 }
             }
-            if (kind.isActionableUrl()) {
-                familyByIndex[index] = urlFamilySignature(kind.url.orEmpty())
-            }
         }
 
-        val standaloneIndexes = linkedSetOf<Int>()
-        var blockStart = 0
-        while (blockStart < snapshot.size) {
-            if (!snapshot[blockStart].isActionableUrl()) {
-                blockStart++
-                continue
-            }
-            var blockEnd = blockStart
-            while (blockEnd < snapshot.lastIndex && snapshot[blockEnd + 1].isActionableUrl()) {
-                blockEnd++
-            }
-
-            val compactFamilies = hashSetOf<String>()
-            for (index in blockStart..blockEnd) {
-                val kind = snapshot[index]
-                val style = kind.style()
-                if (!style.layout_wrapBefore && style.layout_flexBasisPercent < 1f) {
-                    familyByIndex[index].takeIf { it.isNotBlank() }?.let(compactFamilies::add)
-                }
-            }
-            for (index in blockStart..blockEnd) {
-                val kind = snapshot[index]
-                val style = kind.style()
-                val fullWidthCandidate = style.layout_wrapBefore || style.layout_flexBasisPercent >= 1f
-                if (fullWidthCandidate && familyByIndex[index] !in compactFamilies) {
-                    standaloneIndexes += index
-                }
-            }
-            blockStart = blockEnd + 1
-        }
+        // URL items are explore categories regardless of the source's visual width hint.
+        // Treating full-width URL rows as standalone actions made the modern layout render each
+        // category on its own row and open the legacy secondary page instead of refreshing the
+        // current waterfall/list. Keep standalone caches empty so every URL category remains in
+        // the selector hierarchy; native text/button/toggle actions are handled separately.
+        val standaloneIndexes = emptySet<Int>()
 
         sourceIndexByIdentity = identity
         firstIndexByUrl = byUrl
         firstIndexByCleanTitle = byTitle
         firstSelectIndexByCleanTitle = selectByTitle
         standaloneSourceIndexes = standaloneIndexes
-        standaloneUrls = standaloneIndexes.mapNotNullTo(linkedSetOf()) { index ->
-            snapshot.getOrNull(index)?.url?.takeIf { it.isNotBlank() }
-        }
-        standaloneTargetKeys = standaloneIndexes.mapNotNullTo(linkedSetOf()) { index ->
-            val kind = snapshot.getOrNull(index) ?: return@mapNotNullTo null
-            val url = kind.url?.takeIf { it.isNotBlank() } ?: return@mapNotNullTo null
-            val title = cleanTitle(kind.title)
-            "$url\u001F$title"
-        }
+        standaloneUrls = emptySet()
+        standaloneTargetKeys = emptySet()
     }
 
     /**
@@ -291,22 +256,8 @@ object ModernExploreControlExtractor {
         return firstSelectIndexByCleanTitle[normalized] ?: -1
     }
 
-    /**
-     * Full-width URL rows are only standalone-entry candidates. Classification is precomputed
-     * once per source snapshot so rendering hundreds of targets does not repeatedly scan URL
-     * blocks or parse query strings.
-     */
-    fun isStandaloneUrlEntry(kind: ExploreKind): Boolean {
-        if (kind.type != ExploreKind.Type.url || kind.url.isNullOrBlank()) return false
-        val index = sourceIndexOf(kind)
-        if (index >= 0) return index in standaloneSourceIndexes
-
-        val style = kind.style()
-        return style.layout_wrapBefore || style.layout_flexBasisPercent >= 1f
-    }
-
-    private fun ExploreKind.isActionableUrl(): Boolean =
-        type == ExploreKind.Type.url && !url.isNullOrBlank()
+    /** URL entries stay inside the modern selector hierarchy. */
+    fun isStandaloneUrlEntry(kind: ExploreKind): Boolean = false
 
     /** Compare URL structure without depending on parameter values. */
     private fun urlFamilySignature(url: String): String {
@@ -326,16 +277,10 @@ object ModernExploreControlExtractor {
     }
 
     /** Standalone URL entries in their exact source declaration order. */
-    fun standaloneUrlEntries(): List<ExploreKind> =
-        standaloneSourceIndexes.mapNotNull(sourceOrderSnapshot::getOrNull)
+    fun standaloneUrlEntries(): List<ExploreKind> = emptyList()
 
-    /** True when this modern selector target represents a source-defined standalone URL row. */
-    fun isStandaloneUrlTarget(title: String, url: String?): Boolean {
-        if (url.isNullOrBlank()) return false
-        if (url in standaloneUrls) return true
-        val normalized = cleanTitle(title)
-        return "$url\u001F$normalized" in standaloneTargetKeys
-    }
+    /** URL targets are categories in modern layout, never standalone secondary-page entries. */
+    fun isStandaloneUrlTarget(title: String, url: String?): Boolean = false
 
     /** Original position represented by a dynamic category/tree target. */
     fun sourceIndexOfTarget(title: String, url: String?): Int {
