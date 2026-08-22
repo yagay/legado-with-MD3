@@ -1,8 +1,11 @@
 package io.legado.app.enhance.explore.screen
 
+import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
 import android.net.Uri
 import android.webkit.CookieManager
+import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -20,7 +23,10 @@ import io.legado.app.ui.book.explore.ExploreShowScreen
 import io.legado.app.ui.book.explore.ExploreShowViewModel
 import io.legado.app.ui.login.SourceLoginIntent
 import io.legado.app.ui.login.SourceLoginMode
+import io.legado.app.ui.login.SourceLoginRoute
+import io.legado.app.ui.login.SourceLoginType
 import io.legado.app.ui.login.SourceLoginUiState
+import io.legado.app.ui.login.SourceLoginViewModel
 import io.legado.app.ui.login.SourceLoginWebDialog
 import io.legado.app.ui.main.explore.ExploreIntent
 import io.legado.app.ui.main.explore.ExploreViewModel.ExploreUiState
@@ -74,34 +80,68 @@ fun ExploreScreenEnhance(
     if (state.layoutMode != 1) return
 
     val context = LocalContext.current
+    val activity = remember(context) { context.findAppCompatActivity() }
     var sheetRequest by remember { mutableStateOf<NewLayoutExploreSheetRequest?>(null) }
     var browserRequest by remember { mutableStateOf<NewLayoutBrowserSheetRequest?>(null) }
     var browserCurrentUrl by remember { mutableStateOf<String?>(null) }
+    var loginSourceUrl by remember { mutableStateOf<String?>(null) }
 
     DiscoverySuiteScreen(
         state = state,
         onIntent = onIntent,
         onOpenExploreShow = { title, sourceUrl, exploreUrl ->
-            val browser = parseStartBrowserAction(exploreUrl, title, sourceUrl)
-            if (browser != null) {
-                sheetRequest = null
-                browserCurrentUrl = browser.url
-                browserRequest = browser
-            } else {
-                browserRequest = null
-                sheetRequest = NewLayoutExploreSheetRequest(
-                    title = title,
-                    sourceUrl = sourceUrl,
-                    exploreUrl = exploreUrl,
-                )
+            when {
+                exploreUrl == MODERN_SOURCE_LOGIN_ACTION -> {
+                    sheetRequest = null
+                    browserRequest = null
+                    browserCurrentUrl = null
+                    loginSourceUrl = sourceUrl
+                }
+
+                else -> {
+                    val browser = parseStartBrowserAction(exploreUrl, title, sourceUrl)
+                    if (browser != null) {
+                        loginSourceUrl = null
+                        sheetRequest = null
+                        browserCurrentUrl = browser.url
+                        browserRequest = browser
+                    } else {
+                        loginSourceUrl = null
+                        browserRequest = null
+                        sheetRequest = NewLayoutExploreSheetRequest(
+                            title = title,
+                            sourceUrl = sourceUrl,
+                            exploreUrl = exploreUrl,
+                        )
+                    }
+                }
             }
         },
         onBookClick = onBookClick,
         paddingValues = paddingValues
     )
 
+    val loginKey = loginSourceUrl
+    if (loginKey != null && activity != null) {
+        val loginViewModel: SourceLoginViewModel = koinViewModel(
+            key = "modern-explore-login-${loginKey.hashCode()}"
+        )
+        SourceLoginRoute(
+            request = SourceLoginIntent.Initialize(
+                type = SourceLoginType.BookSource,
+                sourceKey = loginKey,
+            ),
+            viewModel = loginViewModel,
+            host = activity,
+            onBack = {
+                loginSourceUrl = null
+                onIntent(ExploreIntent.RefreshSuite)
+            },
+        )
+    }
+
     val browser = browserRequest
-    if (browser != null) {
+    if (browser != null && loginKey == null) {
         fun saveBrowserCookie(url: String?) {
             if (url.isNullOrBlank()) return
             CookieManager.getInstance().getCookie(url)?.let { cookie ->
@@ -157,7 +197,7 @@ fun ExploreScreenEnhance(
     }
 
     val request = sheetRequest
-    if (request != null && browser == null) {
+    if (request != null && browser == null && loginKey == null) {
         val sheetViewModel: ExploreShowViewModel = koinViewModel()
         val sheetState by sheetViewModel.uiState.collectAsStateWithLifecycle()
 
@@ -216,4 +256,13 @@ fun ExploreConfigEnhance(
         onIntent = onIntent,
         onDismissRequest = { onIntent(ExploreIntent.ShowDiscoveryConfig(false)) }
     )
+}
+
+private fun Context.findAppCompatActivity(): AppCompatActivity? {
+    var current: Context? = this
+    while (current is ContextWrapper) {
+        if (current is AppCompatActivity) return current
+        current = current.baseContext
+    }
+    return current as? AppCompatActivity
 }
