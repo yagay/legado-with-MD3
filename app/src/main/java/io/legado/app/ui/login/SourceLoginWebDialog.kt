@@ -102,8 +102,29 @@ fun SourceLoginWebDialog(
 
             var sheetBehavior: BottomSheetBehavior<View>? = null
             var dialogRef: BottomSheetDialog? = null
-            var handleDownY = 0f
+            var lastHandleY = 0f
+            var directionDistance = 0f
+            var lastDirection = 0
+            var gestureStartState = BottomSheetBehavior.STATE_COLLAPSED
             val dragThreshold = dp(36).toFloat()
+            val directionSlop = dp(2).toFloat()
+
+            fun applyHandleDirection(direction: Int) {
+                val behavior = sheetBehavior ?: return
+                when (direction) {
+                    -1 -> {
+                        if (behavior.state != BottomSheetBehavior.STATE_EXPANDED) {
+                            behavior.state = BottomSheetBehavior.STATE_EXPANDED
+                        }
+                    }
+
+                    1 -> {
+                        if (behavior.state != BottomSheetBehavior.STATE_COLLAPSED) {
+                            behavior.state = BottomSheetBehavior.STATE_COLLAPSED
+                        }
+                    }
+                }
+            }
 
             val dragHandleHost = FrameLayout(context).apply {
                 layoutParams = LinearLayout.LayoutParams(
@@ -114,26 +135,53 @@ fun SourceLoginWebDialog(
                 setOnTouchListener { view, event ->
                     when (event.actionMasked) {
                         MotionEvent.ACTION_DOWN -> {
-                            handleDownY = event.rawY
+                            lastHandleY = event.rawY
+                            directionDistance = 0f
+                            lastDirection = 0
+                            gestureStartState = when (sheetBehavior?.state) {
+                                BottomSheetBehavior.STATE_EXPANDED -> BottomSheetBehavior.STATE_EXPANDED
+                                else -> BottomSheetBehavior.STATE_COLLAPSED
+                            }
                             view.parent?.requestDisallowInterceptTouchEvent(true)
                             true
                         }
 
+                        MotionEvent.ACTION_MOVE -> {
+                            val delta = event.rawY - lastHandleY
+                            lastHandleY = event.rawY
+                            if (kotlin.math.abs(delta) >= directionSlop) {
+                                val direction = if (delta > 0f) 1 else -1
+                                if (direction != lastDirection) {
+                                    lastDirection = direction
+                                    directionDistance = kotlin.math.abs(delta)
+                                } else {
+                                    directionDistance += kotlin.math.abs(delta)
+                                }
+
+                                if (directionDistance >= dragThreshold) {
+                                    applyHandleDirection(direction)
+                                }
+                            }
+                            true
+                        }
+
                         MotionEvent.ACTION_UP -> {
-                            val deltaY = event.rawY - handleDownY
                             val behavior = sheetBehavior
-                            when {
-                                deltaY >= dragThreshold &&
-                                    behavior?.state == BottomSheetBehavior.STATE_COLLAPSED -> {
-                                    dialogRef?.dismiss()
-                                }
+                            if (directionDistance >= dragThreshold) {
+                                when (lastDirection) {
+                                    1 -> {
+                                        val startedCollapsed =
+                                            gestureStartState == BottomSheetBehavior.STATE_COLLAPSED
+                                        if (startedCollapsed) {
+                                            dialogRef?.dismiss()
+                                        } else {
+                                            behavior?.state = BottomSheetBehavior.STATE_COLLAPSED
+                                        }
+                                    }
 
-                                deltaY >= dragThreshold -> {
-                                    behavior?.state = BottomSheetBehavior.STATE_COLLAPSED
-                                }
-
-                                deltaY <= -dragThreshold -> {
-                                    behavior?.state = BottomSheetBehavior.STATE_EXPANDED
+                                    -1 -> {
+                                        behavior?.state = BottomSheetBehavior.STATE_EXPANDED
+                                    }
                                 }
                             }
                             view.parent?.requestDisallowInterceptTouchEvent(false)
