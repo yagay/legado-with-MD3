@@ -105,7 +105,7 @@ fun ExploreScreenEnhance(
         fun saveBrowserCookie(url: String?) {
             if (url.isNullOrBlank()) return
             CookieManager.getInstance().getCookie(url)?.let { cookie ->
-                CookieStore.setCookie(browser.sourceUrl, cookie)
+                CookieStore.setCookie(url, cookie)
             }
         }
 
