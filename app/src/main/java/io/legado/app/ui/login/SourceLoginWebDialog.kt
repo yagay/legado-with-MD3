@@ -431,7 +431,7 @@ fun SourceLoginWebDialog(
                             sheetBehavior = BottomSheetBehavior.from(bottomSheet).apply {
                                 isFitToContents = false
                                 expandedOffset = 0
-                                peekHeight = (context.resources.displayMetrics.heightPixels * 0.85f).toInt()
+                                peekHeight = (context.resources.displayMetrics.heightPixels * 0.75f).toInt()
                                 skipCollapsed = false
                                 isHideable = false
                                 isDraggable = false
