@@ -76,22 +76,10 @@ fun SourceLoginWebDialog(
                 }
             }
 
-            val surfaceColor = resolveColor(
-                android.R.attr.colorBackground,
-                Color.WHITE,
-            )
-            val onSurfaceColor = resolveColor(
-                android.R.attr.textColorPrimary,
-                Color.BLACK,
-            )
-            val onSurfaceVariantColor = resolveColor(
-                android.R.attr.textColorSecondary,
-                onSurfaceColor,
-            )
-            val accentColor = resolveColor(
-                android.R.attr.colorAccent,
-                onSurfaceColor,
-            )
+            val surfaceColor = resolveColor(android.R.attr.colorBackground, Color.WHITE)
+            val onSurfaceColor = resolveColor(android.R.attr.textColorPrimary, Color.BLACK)
+            val onSurfaceVariantColor = resolveColor(android.R.attr.textColorSecondary, onSurfaceColor)
+            val accentColor = resolveColor(android.R.attr.colorAccent, onSurfaceColor)
 
             val sheetBackground = GradientDrawable().apply {
                 setColor(surfaceColor)
@@ -113,6 +101,7 @@ fun SourceLoginWebDialog(
             }
 
             var sheetBehavior: BottomSheetBehavior<View>? = null
+            var dialogRef: BottomSheetDialog? = null
             var handleDownY = 0f
             val dragThreshold = dp(36).toFloat()
 
@@ -132,13 +121,19 @@ fun SourceLoginWebDialog(
 
                         MotionEvent.ACTION_UP -> {
                             val deltaY = event.rawY - handleDownY
+                            val behavior = sheetBehavior
                             when {
+                                deltaY >= dragThreshold &&
+                                    behavior?.state == BottomSheetBehavior.STATE_COLLAPSED -> {
+                                    dialogRef?.dismiss()
+                                }
+
                                 deltaY >= dragThreshold -> {
-                                    sheetBehavior?.state = BottomSheetBehavior.STATE_COLLAPSED
+                                    behavior?.state = BottomSheetBehavior.STATE_COLLAPSED
                                 }
 
                                 deltaY <= -dragThreshold -> {
-                                    sheetBehavior?.state = BottomSheetBehavior.STATE_EXPANDED
+                                    behavior?.state = BottomSheetBehavior.STATE_EXPANDED
                                 }
                             }
                             view.parent?.requestDisallowInterceptTouchEvent(false)
@@ -194,16 +189,10 @@ fun SourceLoginWebDialog(
                 setTextColor(surfaceColor)
                 setOnClickListener { currentIntent(SourceLoginIntent.Confirm) }
             }
-            header.addView(
-                titleView,
-                LinearLayout.LayoutParams(0, dp(48), 1f),
-            )
+            header.addView(titleView, LinearLayout.LayoutParams(0, dp(48), 1f))
             header.addView(
                 confirmButton,
-                LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    dp(40),
-                ),
+                LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(40)),
             )
 
             val progress = ProgressBar(
@@ -278,18 +267,11 @@ fun SourceLoginWebDialog(
             )
             root.addView(
                 progress,
-                LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    dp(3),
-                ),
+                LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(3)),
             )
             root.addView(
                 nativeWebView,
-                LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    0,
-                    1f,
-                ),
+                LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f),
             )
 
             val dialog = BottomSheetDialog(context).apply {
@@ -299,30 +281,31 @@ fun SourceLoginWebDialog(
                     if (!disposing) currentIntent(SourceLoginIntent.Back)
                 }
                 setOnShowListener {
-                    findViewById<View>(
-                        com.google.android.material.R.id.design_bottom_sheet
-                    )?.let { bottomSheet ->
-                        bottomSheet.background = sheetBackground
-                        bottomSheet.layoutParams = bottomSheet.layoutParams.apply {
-                            height = ViewGroup.LayoutParams.MATCH_PARENT
+                    findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+                        ?.let { bottomSheet ->
+                            bottomSheet.background = sheetBackground
+                            bottomSheet.layoutParams = bottomSheet.layoutParams.apply {
+                                height = ViewGroup.LayoutParams.MATCH_PARENT
+                            }
+                            sheetBehavior = BottomSheetBehavior.from(bottomSheet).apply {
+                                isFitToContents = false
+                                expandedOffset = 0
+                                peekHeight = (context.resources.displayMetrics.heightPixels * 0.85f).toInt()
+                                skipCollapsed = false
+                                isHideable = false
+                                isDraggable = false
+                                this.state = BottomSheetBehavior.STATE_COLLAPSED
+                            }
                         }
-                        sheetBehavior = BottomSheetBehavior.from(bottomSheet).apply {
-                            isFitToContents = false
-                            expandedOffset = 0
-                            peekHeight = (context.resources.displayMetrics.heightPixels * 0.85f).toInt()
-                            skipCollapsed = false
-                            isHideable = false
-                            isDraggable = false
-                            this.state = BottomSheetBehavior.STATE_COLLAPSED
-                        }
-                    }
                 }
                 show()
             }
+            dialogRef = dialog
 
             onDispose {
                 disposing = true
                 sheetBehavior = null
+                dialogRef = null
                 webView = null
                 nativeWebView.stopLoading()
                 nativeWebView.webChromeClient = null
