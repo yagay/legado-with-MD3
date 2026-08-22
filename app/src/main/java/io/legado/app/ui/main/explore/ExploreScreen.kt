@@ -460,7 +460,7 @@ fun ExploreScreen(
         show = state.layoutMode == 1 && sourceKindPreviewUrl != null,
         onDismissRequest = { sourceKindPreviewUrl = null },
         title = sourceKindPreviewSource?.bookSourceName ?: state.enhance.selectedSourceName,
-        containerColor = if (composeEngine) MiuixTheme.colorScheme.surface else MaterialTheme.colorScheme.background,
+        containerColor = LegadoTheme.colorScheme.background,
     ) {
         when {
             sourceKindPreviewLoading -> {
@@ -501,11 +501,11 @@ fun ExploreScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             rowItems.forEach { (kind, span) ->
+                                val sourceUrl = sourceKindPreviewUrl.orEmpty()
                                 ExploreKindMultiTypeItem(
                                     kind = kind,
-                                    sourceUrl = sourceKindPreviewUrl,
+                                    sourceUrl = sourceUrl,
                                     onOpenUrl = { url ->
-                                        val sourceUrl = sourceKindPreviewUrl.orEmpty()
                                         sourceKindPreviewUrl = null
                                         onOpenExploreShow(kind.title, sourceUrl, url)
                                     },
@@ -514,7 +514,22 @@ fun ExploreScreen(
                                         onIntent(ExploreIntent.RefreshSuite)
                                     },
                                     modifier = Modifier.weight(span.toFloat()),
+                                    backgroundColor = LegadoTheme.colorScheme.surfaceContainer,
                                     isMiuix = composeEngine,
+                                    displayNameOverride = state.kindDisplayNames[kind.title],
+                                    valueOverride = state.kindValues[kind.title],
+                                    onValueChange = { value ->
+                                        onIntent(
+                                            ExploreIntent.UpdateKindValue(
+                                                sourceUrl,
+                                                kind,
+                                                value,
+                                            )
+                                        )
+                                    },
+                                    onRunAction = {
+                                        onIntent(ExploreIntent.RunKindAction(sourceUrl, kind))
+                                    },
                                     useCase = previewExploreKindUseCase,
                                 )
                             }
