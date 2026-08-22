@@ -1,0 +1,4 @@
+source_sha=38748d324ac434d0580a952e04a3655e1588e6ec
+outcome=success
+---- compiler diagnostics ----
+ASSEMBLE SUCCESS
