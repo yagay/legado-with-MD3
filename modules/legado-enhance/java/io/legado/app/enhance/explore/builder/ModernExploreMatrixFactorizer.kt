@@ -11,8 +11,8 @@ import io.legado.app.enhance.explore.model.ExploreNode
  * 否则原样返回，避免对普通分类做业务语义猜测。
  *
  * 第一维仍属于当前真实分类，因此其行标题可以继承父分类名称；
- * 第二维只是为了 URL 映射挂载在第一维之下，语义上是独立筛选维度，
- * 通过一个单节点容器与父选择解耦，避免把“推荐/评分/热门”等选项名误当成下一行类别名。
+ * 第二维只是为了 URL 映射挂载在第一维之下，语义上是独立筛选维度。
+ * 人工生成的节点名称只来自源 URL 参数名/参数值，不注入“分类/全部/默认”等固定业务文案。
  */
 internal object ModernExploreMatrixFactorizer {
 
@@ -21,9 +21,6 @@ internal object ModernExploreMatrixFactorizer {
             return items
         }
 
-        // URL parsing and parameter-shape discovery do not depend on blockSize. Previously these
-        // were repeated for every candidate block size, which becomes expensive on sources with
-        // hundreds of discover entries. Parse once, then only validate the candidate arrangement.
         val parsed = items.map { parseUrl(it.url!!) ?: return items }
         if (parsed.map { it.base }.distinct().size != 1) return items
 
@@ -73,7 +70,10 @@ internal object ModernExploreMatrixFactorizer {
                     val leaf = items[start + offset]
                     leaf.copy(
                         title = if (offset == 0) {
-                            defaultPositionTitle(parsed[start + offset].query[positionKey])
+                            sourceDimensionValueTitle(
+                                rawValue = parsed[start + offset].query[positionKey],
+                                parameterName = positionKey,
+                            )
                         } else {
                             cleanTitles[start + offset]
                         },
@@ -86,7 +86,7 @@ internal object ModernExploreMatrixFactorizer {
                     url = null,
                     children = listOf(
                         ExploreNode(
-                            title = "分类",
+                            title = positionKey,
                             url = null,
                             children = independentLeaves,
                             originalKind = null,
@@ -154,9 +154,8 @@ internal object ModernExploreMatrixFactorizer {
         return value
     }
 
-    private fun defaultPositionTitle(rawValue: String?): String = when {
-        rawValue.isNullOrBlank() -> "全部"
-        rawValue.equals("all", ignoreCase = true) -> "全部"
-        else -> "默认"
-    }
+    private fun sourceDimensionValueTitle(
+        rawValue: String?,
+        parameterName: String,
+    ): String = rawValue?.takeIf { it.isNotBlank() } ?: parameterName
 }
