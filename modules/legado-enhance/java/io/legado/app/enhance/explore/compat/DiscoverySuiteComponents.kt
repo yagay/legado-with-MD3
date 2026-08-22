@@ -3,7 +3,6 @@ package io.legado.app.ui.widget.components.explore
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -13,11 +12,14 @@ import androidx.compose.material.icons.filled.VerticalAlignTop
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.legado.app.data.entities.SearchBook
 import io.legado.app.domain.model.BookShelfState
+import io.legado.app.ui.theme.LegadoTheme
+import io.legado.app.ui.theme.adaptiveHorizontalPadding
 import io.legado.app.ui.widget.components.book.SearchBookGridItem
-import io.legado.app.ui.widget.components.divider.PillHeaderDivider
+import io.legado.app.ui.widget.components.text.AppText
 import io.legado.app.ui.widget.components.topbar.TopBarActionButton
 
 /**
@@ -34,12 +36,16 @@ fun DiscoverySuiteHeader(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp),
+            .adaptiveHorizontalPadding(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        PillHeaderDivider(
-            title = title,
+        AppText(
+            text = title,
+            style = LegadoTheme.typography.labelSmall,
+            color = LegadoTheme.colorScheme.primary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
         TopBarActionButton(
