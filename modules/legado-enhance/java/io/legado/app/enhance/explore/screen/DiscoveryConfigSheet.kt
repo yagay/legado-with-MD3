@@ -10,7 +10,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import io.legado.app.enhance.explore.model.DiscoverySuiteConfig
 import io.legado.app.enhance.explore.model.DiscoverySuiteWidgetType
 import io.legado.app.ui.main.explore.ExploreIntent
 import io.legado.app.ui.main.explore.ExploreViewModel
@@ -42,11 +41,10 @@ fun DiscoveryConfigSheet(
         ) {
             val suite = state.enhance.selectedSuite
             if (suite != null) {
-                // 1. Book List Display Style
                 val bookWidget = suite.widgets.find {
                     it.type == DiscoverySuiteWidgetType.WaterfallBooks.type ||
-                    it.type == DiscoverySuiteWidgetType.BookList.type ||
-                    it.type == DiscoverySuiteWidgetType.HorizontalBooks.type
+                        it.type == DiscoverySuiteWidgetType.BookList.type ||
+                        it.type == DiscoverySuiteWidgetType.HorizontalBooks.type
                 }
                 if (bookWidget != null) {
                     DropdownListSettingItem(
@@ -77,19 +75,6 @@ fun DiscoveryConfigSheet(
                             defaultValue = 3f,
                             valueRange = 2f..5f,
                             steps = 3,
-                            onValuePreviewChange = { value ->
-                                onIntent(ExploreIntent.PreviewDiscoverySettings { config ->
-                                    config.copy(
-                                        suites = config.suites.map { s ->
-                                            if (s.id == suite.id) {
-                                                s.copy(widgets = s.widgets.map { w ->
-                                                    if (w.id == bookWidget.id) w.copy(gridCount = value.toInt()) else w
-                                                })
-                                            } else s
-                                        }
-                                    )
-                                })
-                            },
                             onValueChange = { value ->
                                 onIntent(ExploreIntent.UpdateDiscoverySettings { config ->
                                     config.copy(
@@ -112,19 +97,6 @@ fun DiscoveryConfigSheet(
                             value = bookWidget.coverHeight.toFloat(),
                             defaultValue = 110f,
                             valueRange = 80f..200f,
-                            onValuePreviewChange = { value ->
-                                onIntent(ExploreIntent.PreviewDiscoverySettings { config ->
-                                    config.copy(
-                                        suites = config.suites.map { s ->
-                                            if (s.id == suite.id) {
-                                                s.copy(widgets = s.widgets.map { w ->
-                                                    if (w.id == bookWidget.id) w.copy(coverHeight = value.toInt()) else w
-                                                })
-                                            } else s
-                                        }
-                                    )
-                                })
-                            },
                             onValueChange = { value ->
                                 onIntent(ExploreIntent.UpdateDiscoverySettings { config ->
                                     config.copy(
@@ -142,7 +114,6 @@ fun DiscoveryConfigSheet(
                     }
                 }
 
-                // 2. Global Toggles
                 val tagBarWidget = suite.widgets.find { it.type == DiscoverySuiteWidgetType.TagBar.type }
                 if (tagBarWidget != null) {
                     SwitchSettingItem(
