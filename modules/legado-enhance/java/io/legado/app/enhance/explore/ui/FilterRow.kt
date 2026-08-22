@@ -11,6 +11,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.legado.app.enhance.explore.model.ExploreNode
 import io.legado.app.enhance.explore.model.FilterGroup
+import io.legado.app.ui.widget.components.button.ToggleChip
+import io.legado.app.ui.widget.components.text.AppText
 
 @Composable
 fun FilterRow(
@@ -24,7 +26,7 @@ fun FilterRow(
             .padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        io.legado.app.ui.widget.components.text.AppText(
+        AppText(
             text = group.title,
             modifier = Modifier.padding(end = 8.dp)
         )
@@ -32,10 +34,10 @@ fun FilterRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             itemsIndexed(group.nodes) { index, node ->
-                ExploreFilterChip(
+                ToggleChip(
                     label = node.title,
                     selected = index == selectedIndex,
-                    onClick = { onNodeClick(node, group.title) }
+                    onToggle = { onNodeClick(node, group.title) }
                 )
             }
         }
