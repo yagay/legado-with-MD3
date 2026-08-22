@@ -1,4 +1,0 @@
-beta6_sha=80a62db0d957f4cac3e726c15492d2ae4bdf76d0
-outcome=success
-run_id=32566744739
-ASSEMBLE SUCCESS
