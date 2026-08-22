@@ -1,7 +1,5 @@
 package io.legado.app.enhance.explore.ui
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -11,9 +9,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -24,7 +19,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -32,21 +27,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.legado.app.enhance.explore.model.DiscoverySuiteWidgetTarget
+import io.legado.app.ui.theme.LegadoTheme
+import io.legado.app.ui.widget.components.card.TextCard
+import io.legado.app.ui.widget.components.text.AppText
 import kotlin.math.roundToInt
 
 /**
  * 现代发现页分类行。
  *
- * 行为直接对齐 yagay/legado:master 的 DiscoverFilterHeader：
- * - 第一排按当前屏幕真实可用宽度动态测量，不固定显示数量；
- * - 全部放得下时不显示展开标志；
- * - 有溢出时为展开标志预留宽度后重新计算；
- * - 当前选中项隐藏在折叠区时优先前置，但超宽放不下时放弃前置；
- * - 展开项单独在下一排 FlowRow 展示；
- * - 点击任意选项后自动收起。
- *
- * 大分类源在折叠状态只计算和分配第一排；剩余索引只有真正展开时才生成，
- * 展开后再分帧加入选项，避免切换分类时为数百个隐藏项制造临时对象和 Compose 节点。
+ * 只保留现代布局需要的“单排动态容纳 + 溢出展开 + 选中项前置”行为，
+ * 文字、颜色和选项容器全部复用项目现有主题与 TextCard 样式。
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -72,7 +62,7 @@ fun ModernDiscoveryFilterBar(
         val markerWidth = 34.dp
         val optionHorizontalPadding = 3.dp
         val optionSpacing = 6.dp
-        val optionStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp)
+        val optionStyle = LegadoTheme.typography.bodyMedium.copy(fontSize = 14.sp)
         val displayTitle = remember(title) { stripWrapSymbols(title) }
         val selectedIndex = remember(targets, selectedTargetTitle) {
             targets.indexOfFirst { it.title == selectedTargetTitle }
@@ -166,10 +156,10 @@ fun ModernDiscoveryFilterBar(
                 verticalAlignment = Alignment.Top
             ) {
                 if (displayTitle.isNotBlank()) {
-                    Text(
+                    AppText(
                         text = displayTitle,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        style = MaterialTheme.typography.labelLarge,
+                        color = LegadoTheme.colorScheme.onSurface,
+                        style = LegadoTheme.typography.labelLarge,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier
@@ -188,6 +178,7 @@ fun ModernDiscoveryFilterBar(
                         ModernDiscoveryFilterOption(
                             target = targets[optionIndex],
                             selected = optionIndex == selectedIndex,
+                            textStyle = optionStyle,
                             onClick = {
                                 expanded = false
                                 onTargetClick(targets[optionIndex])
@@ -197,15 +188,16 @@ fun ModernDiscoveryFilterBar(
                 }
 
                 if (expandable) {
-                    Text(
+                    TextCard(
                         text = if (expanded) "︿" else "﹀",
-                        color = MaterialTheme.colorScheme.primary,
-                        fontSize = 18.sp,
-                        modifier = Modifier
-                            .width(markerWidth)
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { expanded = !expanded }
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                        onClick = { expanded = !expanded },
+                        modifier = Modifier.width(markerWidth),
+                        backgroundColor = Color.Transparent,
+                        contentColor = LegadoTheme.colorScheme.primary,
+                        cornerRadius = 8.dp,
+                        horizontalPadding = 6.dp,
+                        verticalPadding = 2.dp,
+                        textStyle = LegadoTheme.typography.bodyLargeEmphasized,
                     )
                 }
             }
@@ -220,6 +212,7 @@ fun ModernDiscoveryFilterBar(
                         ModernDiscoveryFilterOption(
                             target = targets[optionIndex],
                             selected = optionIndex == selectedIndex,
+                            textStyle = optionStyle,
                             onClick = {
                                 expanded = false
                                 onTargetClick(targets[optionIndex])
@@ -238,20 +231,18 @@ private const val EXPANDED_BATCH_SIZE = 64
 private fun ModernDiscoveryFilterOption(
     target: DiscoverySuiteWidgetTarget,
     selected: Boolean,
+    textStyle: androidx.compose.ui.text.TextStyle,
     onClick: () -> Unit
 ) {
-    val background = if (selected) MaterialTheme.colorScheme.primary else androidx.compose.ui.graphics.Color.Transparent
-    val foreground = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-    Text(
+    TextCard(
         text = stripWrapSymbols(target.title),
-        color = foreground,
-        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
-        maxLines = 1,
-        modifier = Modifier
-            .clip(RoundedCornerShape(2.dp))
-            .background(background)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 3.dp, vertical = 0.dp)
+        onClick = onClick,
+        backgroundColor = if (selected) LegadoTheme.colorScheme.primary else Color.Transparent,
+        contentColor = if (selected) LegadoTheme.colorScheme.onPrimary else LegadoTheme.colorScheme.onSurface,
+        cornerRadius = 2.dp,
+        horizontalPadding = 3.dp,
+        verticalPadding = 0.dp,
+        textStyle = textStyle,
     )
 }
 
