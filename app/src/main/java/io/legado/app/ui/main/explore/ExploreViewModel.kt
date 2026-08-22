@@ -11,6 +11,7 @@ import io.legado.app.domain.usecase.ExploreBooksUseCase
 import io.legado.app.domain.usecase.ExploreKindUiUseCase
 import io.legado.app.enhance.explore.model.DiscoverySuite
 import io.legado.app.enhance.explore.model.DiscoverySuiteConfig
+import io.legado.app.enhance.explore.model.DiscoverySuiteStore
 import io.legado.app.enhance.explore.model.DiscoverySuiteWidgetTarget
 import io.legado.app.enhance.explore.vm.EnhanceState
 import io.legado.app.enhance.explore.vm.ExploreViewModelEnhance
@@ -46,15 +47,17 @@ class ExploreViewModel(
     internal val exploreBooksUseCase: ExploreBooksUseCase,
 ) : BaseViewModel(application) {
 
-    private val _uiState = MutableStateFlow(ExploreUiState())
+    private val initialLayoutMode = DiscoverySuiteStore.getLayoutMode()
+    private val initialUiState = ExploreUiState(layoutMode = initialLayoutMode)
+    private val _uiState = MutableStateFlow(initialUiState)
     val uiState: StateFlow<ExploreUiState> = _uiState
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ExploreUiState())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), initialUiState)
     private val _effects = MutableSharedFlow<ExploreEffect>(extraBufferCapacity = 8)
     val effects = _effects.asSharedFlow()
 
     private var exploreJob: Job? = null
     private var kindsJob: Job? = null
-    private var pendingDiscoverySuiteLoadAfterSources = false
+    private var pendingDiscoverySuiteLoadAfterSources = initialLayoutMode == 1
     val enhance = ExploreViewModelEnhance(this)
 
     init {
@@ -117,6 +120,7 @@ class ExploreViewModel(
 
     internal fun toggleLayoutMode() {
         val newMode = if (_uiState.value.layoutMode == 0) 1 else 0
+        DiscoverySuiteStore.setLayoutMode(newMode)
         enhance.clearSuiteSearchJob()
         _uiState.update {
             it.copy(
