@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.legado.app.data.entities.rule.ExploreKind
 import io.legado.app.domain.usecase.ExploreKindUiUseCase
+import io.legado.app.enhance.explore.ui.stripWrapSymbols
 import io.legado.app.ui.widget.components.explore.ExploreKindMultiTypeItem
 import io.legado.app.ui.widget.components.explore.calculateExploreKindRows
 
@@ -29,8 +30,15 @@ fun AdaptiveExploreControlRows(
 ) {
     if (controls.isEmpty()) return
 
-    val rows = remember(controls) {
-        calculateExploreKindRows(controls, maxSpan = 6)
+    val visibleControls = remember(controls) {
+        controls.filter { kind ->
+            stripWrapSymbols(kind.title).any { it.isLetterOrDigit() }
+        }
+    }
+    if (visibleControls.isEmpty()) return
+
+    val rows = remember(visibleControls) {
+        calculateExploreKindRows(visibleControls, maxSpan = 6)
     }
 
     Column(
@@ -52,6 +60,7 @@ fun AdaptiveExploreControlRows(
                         onRefreshKinds = onRefreshKinds,
                         modifier = Modifier.weight(span.toFloat()),
                         isMiuix = false,
+                        displayNameOverride = stripWrapSymbols(kind.title),
                         useCase = useCase,
                     )
                 }
