@@ -3,7 +3,6 @@ package io.legado.app.enhance.explore.screen
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
@@ -59,11 +58,6 @@ fun AdaptiveExploreControlRows(
                         isMiuix = isMiuix,
                         useCase = useCase,
                     )
-                }
-
-                val totalSpan = rowItems.sumOf { it.second }
-                if (totalSpan < 6) {
-                    Spacer(modifier = Modifier.weight((6 - totalSpan).toFloat()))
                 }
             }
         }
