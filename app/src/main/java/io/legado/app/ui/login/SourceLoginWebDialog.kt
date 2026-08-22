@@ -38,13 +38,14 @@ import androidx.compose.ui.platform.LocalContext
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import io.legado.app.constant.AppConst
+import kotlin.math.abs
 
 /**
- * Native WebView login bottom sheet.
+ * Native WebView login/browser bottom sheet.
  *
- * The sheet intentionally stays in the Android View hierarchy instead of embedding WebView in
- * Compose ModalBottomSheet. This preserves the WebView rendering/touch behavior required by
- * source login pages while visually matching the app's regular bottom sheets.
+ * The Android View hierarchy is intentional: WebView scrolling and BottomSheet dragging are
+ * coordinated here without Compose nested-scroll translation. The collapsed anchor is always
+ * calculated from the dialog's real parent height so system bars cannot create a phantom gap.
  */
 @SuppressLint("SetJavaScriptEnabled", "WebViewClientOnReceivedSslError")
 @Composable
@@ -73,32 +74,27 @@ fun SourceLoginWebDialog(
                 return if (context.theme.resolveAttribute(attr, value, true)) {
                     if (value.resourceId != 0) {
                         runCatching { context.getColor(value.resourceId) }.getOrDefault(value.data)
-                    } else {
-                        value.data
-                    }
-                } else {
-                    fallback
-                }
+                    } else value.data
+                } else fallback
             }
 
             val surfaceColor = resolveColor(android.R.attr.colorBackground, Color.WHITE)
             val onSurfaceColor = resolveColor(android.R.attr.textColorPrimary, Color.BLACK)
             val onSurfaceVariantColor = resolveColor(android.R.attr.textColorSecondary, onSurfaceColor)
             val accentColor = resolveColor(android.R.attr.colorAccent, onSurfaceColor)
-
             val sheetBackground = GradientDrawable().apply {
                 setColor(surfaceColor)
                 cornerRadii = floatArrayOf(
                     dp(28).toFloat(), dp(28).toFloat(),
                     dp(28).toFloat(), dp(28).toFloat(),
-                    0f, 0f,
-                    0f, 0f,
+                    0f, 0f, 0f, 0f,
                 )
             }
 
             val root = LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
                 background = sheetBackground
+                clipToPadding = false
                 layoutParams = ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT,
@@ -111,32 +107,44 @@ fun SourceLoginWebDialog(
             var sheetAnimator: ValueAnimator? = null
             var expandedAnchorTop = 0
             var collapsedAnchorTop = 0
-            var gestureStartY = 0f
-            var gestureStartTop = 0
-            var lastHandleY = 0f
-            var lastDirection = 0
-            var gestureStartState = BottomSheetBehavior.STATE_COLLAPSED
+            var parentHeight = 0
             val directionSlop = dp(2).toFloat()
             val releaseSlop = dp(8)
             val dismissDistance = dp(72)
 
-            fun animateSheetTo(
-                targetTop: Int,
-                targetState: Int,
-                dismissAtEnd: Boolean = false,
-            ) {
+            fun refreshAnchors() {
+                val sheet = bottomSheetView ?: return
+                val parent = sheet.parent as? View ?: return
+                if (parent.height <= 0) return
+                parentHeight = parent.height
+                expandedAnchorTop = 0
+                collapsedAnchorTop = (parentHeight * 0.25f).toInt()
+
+                sheet.layoutParams = sheet.layoutParams.apply {
+                    height = parentHeight
+                }
+                root.layoutParams = root.layoutParams.apply {
+                    height = parentHeight
+                }
+                sheetBehavior?.apply {
+                    isFitToContents = false
+                    expandedOffset = expandedAnchorTop
+                    peekHeight = parentHeight - collapsedAnchorTop
+                }
+                sheet.requestLayout()
+                root.requestLayout()
+            }
+
+            fun animateSheetTo(targetTop: Int, targetState: Int, dismissAtEnd: Boolean = false) {
                 val sheet = bottomSheetView ?: return
                 sheetAnimator?.cancel()
-                if (sheet.top == targetTop) {
-                    if (dismissAtEnd) {
-                        dialogRef?.dismiss()
-                    } else {
-                        sheetBehavior?.state = targetState
-                    }
+                val safeTarget = targetTop.coerceIn(expandedAnchorTop, parentHeight.coerceAtLeast(targetTop))
+                if (sheet.top == safeTarget) {
+                    if (dismissAtEnd) dialogRef?.dismiss() else sheetBehavior?.state = targetState
                     return
                 }
                 var cancelled = false
-                sheetAnimator = ValueAnimator.ofInt(sheet.top, targetTop).apply {
+                sheetAnimator = ValueAnimator.ofInt(sheet.top, safeTarget).apply {
                     duration = 220L
                     addUpdateListener { animator ->
                         val nextTop = animator.animatedValue as Int
@@ -149,184 +157,93 @@ fun SourceLoginWebDialog(
 
                         override fun onAnimationEnd(animation: Animator) {
                             if (cancelled) return
-                            if (dismissAtEnd) {
-                                dialogRef?.dismiss()
-                            } else {
-                                sheetBehavior?.state = targetState
-                            }
+                            if (dismissAtEnd) dialogRef?.dismiss() else sheetBehavior?.state = targetState
                         }
                     })
                     start()
                 }
             }
 
-            fun settleContentDrag(lastDirection: Int) {
+            fun settleDrag(direction: Int) {
                 val sheet = bottomSheetView ?: return
+                refreshAnchors()
                 val currentTop = sheet.top
                 if (currentTop > collapsedAnchorTop + dismissDistance) {
-                    val parentHeight = (sheet.parent as? View)?.height
-                        ?: context.resources.displayMetrics.heightPixels
-                    animateSheetTo(
-                        targetTop = parentHeight,
-                        targetState = BottomSheetBehavior.STATE_COLLAPSED,
-                        dismissAtEnd = true,
-                    )
+                    animateSheetTo(parentHeight, BottomSheetBehavior.STATE_COLLAPSED, dismissAtEnd = true)
                     return
                 }
-
                 val midpoint = (expandedAnchorTop + collapsedAnchorTop) / 2
                 val expand = when {
                     currentTop <= expandedAnchorTop + releaseSlop -> true
                     currentTop >= collapsedAnchorTop - releaseSlop -> false
-                    lastDirection < 0 && currentTop < midpoint -> true
-                    lastDirection > 0 && currentTop > midpoint -> false
+                    direction < 0 && currentTop < midpoint -> true
+                    direction > 0 && currentTop > midpoint -> false
                     else -> currentTop < midpoint
                 }
                 if (expand) {
-                    animateSheetTo(
-                        expandedAnchorTop,
-                        BottomSheetBehavior.STATE_EXPANDED,
-                    )
+                    animateSheetTo(expandedAnchorTop, BottomSheetBehavior.STATE_EXPANDED)
                 } else {
-                    animateSheetTo(
-                        collapsedAnchorTop,
-                        BottomSheetBehavior.STATE_COLLAPSED,
-                    )
+                    animateSheetTo(collapsedAnchorTop, BottomSheetBehavior.STATE_COLLAPSED)
+                }
+            }
+
+            var topGestureStartY = 0f
+            var topGestureLastY = 0f
+            var topGestureStartTop = 0
+            var topGestureDirection = 0
+
+            val topDragListener = View.OnTouchListener { view, event ->
+                val sheet = bottomSheetView
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        sheetAnimator?.cancel()
+                        refreshAnchors()
+                        topGestureStartY = event.rawY
+                        topGestureLastY = event.rawY
+                        topGestureStartTop = sheet?.top ?: collapsedAnchorTop
+                        topGestureDirection = 0
+                        view.parent?.requestDisallowInterceptTouchEvent(true)
+                        true
+                    }
+
+                    MotionEvent.ACTION_MOVE -> {
+                        val delta = event.rawY - topGestureLastY
+                        topGestureLastY = event.rawY
+                        if (abs(delta) >= directionSlop) topGestureDirection = if (delta > 0f) 1 else -1
+                        sheet?.let { movingSheet ->
+                            val requestedTop = (topGestureStartTop + event.rawY - topGestureStartY).toInt()
+                            val targetTop = requestedTop.coerceIn(expandedAnchorTop, parentHeight)
+                            movingSheet.offsetTopAndBottom(targetTop - movingSheet.top)
+                        }
+                        true
+                    }
+
+                    MotionEvent.ACTION_UP -> {
+                        view.parent?.requestDisallowInterceptTouchEvent(false)
+                        settleDrag(topGestureDirection)
+                        view.performClick()
+                        true
+                    }
+
+                    MotionEvent.ACTION_CANCEL -> {
+                        view.parent?.requestDisallowInterceptTouchEvent(false)
+                        val sheetTop = sheet?.top ?: topGestureStartTop
+                        val restoreExpanded = topGestureStartTop < collapsedAnchorTop && sheetTop < collapsedAnchorTop
+                        animateSheetTo(
+                            if (restoreExpanded) expandedAnchorTop else collapsedAnchorTop,
+                            if (restoreExpanded) BottomSheetBehavior.STATE_EXPANDED else BottomSheetBehavior.STATE_COLLAPSED,
+                        )
+                        true
+                    }
+
+                    else -> true
                 }
             }
 
             val dragHandleHost = FrameLayout(context).apply {
-                layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    dp(28),
-                )
+                layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(28))
                 isClickable = true
-                setOnTouchListener { view, event ->
-                    val sheet = bottomSheetView
-                    when (event.actionMasked) {
-                        MotionEvent.ACTION_DOWN -> {
-                            sheetAnimator?.cancel()
-                            gestureStartY = event.rawY
-                            lastHandleY = event.rawY
-                            gestureStartTop = sheet?.top ?: collapsedAnchorTop
-                            lastDirection = 0
-                            gestureStartState = if (
-                                gestureStartTop < collapsedAnchorTop - releaseSlop
-                            ) {
-                                BottomSheetBehavior.STATE_EXPANDED
-                            } else {
-                                BottomSheetBehavior.STATE_COLLAPSED
-                            }
-                            view.parent?.requestDisallowInterceptTouchEvent(true)
-                            true
-                        }
-
-                        MotionEvent.ACTION_MOVE -> {
-                            val delta = event.rawY - lastHandleY
-                            lastHandleY = event.rawY
-                            if (kotlin.math.abs(delta) >= directionSlop) {
-                                lastDirection = if (delta > 0f) 1 else -1
-                            }
-
-                            sheet?.let { movingSheet ->
-                                val parentHeight = (movingSheet.parent as? View)?.height
-                                    ?: context.resources.displayMetrics.heightPixels
-                                val requestedTop = (
-                                    gestureStartTop + (event.rawY - gestureStartY)
-                                ).toInt()
-                                val targetTop = requestedTop.coerceIn(
-                                    expandedAnchorTop,
-                                    parentHeight,
-                                )
-                                movingSheet.offsetTopAndBottom(targetTop - movingSheet.top)
-                            }
-                            true
-                        }
-
-                        MotionEvent.ACTION_UP -> {
-                            val currentTop = sheet?.top ?: gestureStartTop
-                            when (gestureStartState) {
-                                BottomSheetBehavior.STATE_COLLAPSED -> {
-                                    when (lastDirection) {
-                                        1 -> {
-                                            if (currentTop > collapsedAnchorTop + releaseSlop) {
-                                                val parentHeight = (sheet?.parent as? View)?.height
-                                                    ?: context.resources.displayMetrics.heightPixels
-                                                animateSheetTo(
-                                                    targetTop = parentHeight,
-                                                    targetState = BottomSheetBehavior.STATE_COLLAPSED,
-                                                    dismissAtEnd = true,
-                                                )
-                                            } else {
-                                                animateSheetTo(
-                                                    collapsedAnchorTop,
-                                                    BottomSheetBehavior.STATE_COLLAPSED,
-                                                )
-                                            }
-                                        }
-
-                                        -1 -> {
-                                            if (currentTop < collapsedAnchorTop - releaseSlop) {
-                                                animateSheetTo(
-                                                    expandedAnchorTop,
-                                                    BottomSheetBehavior.STATE_EXPANDED,
-                                                )
-                                            } else {
-                                                animateSheetTo(
-                                                    collapsedAnchorTop,
-                                                    BottomSheetBehavior.STATE_COLLAPSED,
-                                                )
-                                            }
-                                        }
-
-                                        else -> {
-                                            animateSheetTo(
-                                                collapsedAnchorTop,
-                                                BottomSheetBehavior.STATE_COLLAPSED,
-                                            )
-                                        }
-                                    }
-                                }
-
-                                BottomSheetBehavior.STATE_EXPANDED -> {
-                                    if (lastDirection == 1) {
-                                        animateSheetTo(
-                                            collapsedAnchorTop,
-                                            BottomSheetBehavior.STATE_COLLAPSED,
-                                        )
-                                    } else {
-                                        animateSheetTo(
-                                            expandedAnchorTop,
-                                            BottomSheetBehavior.STATE_EXPANDED,
-                                        )
-                                    }
-                                }
-                            }
-
-                            view.parent?.requestDisallowInterceptTouchEvent(false)
-                            view.performClick()
-                            true
-                        }
-
-                        MotionEvent.ACTION_CANCEL -> {
-                            if (gestureStartState == BottomSheetBehavior.STATE_EXPANDED) {
-                                animateSheetTo(
-                                    expandedAnchorTop,
-                                    BottomSheetBehavior.STATE_EXPANDED,
-                                )
-                            } else {
-                                animateSheetTo(
-                                    collapsedAnchorTop,
-                                    BottomSheetBehavior.STATE_COLLAPSED,
-                                )
-                            }
-                            view.parent?.requestDisallowInterceptTouchEvent(false)
-                            true
-                        }
-
-                        else -> true
-                    }
-                }
+                setOnTouchListener(topDragListener)
             }
             val dragHandle = View(context).apply {
                 background = GradientDrawable().apply {
@@ -335,15 +252,14 @@ fun SourceLoginWebDialog(
                 }
                 alpha = 0.45f
             }
-            dragHandleHost.addView(
-                dragHandle,
-                FrameLayout.LayoutParams(dp(32), dp(4), Gravity.CENTER),
-            )
+            dragHandleHost.addView(dragHandle, FrameLayout.LayoutParams(dp(32), dp(4), Gravity.CENTER))
 
             val header = LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
                 setPadding(dp(16), 0, dp(12), dp(8))
+                isClickable = true
+                setOnTouchListener(topDragListener)
             }
             val titleView = TextView(context).apply {
                 text = state.title
@@ -353,6 +269,7 @@ fun SourceLoginWebDialog(
                 maxLines = 1
                 ellipsize = android.text.TextUtils.TruncateAt.END
                 setPadding(dp(56), 0, 0, 0)
+                isClickable = false
             }
             val confirmButton = Button(context).apply {
                 text = context.getString(android.R.string.ok)
@@ -368,16 +285,9 @@ fun SourceLoginWebDialog(
                 setOnClickListener { currentIntent(SourceLoginIntent.Confirm) }
             }
             header.addView(titleView, LinearLayout.LayoutParams(0, dp(48), 1f))
-            header.addView(
-                confirmButton,
-                LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(40)),
-            )
+            header.addView(confirmButton, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(40)))
 
-            val progress = ProgressBar(
-                context,
-                null,
-                android.R.attr.progressBarStyleHorizontal,
-            ).apply {
+            val progress = ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal).apply {
                 max = 100
                 progress = state.webProgress.coerceIn(0, 100)
                 progressTintList = ColorStateList.valueOf(accentColor)
@@ -397,6 +307,7 @@ fun SourceLoginWebDialog(
                     when (event.actionMasked) {
                         MotionEvent.ACTION_DOWN -> {
                             sheetAnimator?.cancel()
+                            refreshAnchors()
                             contentGestureStartY = event.rawY
                             contentGestureLastY = event.rawY
                             contentGestureStartTop = sheet?.top ?: collapsedAnchorTop
@@ -408,22 +319,18 @@ fun SourceLoginWebDialog(
                         MotionEvent.ACTION_MOVE -> {
                             val step = event.rawY - contentGestureLastY
                             contentGestureLastY = event.rawY
-                            if (kotlin.math.abs(step) >= directionSlop) {
-                                contentLastDirection = if (step > 0f) 1 else -1
-                            }
+                            if (abs(step) >= directionSlop) contentLastDirection = if (step > 0f) 1 else -1
 
                             if (!contentDraggingSheet && sheet != null) {
                                 val total = event.rawY - contentGestureStartY
-                                val draggingDownFromTop = total > directionSlop && !canScrollVertically(-1)
+                                val contentAtTop = scrollY <= 0 || !canScrollVertically(-1)
+                                val draggingDownFromTop = total > directionSlop && contentAtTop
                                 val expandingFromCollapsed = total < -directionSlop &&
                                     sheet.top > expandedAnchorTop + releaseSlop
                                 if (draggingDownFromTop || expandingFromCollapsed) {
-                                    val cancel = MotionEvent.obtain(event).apply {
-                                        action = MotionEvent.ACTION_CANCEL
-                                    }
+                                    val cancel = MotionEvent.obtain(event).apply { action = MotionEvent.ACTION_CANCEL }
                                     super.onTouchEvent(cancel)
                                     cancel.recycle()
-                                    sheetAnimator?.cancel()
                                     contentDraggingSheet = true
                                     contentGestureStartY = event.rawY
                                     contentGestureStartTop = sheet.top
@@ -434,15 +341,8 @@ fun SourceLoginWebDialog(
                             }
 
                             if (contentDraggingSheet && sheet != null) {
-                                val parentHeight = (sheet.parent as? View)?.height
-                                    ?: context.resources.displayMetrics.heightPixels
-                                val requestedTop = (
-                                    contentGestureStartTop + (event.rawY - contentGestureStartY)
-                                ).toInt()
-                                val targetTop = requestedTop.coerceIn(
-                                    expandedAnchorTop,
-                                    parentHeight,
-                                )
+                                val requestedTop = (contentGestureStartTop + event.rawY - contentGestureStartY).toInt()
+                                val targetTop = requestedTop.coerceIn(expandedAnchorTop, parentHeight)
                                 sheet.offsetTopAndBottom(targetTop - sheet.top)
                                 return true
                             }
@@ -452,7 +352,7 @@ fun SourceLoginWebDialog(
                             if (contentDraggingSheet) {
                                 contentDraggingSheet = false
                                 parent?.requestDisallowInterceptTouchEvent(false)
-                                settleContentDrag(contentLastDirection)
+                                settleDrag(contentLastDirection)
                                 performClick()
                                 return true
                             }
@@ -462,7 +362,11 @@ fun SourceLoginWebDialog(
                             if (contentDraggingSheet) {
                                 contentDraggingSheet = false
                                 parent?.requestDisallowInterceptTouchEvent(false)
-                                settleContentDrag(contentLastDirection)
+                                val restoreExpanded = contentGestureStartTop < collapsedAnchorTop
+                                animateSheetTo(
+                                    if (restoreExpanded) expandedAnchorTop else collapsedAnchorTop,
+                                    if (restoreExpanded) BottomSheetBehavior.STATE_EXPANDED else BottomSheetBehavior.STATE_COLLAPSED,
+                                )
                                 return true
                             }
                         }
@@ -471,6 +375,8 @@ fun SourceLoginWebDialog(
                 }
             }.apply {
                 setBackgroundColor(surfaceColor)
+                overScrollMode = View.OVER_SCROLL_NEVER
+                layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f)
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true
                 state.headers[AppConst.UA_NAME]?.let { settings.userAgentString = it }
@@ -484,10 +390,8 @@ fun SourceLoginWebDialog(
                         url?.let { currentIntent(SourceLoginIntent.WebPageFinished(it)) }
                     }
 
-                    override fun shouldOverrideUrlLoading(
-                        view: WebView,
-                        request: WebResourceRequest,
-                    ): Boolean = handleUrl(request.url)
+                    override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean =
+                        handleUrl(request.url)
 
                     @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
                     override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean =
@@ -499,11 +403,7 @@ fun SourceLoginWebDialog(
                         return true
                     }
 
-                    override fun onReceivedSslError(
-                        view: WebView?,
-                        handler: SslErrorHandler?,
-                        error: SslError?,
-                    ) {
+                    override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler?, error: SslError?) {
                         handler?.proceed()
                     }
                 }
@@ -515,57 +415,51 @@ fun SourceLoginWebDialog(
                         currentIntent(SourceLoginIntent.WebProgressChanged(newProgress))
                     }
                 }
-
                 state.webUrl?.let { loadUrl(it, state.headers) }
             }
             webView = nativeWebView
 
             root.addView(dragHandleHost)
-            root.addView(
-                header,
-                LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                ),
-            )
-            root.addView(
-                progress,
-                LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(3)),
-            )
-            root.addView(
-                nativeWebView,
-                LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f),
-            )
+            root.addView(header, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            root.addView(progress, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(3)))
+            root.addView(nativeWebView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
 
             val dialog = BottomSheetDialog(context).apply {
                 setContentView(root)
-                window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
+                window?.apply {
+                    setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
+                    navigationBarColor = surfaceColor
+                }
                 setCanceledOnTouchOutside(true)
                 setOnDismissListener {
                     if (!disposing) currentIntent(SourceLoginIntent.Back)
                 }
                 setOnShowListener {
-                    findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
-                        ?.let { bottomSheet ->
-                            bottomSheetView = bottomSheet
-                            bottomSheet.background = sheetBackground
-                            bottomSheet.layoutParams = bottomSheet.layoutParams.apply {
-                                height = ViewGroup.LayoutParams.MATCH_PARENT
-                            }
-                            sheetBehavior = BottomSheetBehavior.from(bottomSheet).apply {
-                                isFitToContents = false
-                                expandedOffset = 0
-                                peekHeight = (context.resources.displayMetrics.heightPixels * 0.75f).toInt()
-                                skipCollapsed = false
-                                isHideable = false
-                                isDraggable = false
-                                this.state = BottomSheetBehavior.STATE_COLLAPSED
-                            }
-                            bottomSheet.post {
-                                expandedAnchorTop = sheetBehavior?.expandedOffset ?: 0
-                                collapsedAnchorTop = bottomSheet.top
+                    findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)?.let { bottomSheet ->
+                        bottomSheetView = bottomSheet
+                        bottomSheet.background = sheetBackground
+                        sheetBehavior = BottomSheetBehavior.from(bottomSheet).apply {
+                            isFitToContents = false
+                            skipCollapsed = false
+                            isHideable = false
+                            isDraggable = false
+                        }
+                        bottomSheet.post {
+                            refreshAnchors()
+                            bottomSheet.offsetTopAndBottom(collapsedAnchorTop - bottomSheet.top)
+                            sheetBehavior?.state = BottomSheetBehavior.STATE_COLLAPSED
+                        }
+                        (bottomSheet.parent as? View)?.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+                            val oldParentHeight = parentHeight
+                            refreshAnchors()
+                            if (oldParentHeight > 0 && bottomSheet.top > expandedAnchorTop) {
+                                val desired = if (bottomSheet.top < collapsedAnchorTop / 2) {
+                                    expandedAnchorTop
+                                } else collapsedAnchorTop
+                                bottomSheet.offsetTopAndBottom(desired - bottomSheet.top)
                             }
                         }
+                    }
                 }
                 show()
             }
