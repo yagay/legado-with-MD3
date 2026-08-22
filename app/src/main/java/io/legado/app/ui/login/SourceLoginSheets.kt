@@ -34,6 +34,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -77,7 +78,7 @@ fun SourceLoginSheetHost(
             ) { CircularProgressIndicator() }
         }
 
-        state.mode == SourceLoginMode.Web -> SourceLoginWebDialog(
+        state.mode == SourceLoginMode.Web -> SourceLoginWebSheet(
             state = state,
             onIntent = onIntent,
             onOpenExternalUrl = onOpenExternalUrl,
@@ -285,6 +286,7 @@ private fun SourceLoginWebSheet(
                 onClick = { onIntent(SourceLoginIntent.Confirm) },
             )
         },
+        animateContentSize = false,
         contentPaddingEnabled = false,
         sheetGesturesEnabled = false,
     ) {
@@ -302,11 +304,15 @@ private fun SourceLoginWebView(
     val currentIntent by rememberUpdatedState(onIntent)
     val currentOpenExternalUrl by rememberUpdatedState(onOpenExternalUrl)
     var webView by remember { mutableStateOf<WebView?>(null) }
-    Box(Modifier
-        .fillMaxWidth()
-        .heightIn(min = 520.dp)) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 520.dp)
+    ) {
         AndroidView(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .clipToBounds(),
             factory = { context ->
                 WebView(context).apply {
                     settings.apply {
@@ -319,7 +325,6 @@ private fun SourceLoginWebView(
                         displayZoomControls = false
                         state.headers[AppConst.UA_NAME]?.let { userAgentString = it }
                     }
-                    isNestedScrollingEnabled = true
                     webViewClient = object : WebViewClient() {
                         override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                             url?.let { currentIntent(SourceLoginIntent.WebPageStarted(it)) }
@@ -332,8 +337,7 @@ private fun SourceLoginWebView(
                         override fun shouldOverrideUrlLoading(
                             view: WebView,
                             request: WebResourceRequest
-                        ) =
-                            handleUrl(request.url)
+                        ) = handleUrl(request.url)
 
                         @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
                         override fun shouldOverrideUrlLoading(view: WebView, url: String) =
