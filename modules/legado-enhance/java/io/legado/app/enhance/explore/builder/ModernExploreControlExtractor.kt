@@ -2,6 +2,7 @@ package io.legado.app.enhance.explore.builder
 
 import io.legado.app.data.entities.rule.ExploreKind
 import io.legado.app.enhance.explore.model.ExploreNode
+import io.legado.app.enhance.explore.ui.stripWrapSymbols
 import java.util.IdentityHashMap
 
 /**
@@ -36,15 +37,9 @@ object ModernExploreControlExtractor {
         val visibleControls: List<ExploreKind>,
     )
 
-    /** Exact ExploreKind order used by the current modern discovery page. */
     @Volatile
     private var sourceOrderSnapshot: List<ExploreKind> = emptyList()
 
-    /**
-     * Hot-path lookup caches rebuilt once whenever sourceOrderSnapshot changes.
-     * Compose rendering can ask about hundreds of targets, so these queries must not rescan the
-     * complete source list for every target.
-     */
     private var sourceIndexByIdentity = IdentityHashMap<ExploreKind, Int>()
     private var firstIndexByUrl: Map<String, Int> = emptyMap()
     private var firstIndexByCleanTitle: Map<String, Int> = emptyMap()
@@ -53,11 +48,6 @@ object ModernExploreControlExtractor {
     private var standaloneUrls: Set<String> = emptySet()
     private var standaloneTargetKeys: Set<String> = emptySet()
 
-    /**
-     * Select controls that have proved to change the shape of the explore page.
-     * The key includes title/action/options so equally named controls from unrelated sources do
-     * not normally share learned state.
-     */
     private val structuralSelectKeys = mutableSetOf<String>()
 
     fun fromFlatKinds(kinds: List<ExploreKind>): List<SelectControl> =
@@ -65,11 +55,6 @@ object ModernExploreControlExtractor {
             kind.toSelectControl(index, index.toString())
         }
 
-    /**
-     * Explicit tree JSON can place select controls at any depth. Walk the whole
-     * tree instead of only the root so nested status/ranking controls are not
-     * silently lost in the waterfall layout.
-     */
     fun fromTreeRoot(nodes: List<ExploreNode>): List<SelectControl> {
         val result = mutableListOf<SelectControl>()
         val stack = ArrayDeque<ExploreNode>()
@@ -84,7 +69,6 @@ object ModernExploreControlExtractor {
         return result
     }
 
-    /** Produces the exact native-control list that the modern UI should render. */
     fun flattenOriginalKinds(nodes: List<ExploreNode>): List<ExploreKind> {
         val result = mutableListOf<ExploreKind>()
         val stack = ArrayDeque<ExploreNode>()
@@ -98,9 +82,6 @@ object ModernExploreControlExtractor {
     }
 
     fun extractNativeControls(kinds: List<ExploreKind>): NativeControlsResult {
-        // A dynamic source commonly rebuilds ExploreKind after a select action. Comparing the old
-        // and new snapshots lets us learn whether that select controls page structure or merely
-        // changes URL parameter values. No business labels are required.
         learnStructuralSelectRelationships(sourceOrderSnapshot, kinds)
         updateSourceSnapshot(kinds)
 
@@ -141,11 +122,6 @@ object ModernExploreControlExtractor {
             }
         }
 
-        // URL items are explore categories regardless of the source's visual width hint.
-        // Treating full-width URL rows as standalone actions made the modern layout render each
-        // category on its own row and open the legacy secondary page instead of refreshing the
-        // current waterfall/list. Keep standalone caches empty so every URL category remains in
-        // the selector hierarchy; native text/button/toggle actions are handled separately.
         val standaloneIndexes = emptySet<Int>()
 
         sourceIndexByIdentity = identity
@@ -157,10 +133,6 @@ object ModernExploreControlExtractor {
         standaloneTargetKeys = emptySet()
     }
 
-    /**
-     * Return the selected value of the nearest proven structural select before a dynamic row.
-     * Independent selects (status/sort/word-count/etc.) are deliberately ignored.
-     */
     fun structuralParentSelectionBefore(sourceIndex: Int): String? {
         if (sourceIndex < 0) return null
         val candidate = sourceOrderSnapshot
@@ -218,11 +190,6 @@ object ModernExploreControlExtractor {
         }
     }
 
-    /**
-     * Structure deliberately ignores select defaults and URL parameter values. A status/sort
-     * change therefore keeps the same signature, while channel/category/group changes that add,
-     * remove or rename rows produce a different signature.
-     */
     private fun exploreStructureSignature(kinds: List<ExploreKind>): List<String> =
         kinds.map { kind ->
             when (kind.type) {
@@ -245,21 +212,17 @@ object ModernExploreControlExtractor {
         }
     }
 
-    /** Exact original position for a native control. Identity wins over structural equality. */
     fun sourceIndexOf(kind: ExploreKind): Int =
         sourceIndexByIdentity[kind] ?: sourceOrderSnapshot.indexOf(kind)
 
-    /** Original position of a source-native select row. */
     fun sourceIndexOfSelect(title: String): Int {
         val normalized = cleanTitle(title)
         if (normalized.isBlank()) return -1
         return firstSelectIndexByCleanTitle[normalized] ?: -1
     }
 
-    /** URL entries stay inside the modern selector hierarchy. */
     fun isStandaloneUrlEntry(kind: ExploreKind): Boolean = false
 
-    /** Compare URL structure without depending on parameter values. */
     private fun urlFamilySignature(url: String): String {
         val normalized = url.substringBefore('#')
         val base = normalized.substringBefore('?').trim()
@@ -276,13 +239,10 @@ object ModernExploreControlExtractor {
         return if (keys.isBlank()) base else "$base?$keys"
     }
 
-    /** Standalone URL entries in their exact source declaration order. */
     fun standaloneUrlEntries(): List<ExploreKind> = emptyList()
 
-    /** URL targets are categories in modern layout, never standalone secondary-page entries. */
     fun isStandaloneUrlTarget(title: String, url: String?): Boolean = false
 
-    /** Original position represented by a dynamic category/tree target. */
     fun sourceIndexOfTarget(title: String, url: String?): Int {
         if (!url.isNullOrBlank()) {
             firstIndexByUrl[url]?.let { return it }
@@ -298,7 +258,6 @@ object ModernExploreControlExtractor {
         }
         if (textControls.isEmpty()) return null
 
-        // 1. Strongest match: button explicitly reads this text's InfoMap key.
         kinds.forEachIndexed { buttonIndex, button ->
             if (button.type != ExploreKind.Type.button || button.action.isNullOrBlank()) return@forEachIndexed
             val matched = textControls
@@ -311,7 +270,6 @@ object ModernExploreControlExtractor {
             return SearchControl(matched.second, button, matched.first, buttonIndex)
         }
 
-        // 2. Explicit search action: some sources hide the real search implementation in helpers.
         kinds.forEachIndexed { buttonIndex, button ->
             if (
                 button.type != ExploreKind.Type.button ||
@@ -330,7 +288,6 @@ object ModernExploreControlExtractor {
         if (textControls.size == 1) {
             val (textIndex, text) = textControls.single()
 
-            // 3. Common Legado pattern: button only asks the explore UI to refresh.
             val refreshButton = kinds
                 .mapIndexedNotNull { index, kind ->
                     if (
@@ -345,7 +302,6 @@ object ModernExploreControlExtractor {
                 return SearchControl(text, refreshButton.second, textIndex, refreshButton.first)
             }
 
-            // 4. Wrapped-function fallback: a single text followed by the next native button.
             val nextNative = kinds
                 .mapIndexedNotNull { index, kind ->
                     if (index <= textIndex) return@mapIndexedNotNull null
@@ -453,9 +409,5 @@ object ModernExploreControlExtractor {
         )
     }
 
-    private fun cleanTitle(value: String): String = value
-        .replace(Regex("[\\[\\]【】?（）<>《》]"), "")
-        .replace(Regex("[\\p{So}\\p{Sk}]+"), "")
-        .replace(Regex("[༺༻ˇ»«`´ʚɞ]+"), "")
-        .trim()
+    private fun cleanTitle(value: String): String = stripWrapSymbols(value)
 }
