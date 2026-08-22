@@ -1,7 +1,9 @@
 package io.legado.app.enhance.explore.screen
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
@@ -10,14 +12,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.legado.app.data.entities.rule.ExploreKind
 import io.legado.app.domain.usecase.ExploreKindUiUseCase
+import io.legado.app.ui.theme.LegadoTheme
+import io.legado.app.ui.theme.ThemeResolver
 import io.legado.app.ui.widget.components.explore.ExploreKindMultiTypeItem
+import io.legado.app.ui.widget.components.explore.calculateExploreKindRows
 
 /**
- * Places source-native action controls in one compact row above the category rows.
- *
- * Width is derived from the visible label length, so short actions such as "登录"
- * take less space while longer actions such as "刷新发现页" receive more room.
- * Category/url/select/tree rows are rendered elsewhere and are intentionally excluded.
+ * Renders source-native controls with the same row/span calculation used by the
+ * upstream discovery page. Modern discovery only changes where these rows are
+ * placed; source styles and control rendering stay upstream-owned.
  */
 @Composable
 fun AdaptiveExploreControlRows(
@@ -30,52 +33,39 @@ fun AdaptiveExploreControlRows(
 ) {
     if (controls.isEmpty()) return
 
-    val weights = remember(controls) {
-        controls.map(::controlWidthUnits)
+    val rows = remember(controls) {
+        calculateExploreKindRows(controls, maxSpan = 6)
     }
+    val isMiuix = ThemeResolver.isMiuixEngine(LegadoTheme.composeEngine)
 
-    Row(
+    Column(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        controls.forEachIndexed { index, kind ->
-            ExploreKindMultiTypeItem(
-                kind = kind,
-                sourceUrl = sourceUrl,
-                onOpenUrl = { url -> onOpenUrl(kind, url) },
-                onRefreshKinds = onRefreshKinds,
-                modifier = Modifier
-                    .weight(weights[index])
-                    .fillMaxWidth(),
-                isMiuix = false,
-                useCase = useCase,
-            )
+        rows.forEach { rowItems ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                rowItems.forEach { (kind, span) ->
+                    ExploreKindMultiTypeItem(
+                        kind = kind,
+                        sourceUrl = sourceUrl,
+                        onOpenUrl = { url -> onOpenUrl(kind, url) },
+                        onRefreshKinds = onRefreshKinds,
+                        modifier = Modifier.weight(span.toFloat()),
+                        isMiuix = isMiuix,
+                        useCase = useCase,
+                    )
+                }
+
+                val totalSpan = rowItems.sumOf { it.second }
+                if (totalSpan < 6) {
+                    Spacer(modifier = Modifier.weight((6 - totalSpan).toFloat()))
+                }
+            }
         }
     }
-}
-
-internal fun controlWidthUnits(kind: ExploreKind): Float {
-    val label = kind.viewName?.takeIf { it.isNotBlank() } ?: kind.title
-    val textUnits = label.sumOf { ch ->
-        when {
-            ch.code <= 0x7f -> 1.0
-            Character.UnicodeBlock.of(ch) == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS -> 2.0
-            Character.UnicodeBlock.of(ch) == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS -> 2.0
-            Character.UnicodeBlock.of(ch) == Character.UnicodeBlock.HIRAGANA -> 2.0
-            Character.UnicodeBlock.of(ch) == Character.UnicodeBlock.KATAKANA -> 2.0
-            Character.UnicodeBlock.of(ch) == Character.UnicodeBlock.HANGUL_SYLLABLES -> 2.0
-            else -> 1.5
-        }
-    }.toFloat()
-
-    val chromeUnits = when (kind.type) {
-        ExploreKind.Type.text -> 7f
-        ExploreKind.Type.button,
-        ExploreKind.Type.toggle -> 5f
-        else -> 4f
-    }
-    val minimum = if (kind.type == ExploreKind.Type.text) 10f else 6f
-    return (textUnits + chromeUnits).coerceAtLeast(minimum)
 }
