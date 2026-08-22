@@ -16,6 +16,7 @@ import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ProgressBar
@@ -31,7 +32,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
-import com.google.android.material.button.MaterialButton
 import io.legado.app.constant.AppConst
 
 /**
@@ -76,24 +76,20 @@ fun SourceLoginWebDialog(
             }
 
             val surfaceColor = resolveColor(
-                com.google.android.material.R.attr.colorSurfaceContainer,
-                resolveColor(com.google.android.material.R.attr.colorSurface, Color.WHITE),
+                android.R.attr.colorBackground,
+                Color.WHITE,
             )
             val onSurfaceColor = resolveColor(
-                com.google.android.material.R.attr.colorOnSurface,
+                android.R.attr.textColorPrimary,
                 Color.BLACK,
             )
             val onSurfaceVariantColor = resolveColor(
-                com.google.android.material.R.attr.colorOnSurfaceVariant,
+                android.R.attr.textColorSecondary,
                 onSurfaceColor,
             )
-            val primaryColor = resolveColor(
-                com.google.android.material.R.attr.colorPrimary,
+            val accentColor = resolveColor(
+                android.R.attr.colorAccent,
                 onSurfaceColor,
-            )
-            val onPrimaryColor = resolveColor(
-                com.google.android.material.R.attr.colorOnPrimary,
-                surfaceColor,
             )
 
             val sheetBackground = GradientDrawable().apply {
@@ -147,16 +143,17 @@ fun SourceLoginWebDialog(
                 ellipsize = android.text.TextUtils.TruncateAt.END
                 setPadding(dp(56), 0, 0, 0)
             }
-            val confirmButton = MaterialButton(context).apply {
+            val confirmButton = Button(context).apply {
                 text = context.getString(android.R.string.ok)
                 isAllCaps = false
-                minWidth = dp(48)
+                minWidth = 0
                 minimumWidth = 0
-                insetTop = 0
-                insetBottom = 0
-                cornerRadius = dp(20)
-                backgroundTintList = ColorStateList.valueOf(primaryColor)
-                setTextColor(onPrimaryColor)
+                setPadding(dp(16), 0, dp(16), 0)
+                background = GradientDrawable().apply {
+                    setColor(accentColor)
+                    cornerRadius = dp(20).toFloat()
+                }
+                setTextColor(surfaceColor)
                 setOnClickListener { currentIntent(SourceLoginIntent.Confirm) }
             }
             header.addView(
@@ -178,7 +175,7 @@ fun SourceLoginWebDialog(
             ).apply {
                 max = 100
                 progress = state.webProgress.coerceIn(0, 100)
-                progressTintList = ColorStateList.valueOf(primaryColor)
+                progressTintList = ColorStateList.valueOf(accentColor)
                 visibility = if (state.webProgress in 0..99) View.VISIBLE else View.GONE
             }
 
