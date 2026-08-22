@@ -152,6 +152,7 @@ fun ExploreScreenEnhance(
                     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
                 }
             },
+            enableContentSheetDrag = true,
         )
     }
 
