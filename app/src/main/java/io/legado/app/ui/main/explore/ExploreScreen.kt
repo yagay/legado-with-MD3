@@ -171,7 +171,6 @@ fun ExploreRouteScreen(
             viewModel.onIntent(ExploreIntent.OpenBook(book, sharedCoverKey))
         }
     )
-
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -386,14 +385,12 @@ fun ExploreScreen(
             }
         } else stringResource(R.string.search),
         topBarActions = {
-            Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-                if (state.layoutMode == 1) {
-                    TopBarActionButton(
-                        onClick = { onIntent(ExploreIntent.RefreshSuite) },
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = stringResource(R.string.refresh)
-                    )
-                }
+            if (state.layoutMode == 1) {
+                TopBarActionButton(
+                    onClick = { onIntent(ExploreIntent.RefreshSuite) },
+                    imageVector = Icons.Default.Refresh,
+                    contentDescription = stringResource(R.string.refresh)
+                )
             }
             if (state.layoutSwitcherEnabled) {
                 TopBarActionButton(
