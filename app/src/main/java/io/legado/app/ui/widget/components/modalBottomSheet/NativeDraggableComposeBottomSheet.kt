@@ -16,6 +16,8 @@ import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 
@@ -89,16 +91,18 @@ fun NativeDraggableComposeBottomSheet(
             val directionSlop = dp(2).toFloat()
             val releaseSlop = dp(8).toFloat()
 
+            fun navigationBarBottomInset(view: View): Int {
+                return ViewCompat.getRootWindowInsets(view)
+                    ?.getInsets(WindowInsetsCompat.Type.navigationBars())
+                    ?.bottom
+                    ?: 0
+            }
+
             fun syncVisibleContentViewport(sheet: View, forcedTop: Int? = null) {
                 val parent = sheet.parent as? View ?: return
                 if (parent.height <= 0) return
                 parentHeight = parent.height
 
-                // Keep the sheet content root full height at all times. The sheet itself is
-                // translated downward for the 75% anchor, so compensate that hidden portion
-                // with an equal bottom padding instead of shrinking the root. Shrinking the
-                // root can get stuck at 75% when BottomSheetBehavior reports EXPANDED before
-                // its final top has been laid out.
                 if (root.layoutParams.height != ViewGroup.LayoutParams.MATCH_PARENT) {
                     root.layoutParams = root.layoutParams.apply {
                         height = ViewGroup.LayoutParams.MATCH_PARENT
@@ -106,12 +110,18 @@ fun NativeDraggableComposeBottomSheet(
                 }
 
                 val hiddenBottom = (forcedTop ?: sheet.top).coerceIn(0, parentHeight)
-                if (root.paddingBottom != hiddenBottom) {
+                val navigationBottom = if (hiddenBottom > 0) {
+                    navigationBarBottomInset(parent)
+                } else {
+                    0
+                }
+                val bottomPadding = (hiddenBottom + navigationBottom).coerceAtMost(parentHeight)
+                if (root.paddingBottom != bottomPadding) {
                     root.setPadding(
                         root.paddingLeft,
                         root.paddingTop,
                         root.paddingRight,
-                        hiddenBottom,
+                        bottomPadding,
                     )
                     root.requestLayout()
                 }
@@ -315,9 +325,6 @@ fun NativeDraggableComposeBottomSheet(
                             val callback = object : BottomSheetBehavior.BottomSheetCallback() {
                                 override fun onStateChanged(bottomSheet: View, newState: Int) {
                                     syncForBehaviorState(bottomSheet, newState)
-                                    // BottomSheetBehavior may dispatch the state before the final
-                                    // top is applied. Re-check on the next frame so the content
-                                    // viewport always matches the settled geometry.
                                     bottomSheet.post {
                                         syncForBehaviorState(bottomSheet, newState)
                                     }
