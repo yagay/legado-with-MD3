@@ -88,6 +88,7 @@ fun NativeDraggableComposeBottomSheet(
             var gestureStartTop = 0
             var lastHandleY = 0f
             var lastDirection = 0
+            var manualSheetMotion = false
             val directionSlop = dp(2).toFloat()
             val dismissDistance = dp(72)
 
@@ -104,7 +105,9 @@ fun NativeDraggableComposeBottomSheet(
                 root.layoutParams = root.layoutParams.apply {
                     height = ViewGroup.LayoutParams.MATCH_PARENT
                 }
-                root.setPadding(root.paddingLeft, root.paddingTop, root.paddingRight, 0)
+                if (!manualSheetMotion) {
+                    root.setPadding(root.paddingLeft, root.paddingTop, root.paddingRight, 0)
+                }
                 behavior.isFitToContents = false
                 behavior.expandedOffset = 0
                 behavior.skipCollapsed = true
@@ -118,9 +121,11 @@ fun NativeDraggableComposeBottomSheet(
             fun animateBackToExpanded() {
                 val sheet = bottomSheetView ?: return
                 sheetAnimator?.cancel()
+                manualSheetMotion = true
                 if (sheet.top == 0) {
                     root.setPadding(root.paddingLeft, root.paddingTop, root.paddingRight, 0)
                     sheetBehavior?.state = BottomSheetBehavior.STATE_EXPANDED
+                    manualSheetMotion = false
                     return
                 }
                 var cancelled = false
@@ -134,12 +139,14 @@ fun NativeDraggableComposeBottomSheet(
                     addListener(object : AnimatorListenerAdapter() {
                         override fun onAnimationCancel(animation: Animator) {
                             cancelled = true
+                            manualSheetMotion = false
                         }
 
                         override fun onAnimationEnd(animation: Animator) {
                             if (cancelled) return
                             root.setPadding(root.paddingLeft, root.paddingTop, root.paddingRight, 0)
                             sheetBehavior?.state = BottomSheetBehavior.STATE_EXPANDED
+                            manualSheetMotion = false
                         }
                     })
                     start()
@@ -158,6 +165,7 @@ fun NativeDraggableComposeBottomSheet(
                     when (event.actionMasked) {
                         MotionEvent.ACTION_DOWN -> {
                             sheetAnimator?.cancel()
+                            manualSheetMotion = true
                             if (sheet != null && behavior != null) {
                                 refreshGeometry(sheet, behavior)
                             }
@@ -197,6 +205,7 @@ fun NativeDraggableComposeBottomSheet(
                         MotionEvent.ACTION_UP -> {
                             val releaseTop = sheet?.top ?: gestureStartTop
                             if (lastDirection > 0 && releaseTop >= dismissDistance) {
+                                manualSheetMotion = false
                                 dialogRef?.dismiss()
                             } else {
                                 animateBackToExpanded()
@@ -306,9 +315,11 @@ fun NativeDraggableComposeBottomSheet(
 
                             parent?.addOnLayoutChangeListener {
                                     _, _, _, _, _, _, _, _, _ ->
-                                refreshGeometry(bottomSheet, behavior)
-                                if (bottomSheet.top != 0) {
-                                    bottomSheet.offsetTopAndBottom(-bottomSheet.top)
+                                if (!manualSheetMotion) {
+                                    refreshGeometry(bottomSheet, behavior)
+                                    if (bottomSheet.top != 0) {
+                                        bottomSheet.offsetTopAndBottom(-bottomSheet.top)
+                                    }
                                 }
                             }
                         }
@@ -321,6 +332,7 @@ fun NativeDraggableComposeBottomSheet(
                 disposing = true
                 sheetAnimator?.cancel()
                 sheetAnimator = null
+                manualSheetMotion = false
                 sheetBehavior = null
                 bottomSheetView = null
                 dialogRef = null
