@@ -90,7 +90,7 @@ import io.legado.app.ui.widget.components.list.TopFloatingStickyItem
 import io.legado.app.ui.widget.components.menuItem.MenuItemIcon
 import io.legado.app.ui.widget.components.menuItem.RoundDropdownMenu
 import io.legado.app.ui.widget.components.menuItem.RoundDropdownMenuItem
-import io.legado.app.ui.widget.components.modalBottomSheet.AppModalBottomSheet
+import io.legado.app.ui.widget.components.modalBottomSheet.SourceKindPreviewBottomSheet
 import io.legado.app.ui.widget.components.progressIndicator.AppContainedLoadingIndicator
 import io.legado.app.ui.widget.components.text.AppText
 import io.legado.app.ui.widget.components.topbar.TopBarActionButton
@@ -374,7 +374,7 @@ fun ExploreScreen(
                                 }
                             )
                         }
-                    )
+                    }
                 }
             }
         } else null,
@@ -464,7 +464,7 @@ fun ExploreScreen(
         onDismiss = { sourceToDeleteUrl = null },
     )
 
-    AppModalBottomSheet(
+    SourceKindPreviewBottomSheet(
         show = state.layoutMode == 1 && sourceKindPreviewUrl != null,
         onDismissRequest = { sourceKindPreviewUrl = null },
         title = sourceKindPreviewSource?.bookSourceName ?: state.enhance.selectedSourceName,
