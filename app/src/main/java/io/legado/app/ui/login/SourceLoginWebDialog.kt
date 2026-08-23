@@ -1,8 +1,5 @@
 package io.legado.app.ui.login
 
-import android.animation.Animator
-import android.animation.AnimatorListenerAdapter
-import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.res.ColorStateList
 import android.graphics.Bitmap
@@ -15,7 +12,6 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
-import android.view.WindowManager
 import android.webkit.SslErrorHandler
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -35,18 +31,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
-import com.google.android.material.bottomsheet.BottomSheetBehavior
-import com.google.android.material.bottomsheet.BottomSheetDialog
 import io.legado.app.constant.AppConst
-import io.legado.app.ui.widget.components.modalBottomSheet.applyHostNavigationBarAppearance
+import io.legado.app.ui.widget.components.modalBottomSheet.SimpleDraggableOverlay
 import kotlin.math.abs
 
 /**
- * Native WebView login/browser bottom sheet.
- *
- * The sheet opens fully expanded. There is no intermediate collapsed anchor. When the WebView is
- * already at the top, continuing to pull down transfers the gesture to the sheet so it follows the
- * finger and then either dismisses or returns to the expanded position.
+ * Web login/browser shown in the same Activity window as a draggable overlay.
+ * No BottomSheetDialog or second Window is created.
  */
 @SuppressLint("SetJavaScriptEnabled", "WebViewClientOnReceivedSslError")
 @Composable
@@ -83,6 +74,8 @@ fun SourceLoginWebDialog(
             val onSurfaceColor = resolveColor(android.R.attr.textColorPrimary, Color.BLACK)
             val onSurfaceVariantColor = resolveColor(android.R.attr.textColorSecondary, onSurfaceColor)
             val accentColor = resolveColor(android.R.attr.colorAccent, onSurfaceColor)
+            val directionSlop = dp(2).toFloat()
+
             val sheetBackground = GradientDrawable().apply {
                 setColor(surfaceColor)
                 cornerRadii = floatArrayOf(
@@ -90,6 +83,11 @@ fun SourceLoginWebDialog(
                     dp(28).toFloat(), dp(28).toFloat(),
                     0f, 0f, 0f, 0f,
                 )
+            }
+
+            lateinit var overlay: SimpleDraggableOverlay
+            overlay = SimpleDraggableOverlay(context) {
+                if (!disposing) currentIntent(SourceLoginIntent.Back)
             }
 
             val root = LinearLayout(context).apply {
@@ -101,137 +99,47 @@ fun SourceLoginWebDialog(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                 )
             }
-
-            var sheetBehavior: BottomSheetBehavior<View>? = null
-            var bottomSheetView: View? = null
-            var dialogRef: BottomSheetDialog? = null
-            var sheetAnimator: ValueAnimator? = null
-            var parentHeight = 0
-            var manualSheetMotion = false
-            val directionSlop = dp(2).toFloat()
-            val dismissDistance = dp(72)
-
-            fun refreshGeometry() {
-                val sheet = bottomSheetView ?: return
-                val parent = sheet.parent as? View ?: return
-                if (parent.height <= 0) return
-                parentHeight = parent.height
-
-                sheet.layoutParams = sheet.layoutParams.apply {
-                    height = parentHeight
-                }
-                root.layoutParams = root.layoutParams.apply {
-                    height = parentHeight
-                }
-                sheetBehavior?.apply {
-                    isFitToContents = false
-                    expandedOffset = 0
-                    skipCollapsed = true
-                    isHideable = false
-                    isDraggable = false
-                }
-                sheet.requestLayout()
-                root.requestLayout()
-            }
-
-            fun animateSheetTo(targetTop: Int, dismissAtEnd: Boolean = false) {
-                val sheet = bottomSheetView ?: return
-                sheetAnimator?.cancel()
-                manualSheetMotion = true
-                val safeTarget = targetTop.coerceIn(0, parentHeight.coerceAtLeast(targetTop))
-                if (sheet.top == safeTarget) {
-                    if (dismissAtEnd) {
-                        manualSheetMotion = false
-                        dialogRef?.dismiss()
-                    } else {
-                        sheetBehavior?.state = BottomSheetBehavior.STATE_EXPANDED
-                        manualSheetMotion = false
-                    }
-                    return
-                }
-                var cancelled = false
-                sheetAnimator = ValueAnimator.ofInt(sheet.top, safeTarget).apply {
-                    duration = 220L
-                    addUpdateListener { animator ->
-                        val nextTop = animator.animatedValue as Int
-                        sheet.offsetTopAndBottom(nextTop - sheet.top)
-                    }
-                    addListener(object : AnimatorListenerAdapter() {
-                        override fun onAnimationCancel(animation: Animator) {
-                            cancelled = true
-                            manualSheetMotion = false
-                        }
-
-                        override fun onAnimationEnd(animation: Animator) {
-                            if (cancelled) return
-                            if (dismissAtEnd) {
-                                manualSheetMotion = false
-                                dialogRef?.dismiss()
-                            } else {
-                                sheetBehavior?.state = BottomSheetBehavior.STATE_EXPANDED
-                                manualSheetMotion = false
-                            }
-                        }
-                    })
-                    start()
-                }
-            }
-
-            fun settleDrag(direction: Int) {
-                val sheet = bottomSheetView ?: return
-                manualSheetMotion = true
-                refreshGeometry()
-                if (direction > 0 && sheet.top >= dismissDistance) {
-                    animateSheetTo(parentHeight, dismissAtEnd = true)
-                } else {
-                    animateSheetTo(0)
-                }
-            }
+            overlay.panel.addView(root)
 
             var topGestureStartY = 0f
+            var topGestureStartTranslation = 0f
             var topGestureLastY = 0f
-            var topGestureStartTop = 0
             var topGestureDirection = 0
 
             val topDragListener = View.OnTouchListener { view, event ->
-                val sheet = bottomSheetView
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
-                        sheetAnimator?.cancel()
-                        manualSheetMotion = true
-                        refreshGeometry()
+                        overlay.cancelAnimation()
                         topGestureStartY = event.rawY
+                        topGestureStartTranslation = overlay.panel.translationY
                         topGestureLastY = event.rawY
-                        topGestureStartTop = sheet?.top ?: 0
                         topGestureDirection = 0
                         view.parent?.requestDisallowInterceptTouchEvent(true)
                         true
                     }
 
                     MotionEvent.ACTION_MOVE -> {
-                        val delta = event.rawY - topGestureLastY
+                        val step = event.rawY - topGestureLastY
                         topGestureLastY = event.rawY
-                        if (abs(delta) >= directionSlop) {
-                            topGestureDirection = if (delta > 0f) 1 else -1
+                        if (abs(step) >= directionSlop) {
+                            topGestureDirection = if (step > 0f) 1 else -1
                         }
-                        sheet?.let { movingSheet ->
-                            val requestedTop = (topGestureStartTop + event.rawY - topGestureStartY).toInt()
-                            val targetTop = requestedTop.coerceIn(0, parentHeight)
-                            movingSheet.offsetTopAndBottom(targetTop - movingSheet.top)
-                        }
+                        overlay.moveTo(
+                            topGestureStartTranslation + event.rawY - topGestureStartY,
+                        )
                         true
                     }
 
                     MotionEvent.ACTION_UP -> {
                         view.parent?.requestDisallowInterceptTouchEvent(false)
-                        settleDrag(topGestureDirection)
+                        overlay.settle(topGestureDirection)
                         view.performClick()
                         true
                     }
 
                     MotionEvent.ACTION_CANCEL -> {
                         view.parent?.requestDisallowInterceptTouchEvent(false)
-                        animateSheetTo(0)
+                        overlay.settle(-1)
                         true
                     }
 
@@ -251,7 +159,10 @@ fun SourceLoginWebDialog(
                 }
                 alpha = 0.45f
             }
-            dragHandleHost.addView(dragHandle, FrameLayout.LayoutParams(dp(32), dp(4), Gravity.CENTER))
+            dragHandleHost.addView(
+                dragHandle,
+                FrameLayout.LayoutParams(dp(32), dp(4), Gravity.CENTER),
+            )
 
             val header = LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
@@ -284,7 +195,10 @@ fun SourceLoginWebDialog(
                 setOnClickListener { currentIntent(SourceLoginIntent.Confirm) }
             }
             header.addView(titleView, LinearLayout.LayoutParams(0, dp(48), 1f))
-            header.addView(confirmButton, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(40)))
+            header.addView(
+                confirmButton,
+                LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(40)),
+            )
 
             val progress = ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal).apply {
                 max = 100
@@ -295,20 +209,20 @@ fun SourceLoginWebDialog(
 
             var contentGestureStartY = 0f
             var contentGestureLastY = 0f
-            var contentGestureStartTop = 0
+            var contentGestureStartTranslation = 0f
             var contentLastDirection = 0
             var contentDraggingSheet = false
 
             val nativeWebView = object : WebView(context) {
                 override fun onTouchEvent(event: MotionEvent): Boolean {
                     if (!enableContentSheetDrag) return super.onTouchEvent(event)
-                    val sheet = bottomSheetView
+
                     when (event.actionMasked) {
                         MotionEvent.ACTION_DOWN -> {
-                            sheetAnimator?.cancel()
+                            overlay.cancelAnimation()
                             contentGestureStartY = event.rawY
                             contentGestureLastY = event.rawY
-                            contentGestureStartTop = sheet?.top ?: 0
+                            contentGestureStartTranslation = overlay.panel.translationY
                             contentLastDirection = 0
                             contentDraggingSheet = false
                             return super.onTouchEvent(event)
@@ -321,33 +235,28 @@ fun SourceLoginWebDialog(
                                 contentLastDirection = if (step > 0f) 1 else -1
                             }
 
-                            if (!contentDraggingSheet && sheet != null) {
+                            if (!contentDraggingSheet) {
                                 val total = event.rawY - contentGestureStartY
                                 val contentAtTop = scrollY <= 0 || !canScrollVertically(-1)
-                                val draggingDownFromTop = total > directionSlop && contentAtTop
-                                if (draggingDownFromTop) {
+                                if (total > directionSlop && contentAtTop) {
                                     val cancel = MotionEvent.obtain(event).apply {
                                         action = MotionEvent.ACTION_CANCEL
                                     }
                                     super.onTouchEvent(cancel)
                                     cancel.recycle()
-                                    manualSheetMotion = true
-                                    refreshGeometry()
                                     contentDraggingSheet = true
                                     contentGestureStartY = event.rawY
-                                    contentGestureStartTop = sheet.top
+                                    contentGestureStartTranslation = overlay.panel.translationY
                                     contentGestureLastY = event.rawY
                                     parent?.requestDisallowInterceptTouchEvent(true)
                                     return true
                                 }
                             }
 
-                            if (contentDraggingSheet && sheet != null) {
-                                val requestedTop = (
-                                    contentGestureStartTop + event.rawY - contentGestureStartY
-                                ).toInt()
-                                val targetTop = requestedTop.coerceIn(0, parentHeight)
-                                sheet.offsetTopAndBottom(targetTop - sheet.top)
+                            if (contentDraggingSheet) {
+                                overlay.moveTo(
+                                    contentGestureStartTranslation + event.rawY - contentGestureStartY,
+                                )
                                 return true
                             }
                         }
@@ -356,7 +265,7 @@ fun SourceLoginWebDialog(
                             if (contentDraggingSheet) {
                                 contentDraggingSheet = false
                                 parent?.requestDisallowInterceptTouchEvent(false)
-                                settleDrag(contentLastDirection)
+                                overlay.settle(contentLastDirection)
                                 performClick()
                                 return true
                             }
@@ -366,7 +275,7 @@ fun SourceLoginWebDialog(
                             if (contentDraggingSheet) {
                                 contentDraggingSheet = false
                                 parent?.requestDisallowInterceptTouchEvent(false)
-                                animateSheetTo(0)
+                                overlay.settle(-1)
                                 return true
                             }
                         }
@@ -442,69 +351,16 @@ fun SourceLoginWebDialog(
                 LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f),
             )
 
-            val dialog = BottomSheetDialog(context).apply {
-                setContentView(root)
-                window?.let { dialogWindow ->
-                    dialogWindow.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
-                    applyHostNavigationBarAppearance(context, dialogWindow, surfaceColor)
-                }
-                setCanceledOnTouchOutside(true)
-                setOnDismissListener {
-                    if (!disposing) currentIntent(SourceLoginIntent.Back)
-                }
-                setOnShowListener {
-                    window?.let { dialogWindow ->
-                        applyHostNavigationBarAppearance(context, dialogWindow, surfaceColor)
-                    }
-                    findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
-                        ?.let { bottomSheet ->
-                            bottomSheetView = bottomSheet
-                            bottomSheet.background = sheetBackground
-                            val behavior = BottomSheetBehavior.from(bottomSheet).apply {
-                                isFitToContents = false
-                                expandedOffset = 0
-                                skipCollapsed = true
-                                isHideable = false
-                                isDraggable = false
-                            }
-                            sheetBehavior = behavior
-                            bottomSheet.post {
-                                refreshGeometry()
-                                if (bottomSheet.top != 0) {
-                                    bottomSheet.offsetTopAndBottom(-bottomSheet.top)
-                                }
-                                behavior.state = BottomSheetBehavior.STATE_EXPANDED
-                            }
-                            (bottomSheet.parent as? View)?.addOnLayoutChangeListener {
-                                    _, _, _, _, _, _, _, _, _ ->
-                                if (!manualSheetMotion) {
-                                    refreshGeometry()
-                                    if (bottomSheet.top != 0) {
-                                        bottomSheet.offsetTopAndBottom(-bottomSheet.top)
-                                    }
-                                }
-                            }
-                        }
-                }
-                show()
-            }
-            dialogRef = dialog
+            overlay.show()
 
             onDispose {
                 disposing = true
-                sheetAnimator?.cancel()
-                sheetAnimator = null
-                manualSheetMotion = false
-                sheetBehavior = null
-                bottomSheetView = null
-                dialogRef = null
+                overlay.dispose()
                 webView = null
                 nativeWebView.stopLoading()
                 nativeWebView.webChromeClient = null
                 nativeWebView.webViewClient = WebViewClient()
                 nativeWebView.destroy()
-                dialog.setOnDismissListener(null)
-                dialog.dismiss()
             }
         }
     }
