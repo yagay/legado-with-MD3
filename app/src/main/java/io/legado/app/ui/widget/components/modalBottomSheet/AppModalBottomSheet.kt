@@ -7,22 +7,12 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.MaterialExpressiveTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.MotionScheme
-import androidx.compose.material3.Shapes
-import androidx.compose.material3.SheetValue.Expanded
-import androidx.compose.material3.SheetValue.Hidden
 import androidx.compose.material3.Text
-import androidx.compose.material3.Typography
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,19 +20,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import io.legado.app.ui.theme.LegadoTheme
-import io.legado.app.ui.theme.LocalLegadoThemeColors
 import io.legado.app.ui.theme.ProvideAppContentColor
 import io.legado.app.ui.theme.ProvideAppDensity
-import io.legado.app.ui.theme.ThemeResolver
-import io.legado.app.ui.widget.components.menuItem.LocalUseMiuixWindowPopup
-import top.yukonga.miuix.kmp.window.WindowBottomSheet
 
+/**
+ * 应用统一拖拽弹窗宿主。
+ *
+ * 登录、类别选择、日志/说明类弹窗以及导航层普通二级页面都应复用这一组件，
+ * 统一拖动、圆角、遮罩和系统栏表现；各页面内容及自身 TopAppBar 保持不变。
+ */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 @Suppress("UNUSED_PARAMETER")
@@ -61,170 +51,92 @@ fun AppModalBottomSheet(
     maxHeightFraction: Float = 1f,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val colorScheme = LocalLegadoThemeColors.current.colorScheme
+    if (!show) return
+
     val sheetContainerColor = containerColor ?: LegadoTheme.colorScheme.surfaceContainer
     val sheetContentColor = LegadoTheme.colorScheme.onSurface
-    val sheetDragHandleColor = LegadoTheme.colorScheme.onSurfaceVariant
     val sheetScrimColor = LegadoTheme.colorScheme.background
-    val navigationFallbackColor = sheetContainerColor.toArgb()
 
-    if (ThemeResolver.isMiuixEngine(LegadoTheme.composeEngine)) {
-        WindowBottomSheet(
-            show = show,
-            modifier = modifier.fillMaxSize(),
-            title = title,
-            startAction = startAction?.let { action ->
-                {
-                    ProvideAppDensity {
-                        ProvideAppContentColor(sheetContentColor) {
-                            CompositionLocalProvider(LocalUseMiuixWindowPopup provides true) {
-                                Box(
-                                    modifier = if (contentPaddingEnabled) Modifier
-                                    else Modifier.padding(start = 16.dp),
-                                ) { action() }
+    NativeDraggableComposeBottomSheet(
+        show = true,
+        title = null,
+        onDismissRequest = onDismissRequest,
+        scrimColor = sheetScrimColor,
+        containerColor = sheetContainerColor,
+        gesturesEnabled = sheetGesturesEnabled,
+    ) {
+        ProvideAppDensity {
+            ProvideAppContentColor(sheetContentColor) {
+                Column(
+                    modifier = modifier
+                        .fillMaxSize()
+                        .let { contentModifier ->
+                            if (contentPaddingEnabled) {
+                                contentModifier.padding(
+                                    start = 16.dp,
+                                    end = 16.dp,
+                                    bottom = 16.dp,
+                                )
+                            } else {
+                                contentModifier
                             }
                         }
-                    }
-                }
-            },
-            endAction = endAction?.let { action ->
-                {
-                    ProvideAppDensity {
-                        ProvideAppContentColor(sheetContentColor) {
-                            CompositionLocalProvider(LocalUseMiuixWindowPopup provides true) {
-                                Box(
-                                    modifier = if (contentPaddingEnabled) Modifier
-                                    else Modifier.padding(end = 16.dp),
-                                ) { action() }
-                            }
+                        .let { contentModifier ->
+                            if (animateContentSize) contentModifier.animateContentSize()
+                            else contentModifier
                         }
-                    }
-                }
-            },
-            insideMargin = if (contentPaddingEnabled) DpSize(16.dp, 0.dp) else DpSize(0.dp, 0.dp),
-            backgroundColor = sheetContainerColor,
-            dragHandleColor = sheetDragHandleColor,
-            onDismissRequest = onDismissRequest,
-            enableWindowDim = false,
-        ) {
-            SyncDialogNavigationBarAppearance(navigationFallbackColor)
-            ProvideAppDensity {
-                ProvideAppContentColor(sheetContentColor) {
-                    CompositionLocalProvider(LocalUseMiuixWindowPopup provides true) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .let {
-                                    if (contentPaddingEnabled) {
-                                        it.padding(bottom = 24.dp)
-                                    } else {
-                                        it.navigationBarsPadding()
-                                    }
-                                }
-                                .let { contentModifier ->
-                                    if (animateContentSize) contentModifier.animateContentSize() else contentModifier
-                                },
-                            content = content
-                        )
-                    }
-                }
-            }
-        }
-    } else {
-        if (show) {
-            val sheetState = rememberBottomSheetState(
-                initialValue = Hidden,
-                enabledValues = setOf(Hidden, Expanded)
-            )
-
-            MaterialExpressiveTheme(
-                colorScheme = colorScheme,
-                typography = Typography(),
-                motionScheme = MotionScheme.expressive(),
-                shapes = Shapes()
-            ) {
-                ModalBottomSheet(
-                    onDismissRequest = onDismissRequest,
-                    sheetState = sheetState,
-                    modifier = modifier,
-                    containerColor = sheetContainerColor,
-                    contentColor = sheetContentColor,
-                    dragHandle = { BottomSheetDefaults.DragHandle(color = sheetDragHandleColor) },
-                    contentWindowInsets = contentWindowInsets,
-                    sheetGesturesEnabled = sheetGesturesEnabled,
-                    scrimColor = sheetScrimColor,
                 ) {
-                    SyncDialogNavigationBarAppearance(navigationFallbackColor)
-                    ProvideAppDensity {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .let {
-                                    if (contentPaddingEnabled) {
-                                        it.padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
-                                    } else {
-                                        it
-                                    }
-                                }
-                                .let { contentModifier ->
-                                    if (animateContentSize) contentModifier.animateContentSize() else contentModifier
-                                }
-                        ) {
-                            val hasHeader =
-                                !title.isNullOrEmpty() || startAction != null || endAction != null
+                    val hasHeader =
+                        !title.isNullOrEmpty() || startAction != null || endAction != null
 
-                            if (hasHeader) {
+                    if (hasHeader) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 16.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            if (startAction != null) {
                                 Box(
                                     modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(bottom = 16.dp),
-                                    contentAlignment = Alignment.Center
+                                        .align(Alignment.CenterStart)
+                                        .let {
+                                            if (contentPaddingEnabled) it
+                                            else it.padding(start = 16.dp)
+                                        }
                                 ) {
-                                    if (startAction != null) {
-                                        Box(
-                                            modifier = Modifier
-                                                .align(Alignment.CenterStart)
-                                                .let {
-                                                    if (contentPaddingEnabled) it else it.padding(
-                                                        start = 16.dp
-                                                    )
-                                                }
-                                        ) {
-                                            startAction()
-                                        }
-                                    }
-
-                                    if (!title.isNullOrEmpty()) {
-                                        Text(
-                                            text = title,
-                                            style = LegadoTheme.typography.titleMediumEmphasized,
-                                            color = sheetContentColor,
-                                            textAlign = TextAlign.Center,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                            modifier = Modifier.padding(horizontal = 56.dp)
-                                        )
-                                    }
-
-                                    if (endAction != null) {
-                                        Box(
-                                            modifier = Modifier
-                                                .align(Alignment.CenterEnd)
-                                                .let {
-                                                    if (contentPaddingEnabled) it else it.padding(
-                                                        end = 16.dp
-                                                    )
-                                                }
-                                        ) {
-                                            endAction()
-                                        }
-                                    }
+                                    startAction()
                                 }
                             }
 
-                            content()
+                            if (!title.isNullOrEmpty()) {
+                                Text(
+                                    text = title,
+                                    style = LegadoTheme.typography.titleMediumEmphasized,
+                                    color = sheetContentColor,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.padding(horizontal = 56.dp),
+                                )
+                            }
+
+                            if (endAction != null) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.CenterEnd)
+                                        .let {
+                                            if (contentPaddingEnabled) it
+                                            else it.padding(end = 16.dp)
+                                        }
+                                ) {
+                                    endAction()
+                                }
+                            }
                         }
                     }
+
+                    content()
                 }
             }
         }
@@ -233,7 +145,7 @@ fun AppModalBottomSheet(
 
 /**
  * 专为 nullable 数据设计的 AppModalBottomSheet 重载。
- * 当 [data] 不为 null 时显示弹窗；当 [data] 变为 null 时，自动缓存最后一次数据并播放退出动画。
+ * 当 [data] 不为 null 时显示弹窗；当 [data] 变为 null 时缓存最后一次内容。
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
