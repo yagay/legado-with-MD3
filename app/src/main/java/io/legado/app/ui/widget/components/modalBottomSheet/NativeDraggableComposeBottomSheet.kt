@@ -17,6 +17,7 @@ import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -28,21 +29,24 @@ import androidx.compose.ui.unit.Velocity
 import kotlin.math.abs
 
 /**
- * Android 平台原生拖拽底栏。
+ * Android 平台统一原生拖拽底栏。
  *
- * 显式指明颜色类型以解决 android.graphics.Color 与 androidx.compose.ui.graphics.Color 的冲突。
+ * 登录、类别选择以及导航层二级页面都通过这一底层宿主展示，
+ * 统一拖动、系统栏、背景和遮罩行为。
  */
 @Composable
 fun NativeDraggableComposeBottomSheet(
     show: Boolean,
     title: String?,
     onDismissRequest: () -> Unit,
-    scrimColor: androidx.compose.ui.graphics.Color = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.4f),
+    scrimColor: Color = Color.Black.copy(alpha = 0.4f),
+    containerColor: Color = MaterialTheme.colorScheme.surface,
+    gesturesEnabled: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current.density
-    val surfaceColor = MaterialTheme.colorScheme.surface.toArgb()
+    val surfaceColor = containerColor.toArgb()
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface.toArgb()
     val onSurfaceVariantColor = MaterialTheme.colorScheme.onSurfaceVariant.toArgb()
     val scrimColorArgb = scrimColor.toArgb()
@@ -58,6 +62,7 @@ fun NativeDraggableComposeBottomSheet(
         onSurfaceColor,
         onSurfaceVariantColor,
         scrimColorArgb,
+        gesturesEnabled,
     ) {
         if (!show) {
             onDispose { }
@@ -104,43 +109,45 @@ fun NativeDraggableComposeBottomSheet(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     dp(32),
                 )
-                isClickable = true
-                setOnTouchListener { view, event ->
-                    when (event.actionMasked) {
-                        MotionEvent.ACTION_DOWN -> {
-                            overlay.cancelAnimation()
-                            gestureStartY = event.rawY
-                            gestureStartTranslation = overlay.panel.translationY
-                            lastY = event.rawY
-                            lastDirection = 0
-                            view.parent?.requestDisallowInterceptTouchEvent(true)
-                            true
-                        }
-
-                        MotionEvent.ACTION_MOVE -> {
-                            val step = event.rawY - lastY
-                            lastY = event.rawY
-                            if (abs(step) >= directionSlop) {
-                                lastDirection = if (step > 0f) 1 else -1
+                isClickable = gesturesEnabled
+                if (gesturesEnabled) {
+                    setOnTouchListener { view, event ->
+                        when (event.actionMasked) {
+                            MotionEvent.ACTION_DOWN -> {
+                                overlay.cancelAnimation()
+                                gestureStartY = event.rawY
+                                gestureStartTranslation = overlay.panel.translationY
+                                lastY = event.rawY
+                                lastDirection = 0
+                                view.parent?.requestDisallowInterceptTouchEvent(true)
+                                true
                             }
-                            overlay.moveTo(gestureStartTranslation + event.rawY - gestureStartY)
-                            true
-                        }
 
-                        MotionEvent.ACTION_UP -> {
-                            view.parent?.requestDisallowInterceptTouchEvent(false)
-                            overlay.settle(lastDirection)
-                            view.performClick()
-                            true
-                        }
+                            MotionEvent.ACTION_MOVE -> {
+                                val step = event.rawY - lastY
+                                lastY = event.rawY
+                                if (abs(step) >= directionSlop) {
+                                    lastDirection = if (step > 0f) 1 else -1
+                                }
+                                overlay.moveTo(gestureStartTranslation + event.rawY - gestureStartY)
+                                true
+                            }
 
-                        MotionEvent.ACTION_CANCEL -> {
-                            view.parent?.requestDisallowInterceptTouchEvent(false)
-                            overlay.settle(-1)
-                            true
-                        }
+                            MotionEvent.ACTION_UP -> {
+                                view.parent?.requestDisallowInterceptTouchEvent(false)
+                                overlay.settle(lastDirection)
+                                view.performClick()
+                                true
+                            }
 
-                        else -> true
+                            MotionEvent.ACTION_CANCEL -> {
+                                view.parent?.requestDisallowInterceptTouchEvent(false)
+                                overlay.settle(-1)
+                                true
+                            }
+
+                            else -> true
+                        }
                     }
                 }
             }
@@ -150,7 +157,7 @@ fun NativeDraggableComposeBottomSheet(
                     setColor(onSurfaceVariantColor)
                     cornerRadius = dp(2).toFloat()
                 }
-                alpha = 0.45f
+                alpha = if (gesturesEnabled) 0.45f else 0.25f
             }
             dragHandleHost.addView(
                 dragHandle,
@@ -179,6 +186,7 @@ fun NativeDraggableComposeBottomSheet(
 
             val contentNestedScrollConnection = object : NestedScrollConnection {
                 override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                    if (!gesturesEnabled) return Offset.Zero
                     if (overlay.panel.translationY > 0f && available.y < 0f) {
                         return Offset(0f, overlay.moveBy(available.y))
                     }
@@ -190,6 +198,7 @@ fun NativeDraggableComposeBottomSheet(
                     available: Offset,
                     source: NestedScrollSource,
                 ): Offset {
+                    if (!gesturesEnabled) return Offset.Zero
                     if (available.y > 0f) {
                         return Offset(0f, overlay.moveBy(available.y))
                     }
@@ -197,6 +206,7 @@ fun NativeDraggableComposeBottomSheet(
                 }
 
                 override suspend fun onPreFling(available: Velocity): Velocity {
+                    if (!gesturesEnabled) return Velocity.Zero
                     if (overlay.panel.translationY > 0f) {
                         overlay.settle(if (available.y > 0f) 1 else -1)
                         return available
