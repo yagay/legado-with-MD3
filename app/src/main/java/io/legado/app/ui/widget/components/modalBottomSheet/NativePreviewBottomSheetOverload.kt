@@ -10,15 +10,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 
 /**
- * Narrow overload used by the enhanced explore source-kind preview.
+ * Dedicated native draggable sheet host used by the enhanced explore source-kind preview.
  *
- * The preview content owns its scrolling and fills the native sheet viewport directly.
- * Keeping this wrapper constraint-free avoids stacking a second custom measurement layer on
- * top of the LazyColumn when the sheet moves between collapsed and expanded anchors.
+ * Keep this function name distinct from AppModalBottomSheet. The generic AppModalBottomSheet
+ * has defaults for the same named arguments, so using the same function name makes calls with
+ * show/onDismissRequest/title/containerColor/content ambiguous to Kotlin overload resolution.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AppModalBottomSheet(
+fun SourceKindPreviewBottomSheet(
     show: Boolean,
     onDismissRequest: () -> Unit,
     title: String?,
