@@ -34,11 +34,29 @@ fun <T> calculateFlexRows(
     var currentRow = mutableListOf<Pair<T, Int>>()
     var currentSpan = 0
 
-    fun pushCurrentRow() {
+    fun fillCurrentRowTail() {
         if (currentRow.isEmpty()) return
-        rows.add(currentRow)
-        currentRow = mutableListOf()
-        currentSpan = 0
+        val remain = maxSpan - currentSpan
+        if (remain <= 0) return
+        val allSameSpan = currentRow.map { it.second }.distinct().size == 1
+        if (allSameSpan && currentRow.size > 1) {
+            val addEach = remain / currentRow.size
+            var extra = remain % currentRow.size
+            currentRow.indices.forEach { index ->
+                val (item, span) = currentRow[index]
+                val add = addEach + if (extra > 0) {
+                    extra -= 1
+                    1
+                } else {
+                    0
+                }
+                currentRow[index] = item to (span + add)
+            }
+        } else {
+            val (lastItem, lastSpan) = currentRow.last()
+            currentRow[currentRow.lastIndex] = lastItem to (lastSpan + remain)
+        }
+        currentSpan += remain
     }
 
     items.forEach { item ->
@@ -47,25 +65,27 @@ fun <T> calculateFlexRows(
             style.wrapBefore || style.basisPercent >= 1.0f -> maxSpan
             style.basisPercent > 0 -> (maxSpan * style.basisPercent).roundToInt()
                 .coerceIn(1, maxSpan)
+
             style.flexGrow > 0f -> 3
             else -> 2
         }
-
-        // Preserve the source-defined size. A partially filled row is left as-is;
-        // the caller may render the remaining area as spacing instead of stretching
-        // the last category and changing the source layout semantics.
-        if ((style.wrapBefore && currentRow.isNotEmpty()) || currentSpan + span > maxSpan) {
-            pushCurrentRow()
+        if ((style.wrapBefore && currentRow.isNotEmpty()) || (currentSpan + span > maxSpan)) {
+            fillCurrentRowTail()
+            rows.add(currentRow)
+            currentRow = mutableListOf()
+            currentSpan = 0
         }
-
         currentRow.add(item to span)
         currentSpan += span
-
         if (currentSpan >= maxSpan) {
-            pushCurrentRow()
+            rows.add(currentRow)
+            currentRow = mutableListOf()
+            currentSpan = 0
         }
     }
-
-    pushCurrentRow()
+    if (currentRow.isNotEmpty()) {
+        fillCurrentRowTail()
+        rows.add(currentRow)
+    }
     return rows
 }
