@@ -30,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpSize
@@ -64,6 +65,7 @@ fun AppModalBottomSheet(
     val sheetContainerColor = containerColor ?: LegadoTheme.colorScheme.surfaceContainer
     val sheetContentColor = LegadoTheme.colorScheme.onSurface
     val sheetDragHandleColor = LegadoTheme.colorScheme.onSurfaceVariant
+    val navigationFallbackColor = sheetContainerColor.toArgb()
 
     if (ThemeResolver.isMiuixEngine(LegadoTheme.composeEngine)) {
         WindowBottomSheet(
@@ -104,6 +106,7 @@ fun AppModalBottomSheet(
             onDismissRequest = onDismissRequest,
             enableWindowDim = true,
         ) {
+            SyncDialogNavigationBarAppearance(navigationFallbackColor)
             ProvideAppDensity {
                 ProvideAppContentColor(sheetContentColor) {
                     CompositionLocalProvider(LocalUseMiuixWindowPopup provides true) {
@@ -149,6 +152,7 @@ fun AppModalBottomSheet(
                     contentWindowInsets = contentWindowInsets,
                     sheetGesturesEnabled = sheetGesturesEnabled,
                 ) {
+                    SyncDialogNavigationBarAppearance(navigationFallbackColor)
                     ProvideAppDensity {
                         Column(
                             modifier = Modifier
