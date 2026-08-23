@@ -53,6 +53,11 @@ inline fun <T> runScriptWithContext(context: CoroutineContext, block: () -> T): 
 }
 
 suspend inline fun <T> runScriptWithContext(block: () -> T): T {
+    // Keep suspend and non-suspend entry points consistent: initialize the
+    // application's global Rhino ContextFactory before entering a Context.
+    // Without this, the first suspend JS execution can receive a plain
+    // org.mozilla.javascript.Context and fail the RhinoContext cast.
+    RhinoScriptEngine
     val rhinoContext = Context.enter() as RhinoContext
     val previousCoroutineContext = rhinoContext.coroutineContext
     rhinoContext.coroutineContext = currentCoroutineContext().minusKey(ContinuationInterceptor)
