@@ -1,6 +1,5 @@
 package io.legado.app.ui.widget.components.modalBottomSheet
 
-import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.util.TypedValue
 import android.view.Gravity
@@ -18,6 +17,7 @@ import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -26,11 +26,17 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Velocity
 import kotlin.math.abs
 
+/**
+ * Android 平台原生拖拽底栏。
+ *
+ * 显式指明颜色类型以解决 android.graphics.Color 与 androidx.compose.ui.graphics.Color 的冲突。
+ */
 @Composable
 fun NativeDraggableComposeBottomSheet(
     show: Boolean,
     title: String?,
     onDismissRequest: () -> Unit,
+    scrimColor: androidx.compose.ui.graphics.Color = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.4f),
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
@@ -59,8 +65,8 @@ fun NativeDraggableComposeBottomSheet(
                 }
             }
 
-            val surfaceColor = resolveColor(android.R.attr.colorBackground, Color.WHITE)
-            val onSurfaceColor = resolveColor(android.R.attr.textColorPrimary, Color.BLACK)
+            val surfaceColor = resolveColor(android.R.attr.colorBackground, android.graphics.Color.WHITE)
+            val onSurfaceColor = resolveColor(android.R.attr.textColorPrimary, android.graphics.Color.BLACK)
             val onSurfaceVariantColor = resolveColor(android.R.attr.textColorSecondary, onSurfaceColor)
 
             val sheetBackground = GradientDrawable().apply {
@@ -73,9 +79,13 @@ fun NativeDraggableComposeBottomSheet(
             }
 
             lateinit var overlay: SimpleDraggableOverlay
-            overlay = SimpleDraggableOverlay(context) {
-                if (!disposing) currentDismiss.value.invoke()
-            }
+            overlay = SimpleDraggableOverlay(
+                context = context,
+                scrimColor = scrimColor.toArgb(),
+                onDismiss = {
+                    if (!disposing) currentDismiss.value.invoke()
+                }
+            )
 
             val sheetRoot = LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL

@@ -91,6 +91,7 @@ fun DiscoverySuiteConfig.sanitize(): DiscoverySuiteConfig {
         suites = suites.map { suite ->
             suite.copy(
                 widgets = suite.widgets
+                    .filterNot { it.title == "分类" || it.title == "榜单" }
                     .distinctBy { it.id }
                     .sortedBy { it.order }
                     .let { list ->

@@ -25,6 +25,7 @@ import androidx.core.view.WindowInsetsCompat
  */
 internal class SimpleDraggableOverlay(
     private val context: Context,
+    private val scrimColor: Int = Color.argb(96, 0, 0, 0),
     private val onDismiss: () -> Unit,
 ) {
     private val density = context.resources.displayMetrics.density
@@ -45,7 +46,8 @@ internal class SimpleDraggableOverlay(
     }
 
     private val scrim = View(context).apply {
-        setBackgroundColor(Color.argb(96, 0, 0, 0))
+        setBackgroundColor(scrimColor)
+        alpha = 0f
         isClickable = true
         setOnClickListener { dismiss() }
     }
@@ -57,6 +59,7 @@ internal class SimpleDraggableOverlay(
             Gravity.BOTTOM,
         )
         isClickable = true
+        visibility = View.INVISIBLE
     }
 
     private val backCallback = object : OnBackPressedCallback(true) {
@@ -103,6 +106,7 @@ internal class SimpleDraggableOverlay(
         if (root.parent == null) {
             parent.addView(root)
         }
+        panel.visibility = View.INVISIBLE
         ViewCompat.requestApplyInsets(root)
         componentActivity?.let { host ->
             host.onBackPressedDispatcher.addCallback(host, backCallback)
@@ -111,6 +115,7 @@ internal class SimpleDraggableOverlay(
             val distance = root.height.takeIf { it > 0 }
                 ?: context.resources.displayMetrics.heightPixels
             panel.translationY = distance.toFloat()
+            panel.visibility = View.VISIBLE
             scrim.alpha = 0f
             animateTo(0f, dismissAtEnd = false, duration = 220L)
         }

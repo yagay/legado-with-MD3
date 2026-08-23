@@ -71,24 +71,8 @@ object DiscoverySuiteStore {
     }
 
     private fun createDefaultConfig(): DiscoverySuiteConfig {
-        val defaultSuite = newSuite("示例首页").copy(
+        val defaultSuite = newSuite("瀑布流首页").copy(
             widgets = listOf(
-                newWidget("分类", DiscoverySuiteWidgetType.TagBar).copy(
-                    isDynamic = true,
-                    targets = listOf(
-                        DiscoverySuiteWidgetTarget(title = "玄幻"),
-                        DiscoverySuiteWidgetTarget(title = "修真"),
-                        DiscoverySuiteWidgetTarget(title = "都市"),
-                        DiscoverySuiteWidgetTarget(title = "穿越")
-                    )
-                ),
-                newWidget("榜单", DiscoverySuiteWidgetType.RankButtons).copy(
-                    targets = listOf(
-                        DiscoverySuiteWidgetTarget(title = "推荐"),
-                        DiscoverySuiteWidgetTarget(title = "评分"),
-                        DiscoverySuiteWidgetTarget(title = "热门")
-                    )
-                ),
                 newWidget("推荐图书", DiscoverySuiteWidgetType.WaterfallBooks).copy(
                     displayStyle = 1 // Default to List style
                 )

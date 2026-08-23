@@ -23,12 +23,14 @@ fun SourceKindPreviewBottomSheet(
     onDismissRequest: () -> Unit,
     title: String?,
     containerColor: Color,
+    scrimColor: Color = Color.Black.copy(alpha = 0.4f),
     content: @Composable ColumnScope.() -> Unit,
 ) {
     NativeDraggableComposeBottomSheet(
         show = show,
         title = title,
         onDismissRequest = onDismissRequest,
+        scrimColor = scrimColor,
     ) {
         Column(
             modifier = Modifier

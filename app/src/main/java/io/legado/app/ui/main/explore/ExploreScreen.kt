@@ -200,6 +200,9 @@ fun ExploreScreen(
     val sourceKindPreviewSource = remember(sourceKindPreviewUrl, state.items) {
         state.items.firstOrNull { it.bookSourceUrl == sourceKindPreviewUrl }
     }
+    val stablePreviewTitle = remember(sourceKindPreviewSource, state.enhance.selectedSourceName) {
+        sourceKindPreviewSource?.bookSourceName ?: state.enhance.selectedSourceName
+    }
 
     val composeEngine = ThemeResolver.isMiuixEngine(composeEngine)
     val sourceMenuItems = remember(state.items) {
@@ -467,8 +470,9 @@ fun ExploreScreen(
     SourceKindPreviewBottomSheet(
         show = state.layoutMode == 1 && sourceKindPreviewUrl != null,
         onDismissRequest = { sourceKindPreviewUrl = null },
-        title = sourceKindPreviewSource?.bookSourceName ?: state.enhance.selectedSourceName,
+        title = stablePreviewTitle,
         containerColor = LegadoTheme.colorScheme.background,
+        scrimColor = LegadoTheme.colorScheme.background,
     ) {
         when {
             sourceKindPreviewLoading -> {
