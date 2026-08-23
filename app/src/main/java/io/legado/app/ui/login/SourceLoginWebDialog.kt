@@ -44,9 +44,9 @@ import kotlin.math.abs
 /**
  * Native WebView login/browser bottom sheet.
  *
- * The sheet opens fully expanded. There is no intermediate 75%/collapsed anchor; dragging down
- * from the handle (or from the top of the WebView when enabled) either dismisses the sheet or
- * returns it to the fully expanded position.
+ * The sheet opens fully expanded. There is no intermediate collapsed anchor. When the WebView is
+ * already at the top, continuing to pull down transfers the gesture to the sheet so it follows the
+ * finger and then either dismisses or returns to the expanded position.
  */
 @SuppressLint("SetJavaScriptEnabled", "WebViewClientOnReceivedSslError")
 @Composable
@@ -54,7 +54,7 @@ fun SourceLoginWebDialog(
     state: SourceLoginUiState,
     onIntent: (SourceLoginIntent) -> Unit,
     onOpenExternalUrl: (String) -> Unit,
-    enableContentSheetDrag: Boolean = false,
+    enableContentSheetDrag: Boolean = true,
 ) {
     val context = LocalContext.current
     val currentIntent by rememberUpdatedState(onIntent)
@@ -107,6 +107,7 @@ fun SourceLoginWebDialog(
             var dialogRef: BottomSheetDialog? = null
             var sheetAnimator: ValueAnimator? = null
             var parentHeight = 0
+            var manualSheetMotion = false
             val directionSlop = dp(2).toFloat()
             val dismissDistance = dp(72)
 
@@ -136,12 +137,15 @@ fun SourceLoginWebDialog(
             fun animateSheetTo(targetTop: Int, dismissAtEnd: Boolean = false) {
                 val sheet = bottomSheetView ?: return
                 sheetAnimator?.cancel()
+                manualSheetMotion = true
                 val safeTarget = targetTop.coerceIn(0, parentHeight.coerceAtLeast(targetTop))
                 if (sheet.top == safeTarget) {
                     if (dismissAtEnd) {
+                        manualSheetMotion = false
                         dialogRef?.dismiss()
                     } else {
                         sheetBehavior?.state = BottomSheetBehavior.STATE_EXPANDED
+                        manualSheetMotion = false
                     }
                     return
                 }
@@ -155,14 +159,17 @@ fun SourceLoginWebDialog(
                     addListener(object : AnimatorListenerAdapter() {
                         override fun onAnimationCancel(animation: Animator) {
                             cancelled = true
+                            manualSheetMotion = false
                         }
 
                         override fun onAnimationEnd(animation: Animator) {
                             if (cancelled) return
                             if (dismissAtEnd) {
+                                manualSheetMotion = false
                                 dialogRef?.dismiss()
                             } else {
                                 sheetBehavior?.state = BottomSheetBehavior.STATE_EXPANDED
+                                manualSheetMotion = false
                             }
                         }
                     })
@@ -172,6 +179,7 @@ fun SourceLoginWebDialog(
 
             fun settleDrag(direction: Int) {
                 val sheet = bottomSheetView ?: return
+                manualSheetMotion = true
                 refreshGeometry()
                 if (direction > 0 && sheet.top >= dismissDistance) {
                     animateSheetTo(parentHeight, dismissAtEnd = true)
@@ -190,6 +198,7 @@ fun SourceLoginWebDialog(
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
                         sheetAnimator?.cancel()
+                        manualSheetMotion = true
                         refreshGeometry()
                         topGestureStartY = event.rawY
                         topGestureLastY = event.rawY
@@ -297,7 +306,6 @@ fun SourceLoginWebDialog(
                     when (event.actionMasked) {
                         MotionEvent.ACTION_DOWN -> {
                             sheetAnimator?.cancel()
-                            refreshGeometry()
                             contentGestureStartY = event.rawY
                             contentGestureLastY = event.rawY
                             contentGestureStartTop = sheet?.top ?: 0
@@ -323,6 +331,8 @@ fun SourceLoginWebDialog(
                                     }
                                     super.onTouchEvent(cancel)
                                     cancel.recycle()
+                                    manualSheetMotion = true
+                                    refreshGeometry()
                                     contentDraggingSheet = true
                                     contentGestureStartY = event.rawY
                                     contentGestureStartTop = sheet.top
@@ -467,9 +477,11 @@ fun SourceLoginWebDialog(
                             }
                             (bottomSheet.parent as? View)?.addOnLayoutChangeListener {
                                     _, _, _, _, _, _, _, _, _ ->
-                                refreshGeometry()
-                                if (bottomSheet.top != 0) {
-                                    bottomSheet.offsetTopAndBottom(-bottomSheet.top)
+                                if (!manualSheetMotion) {
+                                    refreshGeometry()
+                                    if (bottomSheet.top != 0) {
+                                        bottomSheet.offsetTopAndBottom(-bottomSheet.top)
+                                    }
                                 }
                             }
                         }
@@ -482,6 +494,7 @@ fun SourceLoginWebDialog(
                 disposing = true
                 sheetAnimator?.cancel()
                 sheetAnimator = null
+                manualSheetMotion = false
                 sheetBehavior = null
                 bottomSheetView = null
                 dialogRef = null
