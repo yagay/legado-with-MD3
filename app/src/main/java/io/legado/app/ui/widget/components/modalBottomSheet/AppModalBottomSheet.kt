@@ -4,10 +4,14 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -32,8 +36,15 @@ import io.legado.app.ui.theme.ProvideAppDensity
  *
  * 登录、类别选择、日志/说明类弹窗以及导航层普通二级页面都应复用这一组件，
  * 统一拖动、圆角、遮罩和系统栏表现；各页面内容及自身 TopAppBar 保持不变。
+ *
+ * 原生 overlay 已经把整个 panel 放在状态栏下方，因此这里统一消费顶部状态栏 inset，
+ * 防止内部 AppScaffold/TopAppBar 再次预留一层状态栏高度。
  */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(
+    ExperimentalMaterial3Api::class,
+    ExperimentalMaterial3ExpressiveApi::class,
+    ExperimentalLayoutApi::class,
+)
 @Composable
 @Suppress("UNUSED_PARAMETER")
 fun AppModalBottomSheet(
@@ -70,6 +81,8 @@ fun AppModalBottomSheet(
                 Column(
                     modifier = modifier
                         .fillMaxSize()
+                        .consumeWindowInsets(WindowInsets.statusBars)
+                        .consumeWindowInsets(WindowInsets.statusBarsIgnoringVisibility)
                         .let { contentModifier ->
                             if (contentPaddingEnabled) {
                                 contentModifier.padding(
