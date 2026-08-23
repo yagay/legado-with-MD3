@@ -95,8 +95,11 @@ fun NativeDraggableComposeBottomSheet(
                 val parent = sheet.parent as? View ?: return
                 if (parent.height <= 0) return
                 parentHeight = parent.height
+                parent.layoutParams = parent.layoutParams.apply {
+                    height = ViewGroup.LayoutParams.MATCH_PARENT
+                }
                 sheet.layoutParams = sheet.layoutParams.apply {
-                    height = parentHeight
+                    height = ViewGroup.LayoutParams.MATCH_PARENT
                 }
                 root.layoutParams = root.layoutParams.apply {
                     height = ViewGroup.LayoutParams.MATCH_PARENT
@@ -107,6 +110,9 @@ fun NativeDraggableComposeBottomSheet(
                 behavior.skipCollapsed = true
                 behavior.isHideable = false
                 behavior.isDraggable = false
+                parent.requestLayout()
+                sheet.requestLayout()
+                root.requestLayout()
             }
 
             fun animateBackToExpanded() {
@@ -264,10 +270,18 @@ fun NativeDraggableComposeBottomSheet(
                     if (!disposing) currentDismiss.value.invoke()
                 }
                 setOnShowListener {
+                    window?.setLayout(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                    )
                     findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
                         ?.let { bottomSheet ->
                             bottomSheetView = bottomSheet
                             bottomSheet.background = sheetBackground
+                            val parent = bottomSheet.parent as? View
+                            parent?.layoutParams = parent?.layoutParams?.apply {
+                                height = ViewGroup.LayoutParams.MATCH_PARENT
+                            }
                             val behavior = BottomSheetBehavior.from(bottomSheet).apply {
                                 isFitToContents = false
                                 expandedOffset = 0
@@ -285,7 +299,7 @@ fun NativeDraggableComposeBottomSheet(
                                 behavior.state = BottomSheetBehavior.STATE_EXPANDED
                             }
 
-                            (bottomSheet.parent as? View)?.addOnLayoutChangeListener {
+                            parent?.addOnLayoutChangeListener {
                                     _, _, _, _, _, _, _, _, _ ->
                                 refreshGeometry(bottomSheet, behavior)
                                 if (bottomSheet.top != 0) {
