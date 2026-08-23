@@ -13,6 +13,8 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 
 /**
  * A small reusable sheet host that stays inside the current Activity window.
@@ -72,6 +74,28 @@ internal class SimpleDraggableOverlay(
             ),
         )
         root.addView(panel)
+
+        ViewCompat.setOnApplyWindowInsetsListener(root) { _, windowInsets ->
+            val safeInsets = windowInsets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout(),
+            )
+            val params = panel.layoutParams as FrameLayout.LayoutParams
+            if (
+                params.leftMargin != safeInsets.left ||
+                params.topMargin != safeInsets.top ||
+                params.rightMargin != safeInsets.right ||
+                params.bottomMargin != safeInsets.bottom
+            ) {
+                params.setMargins(
+                    safeInsets.left,
+                    safeInsets.top,
+                    safeInsets.right,
+                    safeInsets.bottom,
+                )
+                panel.layoutParams = params
+            }
+            windowInsets
+        }
     }
 
     fun show() {
@@ -79,6 +103,7 @@ internal class SimpleDraggableOverlay(
         if (root.parent == null) {
             parent.addView(root)
         }
+        ViewCompat.requestApplyInsets(root)
         componentActivity?.let { host ->
             host.onBackPressedDispatcher.addCallback(host, backCallback)
         }
@@ -137,6 +162,7 @@ internal class SimpleDraggableOverlay(
         dismissed = true
         cancelAnimation()
         backCallback.remove()
+        ViewCompat.setOnApplyWindowInsetsListener(root, null)
         (root.parent as? ViewGroup)?.removeView(root)
     }
 
@@ -187,6 +213,7 @@ internal class SimpleDraggableOverlay(
         dismissed = true
         cancelAnimation()
         backCallback.remove()
+        ViewCompat.setOnApplyWindowInsetsListener(root, null)
         (root.parent as? ViewGroup)?.removeView(root)
         onDismiss()
     }
