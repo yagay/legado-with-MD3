@@ -1,17 +1,6 @@
 name: Beta4 Build Verification
 
-# Manual trigger marker: 2026-08-22 debug build
 on:
-  push:
-    branches:
-      - beta4
-    paths-ignore:
-      - '**/modules/web/**'
-  pull_request:
-    branches:
-      - beta4
-    paths-ignore:
-      - '**/modules/web/**'
   workflow_dispatch:
 
 permissions:
