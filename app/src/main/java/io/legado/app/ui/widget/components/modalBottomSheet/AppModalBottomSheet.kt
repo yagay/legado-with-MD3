@@ -65,6 +65,7 @@ fun AppModalBottomSheet(
     val sheetContainerColor = containerColor ?: LegadoTheme.colorScheme.surfaceContainer
     val sheetContentColor = LegadoTheme.colorScheme.onSurface
     val sheetDragHandleColor = LegadoTheme.colorScheme.onSurfaceVariant
+    val sheetScrimColor = LegadoTheme.colorScheme.background
     val navigationFallbackColor = sheetContainerColor.toArgb()
 
     if (ThemeResolver.isMiuixEngine(LegadoTheme.composeEngine)) {
@@ -104,7 +105,7 @@ fun AppModalBottomSheet(
             backgroundColor = sheetContainerColor,
             dragHandleColor = sheetDragHandleColor,
             onDismissRequest = onDismissRequest,
-            enableWindowDim = true,
+            enableWindowDim = false,
         ) {
             SyncDialogNavigationBarAppearance(navigationFallbackColor)
             ProvideAppDensity {
@@ -151,6 +152,7 @@ fun AppModalBottomSheet(
                     dragHandle = { BottomSheetDefaults.DragHandle(color = sheetDragHandleColor) },
                     contentWindowInsets = contentWindowInsets,
                     sheetGesturesEnabled = sheetGesturesEnabled,
+                    scrimColor = sheetScrimColor,
                 ) {
                     SyncDialogNavigationBarAppearance(navigationFallbackColor)
                     ProvideAppDensity {
