@@ -1,5 +1,8 @@
 package io.legado.app.ui.widget.components.modalBottomSheet
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.ValueAnimator
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.util.TypedValue
@@ -18,6 +21,7 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalContext
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import kotlin.math.abs
 
 @Composable
 fun NativeDraggableComposeBottomSheet(
@@ -78,68 +82,62 @@ fun NativeDraggableComposeBottomSheet(
             var sheetBehavior: BottomSheetBehavior<View>? = null
             var bottomSheetView: View? = null
             var dialogRef: BottomSheetDialog? = null
-            var behaviorCallback: BottomSheetBehavior.BottomSheetCallback? = null
+            var sheetAnimator: ValueAnimator? = null
             var parentHeight = 0
-            var collapsedTop = 0
             var gestureStartY = 0f
             var gestureStartTop = 0
             var lastHandleY = 0f
             var lastDirection = 0
-            var gestureStartState = BottomSheetBehavior.STATE_COLLAPSED
             val directionSlop = dp(2).toFloat()
-            val releaseSlop = dp(8).toFloat()
+            val dismissDistance = dp(72)
 
-            fun syncVisibleContentViewport(sheet: View, forcedTop: Int? = null) {
+            fun refreshGeometry(sheet: View, behavior: BottomSheetBehavior<View>) {
                 val parent = sheet.parent as? View ?: return
                 if (parent.height <= 0) return
                 parentHeight = parent.height
-
-                // Keep the sheet content root full height at all times. The sheet itself is
-                // translated downward for the 75% anchor, so compensate that hidden portion
-                // with an equal bottom padding instead of shrinking the root. Shrinking the
-                // root can get stuck at 75% when BottomSheetBehavior reports EXPANDED before
-                // its final top has been laid out.
-                if (root.layoutParams.height != ViewGroup.LayoutParams.MATCH_PARENT) {
-                    root.layoutParams = root.layoutParams.apply {
-                        height = ViewGroup.LayoutParams.MATCH_PARENT
-                    }
-                }
-
-                val hiddenBottom = (forcedTop ?: sheet.top).coerceIn(0, parentHeight)
-                if (root.paddingBottom != hiddenBottom) {
-                    root.setPadding(
-                        root.paddingLeft,
-                        root.paddingTop,
-                        root.paddingRight,
-                        hiddenBottom,
-                    )
-                    root.requestLayout()
-                }
-            }
-
-            fun syncForBehaviorState(
-                sheet: View,
-                state: Int,
-            ) {
-                when (state) {
-                    BottomSheetBehavior.STATE_EXPANDED -> syncVisibleContentViewport(sheet, 0)
-                    BottomSheetBehavior.STATE_COLLAPSED -> syncVisibleContentViewport(sheet, collapsedTop)
-                    else -> syncVisibleContentViewport(sheet)
-                }
-            }
-
-            fun refreshAnchors(sheet: View, behavior: BottomSheetBehavior<View>) {
-                val parent = sheet.parent as? View ?: return
-                if (parent.height <= 0) return
-                parentHeight = parent.height
-                collapsedTop = (parentHeight * 0.25f).toInt()
                 sheet.layoutParams = sheet.layoutParams.apply {
                     height = parentHeight
                 }
+                root.layoutParams = root.layoutParams.apply {
+                    height = ViewGroup.LayoutParams.MATCH_PARENT
+                }
+                root.setPadding(root.paddingLeft, root.paddingTop, root.paddingRight, 0)
                 behavior.isFitToContents = false
                 behavior.expandedOffset = 0
-                behavior.peekHeight = parentHeight - collapsedTop
-                syncForBehaviorState(sheet, behavior.state)
+                behavior.skipCollapsed = true
+                behavior.isHideable = false
+                behavior.isDraggable = false
+            }
+
+            fun animateBackToExpanded() {
+                val sheet = bottomSheetView ?: return
+                sheetAnimator?.cancel()
+                if (sheet.top == 0) {
+                    root.setPadding(root.paddingLeft, root.paddingTop, root.paddingRight, 0)
+                    sheetBehavior?.state = BottomSheetBehavior.STATE_EXPANDED
+                    return
+                }
+                var cancelled = false
+                sheetAnimator = ValueAnimator.ofInt(sheet.top, 0).apply {
+                    duration = 180L
+                    addUpdateListener { animator ->
+                        val targetTop = animator.animatedValue as Int
+                        sheet.offsetTopAndBottom(targetTop - sheet.top)
+                        root.setPadding(root.paddingLeft, root.paddingTop, root.paddingRight, targetTop)
+                    }
+                    addListener(object : AnimatorListenerAdapter() {
+                        override fun onAnimationCancel(animation: Animator) {
+                            cancelled = true
+                        }
+
+                        override fun onAnimationEnd(animation: Animator) {
+                            if (cancelled) return
+                            root.setPadding(root.paddingLeft, root.paddingTop, root.paddingRight, 0)
+                            sheetBehavior?.state = BottomSheetBehavior.STATE_EXPANDED
+                        }
+                    })
+                    start()
+                }
             }
 
             val dragHandleHost = FrameLayout(context).apply {
@@ -149,32 +147,18 @@ fun NativeDraggableComposeBottomSheet(
                 )
                 isClickable = true
                 setOnTouchListener { view, event ->
-                    val behavior = sheetBehavior
                     val sheet = bottomSheetView
+                    val behavior = sheetBehavior
                     when (event.actionMasked) {
                         MotionEvent.ACTION_DOWN -> {
-                            behavior?.state?.let { state ->
-                                if (state == BottomSheetBehavior.STATE_SETTLING ||
-                                    state == BottomSheetBehavior.STATE_DRAGGING
-                                ) {
-                                    behavior.state = if (sheet?.top ?: 0 <= dp(8)) {
-                                        BottomSheetBehavior.STATE_EXPANDED
-                                    } else {
-                                        BottomSheetBehavior.STATE_COLLAPSED
-                                    }
-                                }
-                            }
+                            sheetAnimator?.cancel()
                             if (sheet != null && behavior != null) {
-                                refreshAnchors(sheet, behavior)
+                                refreshGeometry(sheet, behavior)
                             }
                             gestureStartY = event.rawY
                             lastHandleY = event.rawY
                             gestureStartTop = sheet?.top ?: 0
                             lastDirection = 0
-                            gestureStartState = when (behavior?.state) {
-                                BottomSheetBehavior.STATE_EXPANDED -> BottomSheetBehavior.STATE_EXPANDED
-                                else -> BottomSheetBehavior.STATE_COLLAPSED
-                            }
                             view.parent?.requestDisallowInterceptTouchEvent(true)
                             true
                         }
@@ -182,7 +166,7 @@ fun NativeDraggableComposeBottomSheet(
                         MotionEvent.ACTION_MOVE -> {
                             val deltaStep = event.rawY - lastHandleY
                             lastHandleY = event.rawY
-                            if (kotlin.math.abs(deltaStep) >= directionSlop) {
+                            if (abs(deltaStep) >= directionSlop) {
                                 lastDirection = if (deltaStep > 0f) 1 else -1
                             }
                             if (sheet != null) {
@@ -194,51 +178,30 @@ fun NativeDraggableComposeBottomSheet(
                                     gestureStartTop + (event.rawY - gestureStartY).toInt()
                                 ).coerceIn(0, actualParentHeight)
                                 sheet.offsetTopAndBottom(targetTop - sheet.top)
-                                syncVisibleContentViewport(sheet, targetTop)
+                                root.setPadding(
+                                    root.paddingLeft,
+                                    root.paddingTop,
+                                    root.paddingRight,
+                                    targetTop,
+                                )
                             }
                             true
                         }
 
                         MotionEvent.ACTION_UP -> {
                             val releaseTop = sheet?.top ?: gestureStartTop
-                            val actualCollapsedTop = if (collapsedTop > 0) {
-                                collapsedTop
+                            if (lastDirection > 0 && releaseTop >= dismissDistance) {
+                                dialogRef?.dismiss()
                             } else {
-                                sheet?.let {
-                                    ((it.parent as? View)?.height
-                                        ?: context.resources.displayMetrics.heightPixels) -
-                                        (behavior?.peekHeight ?: 0)
-                                } ?: 0
+                                animateBackToExpanded()
                             }
-                            val relativeTo75 = releaseTop - actualCollapsedTop
-
-                            when (lastDirection) {
-                                1 -> {
-                                    if (relativeTo75 > releaseSlop) {
-                                        dialogRef?.dismiss()
-                                    } else {
-                                        behavior?.state = BottomSheetBehavior.STATE_COLLAPSED
-                                    }
-                                }
-
-                                -1 -> {
-                                    if (relativeTo75 < -releaseSlop) {
-                                        behavior?.state = BottomSheetBehavior.STATE_EXPANDED
-                                    } else {
-                                        behavior?.state = BottomSheetBehavior.STATE_COLLAPSED
-                                    }
-                                }
-
-                                else -> behavior?.state = gestureStartState
-                            }
-
                             view.parent?.requestDisallowInterceptTouchEvent(false)
                             view.performClick()
                             true
                         }
 
                         MotionEvent.ACTION_CANCEL -> {
-                            behavior?.state = gestureStartState
+                            animateBackToExpanded()
                             view.parent?.requestDisallowInterceptTouchEvent(false)
                             true
                         }
@@ -306,41 +269,28 @@ fun NativeDraggableComposeBottomSheet(
                             bottomSheetView = bottomSheet
                             bottomSheet.background = sheetBackground
                             val behavior = BottomSheetBehavior.from(bottomSheet).apply {
-                                skipCollapsed = false
+                                isFitToContents = false
+                                expandedOffset = 0
+                                skipCollapsed = true
                                 isHideable = false
                                 isDraggable = false
                             }
                             sheetBehavior = behavior
 
-                            val callback = object : BottomSheetBehavior.BottomSheetCallback() {
-                                override fun onStateChanged(bottomSheet: View, newState: Int) {
-                                    syncForBehaviorState(bottomSheet, newState)
-                                    // BottomSheetBehavior may dispatch the state before the final
-                                    // top is applied. Re-check on the next frame so the content
-                                    // viewport always matches the settled geometry.
-                                    bottomSheet.post {
-                                        syncForBehaviorState(bottomSheet, newState)
-                                    }
-                                }
-
-                                override fun onSlide(bottomSheet: View, slideOffset: Float) {
-                                    syncVisibleContentViewport(bottomSheet)
-                                }
-                            }
-                            behaviorCallback = callback
-                            behavior.addBottomSheetCallback(callback)
-
                             bottomSheet.post {
-                                refreshAnchors(bottomSheet, behavior)
-                                behavior.state = BottomSheetBehavior.STATE_COLLAPSED
-                                bottomSheet.post {
-                                    syncForBehaviorState(bottomSheet, behavior.state)
+                                refreshGeometry(bottomSheet, behavior)
+                                if (bottomSheet.top != 0) {
+                                    bottomSheet.offsetTopAndBottom(-bottomSheet.top)
                                 }
+                                behavior.state = BottomSheetBehavior.STATE_EXPANDED
                             }
 
                             (bottomSheet.parent as? View)?.addOnLayoutChangeListener {
                                     _, _, _, _, _, _, _, _, _ ->
-                                refreshAnchors(bottomSheet, behavior)
+                                refreshGeometry(bottomSheet, behavior)
+                                if (bottomSheet.top != 0) {
+                                    bottomSheet.offsetTopAndBottom(-bottomSheet.top)
+                                }
                             }
                         }
                 }
@@ -350,10 +300,8 @@ fun NativeDraggableComposeBottomSheet(
 
             onDispose {
                 disposing = true
-                behaviorCallback?.let { callback ->
-                    sheetBehavior?.removeBottomSheetCallback(callback)
-                }
-                behaviorCallback = null
+                sheetAnimator?.cancel()
+                sheetAnimator = null
                 sheetBehavior = null
                 bottomSheetView = null
                 dialogRef = null
