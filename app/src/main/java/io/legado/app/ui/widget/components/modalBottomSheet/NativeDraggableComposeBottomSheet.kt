@@ -1,8 +1,5 @@
 package io.legado.app.ui.widget.components.modalBottomSheet
 
-import android.animation.Animator
-import android.animation.AnimatorListenerAdapter
-import android.animation.ValueAnimator
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.util.TypedValue
@@ -27,8 +24,6 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Velocity
-import com.google.android.material.bottomsheet.BottomSheetBehavior
-import com.google.android.material.bottomsheet.BottomSheetDialog
 import kotlin.math.abs
 
 @Composable
@@ -73,12 +68,16 @@ fun NativeDraggableComposeBottomSheet(
                 cornerRadii = floatArrayOf(
                     dp(28).toFloat(), dp(28).toFloat(),
                     dp(28).toFloat(), dp(28).toFloat(),
-                    0f, 0f,
-                    0f, 0f,
+                    0f, 0f, 0f, 0f,
                 )
             }
 
-            val root = LinearLayout(context).apply {
+            lateinit var overlay: SimpleDraggableOverlay
+            overlay = SimpleDraggableOverlay(context) {
+                if (!disposing) currentDismiss.value.invoke()
+            }
+
+            val sheetRoot = LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
                 background = sheetBackground
                 layoutParams = ViewGroup.LayoutParams(
@@ -86,141 +85,13 @@ fun NativeDraggableComposeBottomSheet(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                 )
             }
+            overlay.panel.addView(sheetRoot)
 
-            var sheetBehavior: BottomSheetBehavior<View>? = null
-            var bottomSheetView: View? = null
-            var dialogRef: BottomSheetDialog? = null
-            var sheetAnimator: ValueAnimator? = null
-            var parentHeight = 0
-            var gestureStartY = 0f
-            var gestureStartTop = 0
-            var lastHandleY = 0f
-            var lastDirection = 0
-            var manualSheetMotion = false
             val directionSlop = dp(2).toFloat()
-            val dismissDistance = dp(72)
-
-            fun refreshGeometry(sheet: View, behavior: BottomSheetBehavior<View>) {
-                val parent = sheet.parent as? View ?: return
-                if (parent.height <= 0) return
-                parentHeight = parent.height
-                parent.layoutParams = parent.layoutParams.apply {
-                    height = ViewGroup.LayoutParams.MATCH_PARENT
-                }
-                sheet.layoutParams = sheet.layoutParams.apply {
-                    height = ViewGroup.LayoutParams.MATCH_PARENT
-                }
-                root.layoutParams = root.layoutParams.apply {
-                    height = ViewGroup.LayoutParams.MATCH_PARENT
-                }
-                if (!manualSheetMotion) {
-                    root.setPadding(root.paddingLeft, root.paddingTop, root.paddingRight, 0)
-                }
-                behavior.isFitToContents = false
-                behavior.expandedOffset = 0
-                behavior.skipCollapsed = true
-                behavior.isHideable = false
-                behavior.isDraggable = false
-                parent.requestLayout()
-                sheet.requestLayout()
-                root.requestLayout()
-            }
-
-            fun moveSheetBy(deltaY: Float): Float {
-                val sheet = bottomSheetView ?: return 0f
-                if (deltaY == 0f) return 0f
-                val actualParentHeight = (sheet.parent as? View)?.height
-                    ?.takeIf { it > 0 }
-                    ?: parentHeight.takeIf { it > 0 }
-                    ?: context.resources.displayMetrics.heightPixels
-                val oldTop = sheet.top
-                val targetTop = (oldTop + deltaY.toInt()).coerceIn(0, actualParentHeight)
-                if (targetTop == oldTop) return 0f
-                manualSheetMotion = true
-                sheet.offsetTopAndBottom(targetTop - oldTop)
-                root.setPadding(
-                    root.paddingLeft,
-                    root.paddingTop,
-                    root.paddingRight,
-                    targetTop,
-                )
-                return (targetTop - oldTop).toFloat()
-            }
-
-            fun animateBackToExpanded() {
-                val sheet = bottomSheetView ?: return
-                sheetAnimator?.cancel()
-                manualSheetMotion = true
-                if (sheet.top == 0) {
-                    root.setPadding(root.paddingLeft, root.paddingTop, root.paddingRight, 0)
-                    sheetBehavior?.state = BottomSheetBehavior.STATE_EXPANDED
-                    manualSheetMotion = false
-                    return
-                }
-                var cancelled = false
-                sheetAnimator = ValueAnimator.ofInt(sheet.top, 0).apply {
-                    duration = 180L
-                    addUpdateListener { animator ->
-                        val targetTop = animator.animatedValue as Int
-                        sheet.offsetTopAndBottom(targetTop - sheet.top)
-                        root.setPadding(root.paddingLeft, root.paddingTop, root.paddingRight, targetTop)
-                    }
-                    addListener(object : AnimatorListenerAdapter() {
-                        override fun onAnimationCancel(animation: Animator) {
-                            cancelled = true
-                            manualSheetMotion = false
-                        }
-
-                        override fun onAnimationEnd(animation: Animator) {
-                            if (cancelled) return
-                            root.setPadding(root.paddingLeft, root.paddingTop, root.paddingRight, 0)
-                            sheetBehavior?.state = BottomSheetBehavior.STATE_EXPANDED
-                            manualSheetMotion = false
-                        }
-                    })
-                    start()
-                }
-            }
-
-            fun settleContentDrag() {
-                val sheet = bottomSheetView ?: return
-                if (sheet.top >= dismissDistance) {
-                    manualSheetMotion = false
-                    dialogRef?.dismiss()
-                } else {
-                    animateBackToExpanded()
-                }
-            }
-
-            val contentNestedScrollConnection = object : NestedScrollConnection {
-                override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                    val sheet = bottomSheetView ?: return Offset.Zero
-                    if (sheet.top > 0 && available.y < 0f) {
-                        val consumed = moveSheetBy(available.y)
-                        return Offset(0f, consumed)
-                    }
-                    return Offset.Zero
-                }
-
-                override fun onPostScroll(
-                    consumed: Offset,
-                    available: Offset,
-                    source: NestedScrollSource,
-                ): Offset {
-                    if (available.y > 0f) {
-                        val consumedBySheet = moveSheetBy(available.y)
-                        return Offset(0f, consumedBySheet)
-                    }
-                    return Offset.Zero
-                }
-
-                override suspend fun onPreFling(available: Velocity): Velocity {
-                    val sheet = bottomSheetView ?: return Velocity.Zero
-                    if (sheet.top <= 0) return Velocity.Zero
-                    settleContentDrag()
-                    return available
-                }
-            }
+            var gestureStartY = 0f
+            var gestureStartTranslation = 0f
+            var lastY = 0f
+            var lastDirection = 0
 
             val dragHandleHost = FrameLayout(context).apply {
                 layoutParams = LinearLayout.LayoutParams(
@@ -229,64 +100,37 @@ fun NativeDraggableComposeBottomSheet(
                 )
                 isClickable = true
                 setOnTouchListener { view, event ->
-                    val sheet = bottomSheetView
-                    val behavior = sheetBehavior
                     when (event.actionMasked) {
                         MotionEvent.ACTION_DOWN -> {
-                            sheetAnimator?.cancel()
-                            manualSheetMotion = true
-                            if (sheet != null && behavior != null) {
-                                refreshGeometry(sheet, behavior)
-                            }
+                            overlay.cancelAnimation()
                             gestureStartY = event.rawY
-                            lastHandleY = event.rawY
-                            gestureStartTop = sheet?.top ?: 0
+                            gestureStartTranslation = overlay.panel.translationY
+                            lastY = event.rawY
                             lastDirection = 0
                             view.parent?.requestDisallowInterceptTouchEvent(true)
                             true
                         }
 
                         MotionEvent.ACTION_MOVE -> {
-                            val deltaStep = event.rawY - lastHandleY
-                            lastHandleY = event.rawY
-                            if (abs(deltaStep) >= directionSlop) {
-                                lastDirection = if (deltaStep > 0f) 1 else -1
+                            val step = event.rawY - lastY
+                            lastY = event.rawY
+                            if (abs(step) >= directionSlop) {
+                                lastDirection = if (step > 0f) 1 else -1
                             }
-                            if (sheet != null) {
-                                val actualParentHeight = (sheet.parent as? View)?.height
-                                    ?.takeIf { it > 0 }
-                                    ?: parentHeight.takeIf { it > 0 }
-                                    ?: context.resources.displayMetrics.heightPixels
-                                val targetTop = (
-                                    gestureStartTop + (event.rawY - gestureStartY).toInt()
-                                ).coerceIn(0, actualParentHeight)
-                                sheet.offsetTopAndBottom(targetTop - sheet.top)
-                                root.setPadding(
-                                    root.paddingLeft,
-                                    root.paddingTop,
-                                    root.paddingRight,
-                                    targetTop,
-                                )
-                            }
+                            overlay.moveTo(gestureStartTranslation + event.rawY - gestureStartY)
                             true
                         }
 
                         MotionEvent.ACTION_UP -> {
-                            val releaseTop = sheet?.top ?: gestureStartTop
-                            if (lastDirection > 0 && releaseTop >= dismissDistance) {
-                                manualSheetMotion = false
-                                dialogRef?.dismiss()
-                            } else {
-                                animateBackToExpanded()
-                            }
                             view.parent?.requestDisallowInterceptTouchEvent(false)
+                            overlay.settle(lastDirection)
                             view.performClick()
                             true
                         }
 
                         MotionEvent.ACTION_CANCEL -> {
-                            animateBackToExpanded()
                             view.parent?.requestDisallowInterceptTouchEvent(false)
+                            overlay.settle(-1)
                             true
                         }
 
@@ -306,7 +150,7 @@ fun NativeDraggableComposeBottomSheet(
                 dragHandle,
                 FrameLayout.LayoutParams(dp(32), dp(4), Gravity.CENTER),
             )
-            root.addView(dragHandleHost)
+            sheetRoot.addView(dragHandleHost)
 
             if (!title.isNullOrEmpty()) {
                 val titleView = TextView(context).apply {
@@ -318,7 +162,7 @@ fun NativeDraggableComposeBottomSheet(
                     ellipsize = android.text.TextUtils.TruncateAt.END
                     setPadding(dp(16), 0, dp(16), dp(8))
                 }
-                root.addView(
+                sheetRoot.addView(
                     titleView,
                     LinearLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
@@ -327,19 +171,47 @@ fun NativeDraggableComposeBottomSheet(
                 )
             }
 
+            val contentNestedScrollConnection = object : NestedScrollConnection {
+                override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                    if (overlay.panel.translationY > 0f && available.y < 0f) {
+                        return Offset(0f, overlay.moveBy(available.y))
+                    }
+                    return Offset.Zero
+                }
+
+                override fun onPostScroll(
+                    consumed: Offset,
+                    available: Offset,
+                    source: NestedScrollSource,
+                ): Offset {
+                    if (available.y > 0f) {
+                        return Offset(0f, overlay.moveBy(available.y))
+                    }
+                    return Offset.Zero
+                }
+
+                override suspend fun onPreFling(available: Velocity): Velocity {
+                    if (overlay.panel.translationY > 0f) {
+                        overlay.settle(if (available.y > 0f) 1 else -1)
+                        return available
+                    }
+                    return Velocity.Zero
+                }
+            }
+
             val composeView = ComposeView(context).apply {
                 setParentCompositionContext(parentComposition)
                 setContent {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .nestedScroll(contentNestedScrollConnection)
+                            .nestedScroll(contentNestedScrollConnection),
                     ) {
                         currentContent.value.invoke()
                     }
                 }
             }
-            root.addView(
+            sheetRoot.addView(
                 composeView,
                 LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
@@ -348,74 +220,12 @@ fun NativeDraggableComposeBottomSheet(
                 ),
             )
 
-            val dialog = BottomSheetDialog(context).apply {
-                setContentView(root)
-                window?.let { dialogWindow ->
-                    applyHostNavigationBarAppearance(context, dialogWindow, surfaceColor)
-                }
-                setCanceledOnTouchOutside(true)
-                setOnDismissListener {
-                    if (!disposing) currentDismiss.value.invoke()
-                }
-                setOnShowListener {
-                    window?.let { dialogWindow ->
-                        applyHostNavigationBarAppearance(context, dialogWindow, surfaceColor)
-                        dialogWindow.setLayout(
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                        )
-                    }
-                    findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
-                        ?.let { bottomSheet ->
-                            bottomSheetView = bottomSheet
-                            bottomSheet.background = sheetBackground
-                            val parent = bottomSheet.parent as? View
-                            parent?.layoutParams = parent?.layoutParams?.apply {
-                                height = ViewGroup.LayoutParams.MATCH_PARENT
-                            }
-                            val behavior = BottomSheetBehavior.from(bottomSheet).apply {
-                                isFitToContents = false
-                                expandedOffset = 0
-                                skipCollapsed = true
-                                isHideable = false
-                                isDraggable = false
-                            }
-                            sheetBehavior = behavior
-
-                            bottomSheet.post {
-                                refreshGeometry(bottomSheet, behavior)
-                                if (bottomSheet.top != 0) {
-                                    bottomSheet.offsetTopAndBottom(-bottomSheet.top)
-                                }
-                                behavior.state = BottomSheetBehavior.STATE_EXPANDED
-                            }
-
-                            parent?.addOnLayoutChangeListener {
-                                    _, _, _, _, _, _, _, _, _ ->
-                                if (!manualSheetMotion) {
-                                    refreshGeometry(bottomSheet, behavior)
-                                    if (bottomSheet.top != 0) {
-                                        bottomSheet.offsetTopAndBottom(-bottomSheet.top)
-                                    }
-                                }
-                            }
-                        }
-                }
-                show()
-            }
-            dialogRef = dialog
+            overlay.show()
 
             onDispose {
                 disposing = true
-                sheetAnimator?.cancel()
-                sheetAnimator = null
-                manualSheetMotion = false
-                sheetBehavior = null
-                bottomSheetView = null
-                dialogRef = null
                 composeView.disposeComposition()
-                dialog.setOnDismissListener(null)
-                dialog.dismiss()
+                overlay.dispose()
             }
         }
     }
