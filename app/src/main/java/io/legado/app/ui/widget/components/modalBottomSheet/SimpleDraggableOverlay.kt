@@ -13,7 +13,6 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
-import kotlin.math.roundToInt
 
 /**
  * A small reusable sheet host that stays inside the current Activity window.
@@ -32,6 +31,7 @@ internal class SimpleDraggableOverlay(
     private var dismissed = false
 
     private val activity = context.findActivity()
+    private val componentActivity = activity as? ComponentActivity
     private val activityContent = activity?.findViewById<ViewGroup>(android.R.id.content)
 
     val root = FrameLayout(context).apply {
@@ -79,7 +79,7 @@ internal class SimpleDraggableOverlay(
         if (root.parent == null) {
             parent.addView(root)
         }
-        (activity as? ComponentActivity)?.onBackPressedDispatcher?.addCallback(activity, backCallback)
+        componentActivity?.onBackPressedDispatcher?.addCallback(componentActivity, backCallback)
         root.post {
             val distance = root.height.takeIf { it > 0 }
                 ?: context.resources.displayMetrics.heightPixels
