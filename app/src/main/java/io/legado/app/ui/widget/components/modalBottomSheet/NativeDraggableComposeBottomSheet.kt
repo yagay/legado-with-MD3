@@ -23,7 +23,9 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.unit.Velocity
+import androidx.core.content.res.ResourcesCompat
 import kotlin.math.abs
 
 /**
@@ -40,6 +42,7 @@ fun NativeDraggableComposeBottomSheet(
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val parentComposition = rememberCompositionContext()
     val currentContent = rememberUpdatedState(content)
     val currentDismiss = rememberUpdatedState(onDismissRequest)
@@ -49,14 +52,16 @@ fun NativeDraggableComposeBottomSheet(
             onDispose { }
         } else {
             var disposing = false
-            val density = context.resources.displayMetrics.density
+            val density = resources.displayMetrics.density
             fun dp(value: Int) = (value * density).toInt()
 
             fun resolveColor(attr: Int, fallback: Int): Int {
                 val value = TypedValue()
                 return if (context.theme.resolveAttribute(attr, value, true)) {
                     if (value.resourceId != 0) {
-                        runCatching { context.getColor(value.resourceId) }.getOrDefault(value.data)
+                        runCatching {
+                            ResourcesCompat.getColor(resources, value.resourceId, context.theme)
+                        }.getOrDefault(value.data)
                     } else {
                         value.data
                     }
