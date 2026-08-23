@@ -22,6 +22,10 @@ import androidx.core.view.WindowInsetsCompat
  * Unlike BottomSheetDialog it never creates a second Window, so opening the sheet cannot replace
  * or dim the system navigation-bar window. The sheet itself is just a full-height panel translated
  * on Y while dragging.
+ *
+ * The hosted Compose screen remains responsible for its own top system-bar inset. The overlay only
+ * keeps horizontal and bottom safe insets, which avoids applying the status-bar inset twice for
+ * full secondary screens that already use AppScaffold/TopAppBar window insets.
  */
 internal class SimpleDraggableOverlay(
     private val context: Context,
@@ -85,13 +89,13 @@ internal class SimpleDraggableOverlay(
             val params = panel.layoutParams as FrameLayout.LayoutParams
             if (
                 params.leftMargin != safeInsets.left ||
-                params.topMargin != safeInsets.top ||
+                params.topMargin != 0 ||
                 params.rightMargin != safeInsets.right ||
                 params.bottomMargin != safeInsets.bottom
             ) {
                 params.setMargins(
                     safeInsets.left,
-                    safeInsets.top,
+                    0,
                     safeInsets.right,
                     safeInsets.bottom,
                 )
