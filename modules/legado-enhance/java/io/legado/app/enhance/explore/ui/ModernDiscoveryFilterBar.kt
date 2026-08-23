@@ -49,6 +49,13 @@ fun ModernDiscoveryFilterBar(
 ) {
     if (targets.isEmpty()) return
 
+    val normalizedTitle = remember(title) { stripWrapSymbols(title) }
+    val isLegacyPlaceholderCategory = remember(normalizedTitle, targets) {
+        normalizedTitle in GENERIC_CATEGORY_TITLES &&
+            targets.all { target -> target.sourceUrl.isBlank() && target.tagUrl.isBlank() }
+    }
+    if (isLegacyPlaceholderCategory) return
+
     val visibleTargets = remember(targets) {
         targets.filter { target -> stripWrapSymbols(target.title).isNotBlank() }
     }
@@ -68,7 +75,9 @@ fun ModernDiscoveryFilterBar(
         val optionHorizontalPadding = 3.dp
         val optionSpacing = 6.dp
         val optionStyle = LegadoTheme.typography.bodyMedium.copy(fontSize = 14.sp)
-        val displayTitle = remember(title) { stripWrapSymbols(title) }
+        val displayTitle = remember(normalizedTitle) {
+            normalizedTitle.takeUnless { it in GENERIC_CATEGORY_TITLES }.orEmpty()
+        }
         val selectedIndex = remember(visibleTargets, selectedTargetTitle) {
             visibleTargets.indexOfFirst { it.title == selectedTargetTitle }
         }
@@ -231,6 +240,7 @@ fun ModernDiscoveryFilterBar(
     }
 }
 
+private val GENERIC_CATEGORY_TITLES = setOf("类别", "分类")
 private const val EXPANDED_BATCH_SIZE = 64
 
 @Composable
