@@ -10,6 +10,7 @@ import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.net.http.SslError
+import android.os.Build
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.MotionEvent
@@ -436,6 +437,9 @@ fun SourceLoginWebDialog(
                 window?.apply {
                     setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
                     navigationBarColor = surfaceColor
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        isNavigationBarContrastEnforced = false
+                    }
                 }
                 setCanceledOnTouchOutside(true)
                 setOnDismissListener {
