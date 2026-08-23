@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - master
+      - beta4
     paths-ignore:
       - '**/modules/web/**'
   pull_request:
