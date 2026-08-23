@@ -1,13 +1,16 @@
-name: Beta4 Build Verification
+name: Beta5 Build Verification
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - beta5
 
 permissions:
   contents: read
 
 concurrency:
-  group: beta4-build-${{ github.workflow }}-${{ github.ref }}
+  group: beta5-build-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -51,7 +54,7 @@ jobs:
       - name: Upload Universal Debug APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: beta4-debug-universal-apk
+          name: beta5-debug-universal-apk
           if-no-files-found: error
           retention-days: 14
           path: app/build/outputs/apk/app/debug/*.apk
