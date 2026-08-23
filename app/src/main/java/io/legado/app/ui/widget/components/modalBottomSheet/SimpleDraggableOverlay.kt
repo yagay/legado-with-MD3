@@ -79,7 +79,9 @@ internal class SimpleDraggableOverlay(
         if (root.parent == null) {
             parent.addView(root)
         }
-        componentActivity?.onBackPressedDispatcher?.addCallback(componentActivity, backCallback)
+        componentActivity?.let { host ->
+            host.onBackPressedDispatcher.addCallback(host, backCallback)
+        }
         root.post {
             val distance = root.height.takeIf { it > 0 }
                 ?: context.resources.displayMetrics.heightPixels
