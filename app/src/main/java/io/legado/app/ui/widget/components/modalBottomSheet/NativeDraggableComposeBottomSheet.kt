@@ -78,6 +78,9 @@ fun NativeDraggableComposeBottomSheet(
             var sheetBehavior: BottomSheetBehavior<View>? = null
             var bottomSheetView: View? = null
             var dialogRef: BottomSheetDialog? = null
+            var behaviorCallback: BottomSheetBehavior.BottomSheetCallback? = null
+            var parentHeight = 0
+            var collapsedTop = 0
             var gestureStartY = 0f
             var gestureStartTop = 0
             var lastHandleY = 0f
@@ -85,6 +88,33 @@ fun NativeDraggableComposeBottomSheet(
             var gestureStartState = BottomSheetBehavior.STATE_COLLAPSED
             val directionSlop = dp(2).toFloat()
             val releaseSlop = dp(8).toFloat()
+
+            fun syncVisibleContentHeight(sheet: View) {
+                val parent = sheet.parent as? View ?: return
+                if (parent.height <= 0) return
+                parentHeight = parent.height
+                val visibleHeight = (parentHeight - sheet.top).coerceIn(1, parentHeight)
+                if (root.layoutParams.height != visibleHeight) {
+                    root.layoutParams = root.layoutParams.apply {
+                        height = visibleHeight
+                    }
+                    root.requestLayout()
+                }
+            }
+
+            fun refreshAnchors(sheet: View, behavior: BottomSheetBehavior<View>) {
+                val parent = sheet.parent as? View ?: return
+                if (parent.height <= 0) return
+                parentHeight = parent.height
+                collapsedTop = (parentHeight * 0.25f).toInt()
+                sheet.layoutParams = sheet.layoutParams.apply {
+                    height = parentHeight
+                }
+                behavior.isFitToContents = false
+                behavior.expandedOffset = 0
+                behavior.peekHeight = parentHeight - collapsedTop
+                syncVisibleContentHeight(sheet)
+            }
 
             val dragHandleHost = FrameLayout(context).apply {
                 layoutParams = LinearLayout.LayoutParams(
@@ -108,6 +138,9 @@ fun NativeDraggableComposeBottomSheet(
                                     }
                                 }
                             }
+                            if (sheet != null && behavior != null) {
+                                refreshAnchors(sheet, behavior)
+                            }
                             gestureStartY = event.rawY
                             lastHandleY = event.rawY
                             gestureStartTop = sheet?.top ?: 0
@@ -127,24 +160,31 @@ fun NativeDraggableComposeBottomSheet(
                                 lastDirection = if (deltaStep > 0f) 1 else -1
                             }
                             if (sheet != null) {
-                                val parentHeight = (sheet.parent as? View)?.height
+                                val actualParentHeight = (sheet.parent as? View)?.height
+                                    ?.takeIf { it > 0 }
+                                    ?: parentHeight.takeIf { it > 0 }
                                     ?: context.resources.displayMetrics.heightPixels
                                 val targetTop = (
                                     gestureStartTop + (event.rawY - gestureStartY).toInt()
-                                ).coerceIn(0, parentHeight)
+                                ).coerceIn(0, actualParentHeight)
                                 sheet.offsetTopAndBottom(targetTop - sheet.top)
+                                syncVisibleContentHeight(sheet)
                             }
                             true
                         }
 
                         MotionEvent.ACTION_UP -> {
                             val releaseTop = sheet?.top ?: gestureStartTop
-                            val collapsedTop = sheet?.let {
-                                ((it.parent as? View)?.height
-                                    ?: context.resources.displayMetrics.heightPixels) -
-                                    (behavior?.peekHeight ?: 0)
-                            } ?: 0
-                            val relativeTo75 = releaseTop - collapsedTop
+                            val actualCollapsedTop = if (collapsedTop > 0) {
+                                collapsedTop
+                            } else {
+                                sheet?.let {
+                                    ((it.parent as? View)?.height
+                                        ?: context.resources.displayMetrics.heightPixels) -
+                                        (behavior?.peekHeight ?: 0)
+                                } ?: 0
+                            }
+                            val relativeTo75 = releaseTop - actualCollapsedTop
 
                             when (lastDirection) {
                                 1 -> {
@@ -229,6 +269,7 @@ fun NativeDraggableComposeBottomSheet(
 
             val dialog = BottomSheetDialog(context).apply {
                 setContentView(root)
+                window?.navigationBarColor = surfaceColor
                 setCanceledOnTouchOutside(true)
                 setOnDismissListener {
                     if (!disposing) currentDismiss.value.invoke()
@@ -238,17 +279,36 @@ fun NativeDraggableComposeBottomSheet(
                         ?.let { bottomSheet ->
                             bottomSheetView = bottomSheet
                             bottomSheet.background = sheetBackground
-                            bottomSheet.layoutParams = bottomSheet.layoutParams.apply {
-                                height = ViewGroup.LayoutParams.MATCH_PARENT
-                            }
-                            sheetBehavior = BottomSheetBehavior.from(bottomSheet).apply {
-                                isFitToContents = false
-                                expandedOffset = 0
-                                peekHeight = (context.resources.displayMetrics.heightPixels * 0.75f).toInt()
+                            val behavior = BottomSheetBehavior.from(bottomSheet).apply {
                                 skipCollapsed = false
                                 isHideable = false
                                 isDraggable = false
-                                state = BottomSheetBehavior.STATE_COLLAPSED
+                            }
+                            sheetBehavior = behavior
+
+                            val callback = object : BottomSheetBehavior.BottomSheetCallback() {
+                                override fun onStateChanged(bottomSheet: View, newState: Int) {
+                                    syncVisibleContentHeight(bottomSheet)
+                                }
+
+                                override fun onSlide(bottomSheet: View, slideOffset: Float) {
+                                    syncVisibleContentHeight(bottomSheet)
+                                }
+                            }
+                            behaviorCallback = callback
+                            behavior.addBottomSheetCallback(callback)
+
+                            bottomSheet.post {
+                                refreshAnchors(bottomSheet, behavior)
+                                behavior.state = BottomSheetBehavior.STATE_COLLAPSED
+                                bottomSheet.post {
+                                    syncVisibleContentHeight(bottomSheet)
+                                }
+                            }
+
+                            (bottomSheet.parent as? View)?.addOnLayoutChangeListener {
+                                    _, _, _, _, _, _, _, _, _ ->
+                                refreshAnchors(bottomSheet, behavior)
                             }
                         }
                 }
@@ -258,6 +318,10 @@ fun NativeDraggableComposeBottomSheet(
 
             onDispose {
                 disposing = true
+                behaviorCallback?.let { callback ->
+                    sheetBehavior?.removeBottomSheetCallback(callback)
+                }
+                behaviorCallback = null
                 sheetBehavior = null
                 bottomSheetView = null
                 dialogRef = null
