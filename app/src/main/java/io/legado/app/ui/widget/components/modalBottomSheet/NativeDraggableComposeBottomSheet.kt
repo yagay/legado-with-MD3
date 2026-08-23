@@ -5,6 +5,7 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.os.Build
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.MotionEvent
@@ -264,7 +265,12 @@ fun NativeDraggableComposeBottomSheet(
 
             val dialog = BottomSheetDialog(context).apply {
                 setContentView(root)
-                window?.navigationBarColor = surfaceColor
+                window?.apply {
+                    navigationBarColor = surfaceColor
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        isNavigationBarContrastEnforced = false
+                    }
+                }
                 setCanceledOnTouchOutside(true)
                 setOnDismissListener {
                     if (!disposing) currentDismiss.value.invoke()
