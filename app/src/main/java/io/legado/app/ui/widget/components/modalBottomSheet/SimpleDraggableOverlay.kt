@@ -23,9 +23,9 @@ import androidx.core.view.WindowInsetsCompat
  * or dim the system navigation-bar window. The sheet itself is just a full-height panel translated
  * on Y while dragging.
  *
- * The hosted Compose screen remains responsible for its own top system-bar inset. The overlay only
- * keeps horizontal and bottom safe insets, which avoids applying the status-bar inset twice for
- * full secondary screens that already use AppScaffold/TopAppBar window insets.
+ * The native host keeps the sheet itself inside the physical system-bar safe area so the drag
+ * handle never overlaps the status bar. Full secondary Compose screens consume the already-used
+ * top inset at the scene-host layer before rendering their own Scaffold/TopAppBar.
  */
 internal class SimpleDraggableOverlay(
     private val context: Context,
@@ -89,13 +89,13 @@ internal class SimpleDraggableOverlay(
             val params = panel.layoutParams as FrameLayout.LayoutParams
             if (
                 params.leftMargin != safeInsets.left ||
-                params.topMargin != 0 ||
+                params.topMargin != safeInsets.top ||
                 params.rightMargin != safeInsets.right ||
                 params.bottomMargin != safeInsets.bottom
             ) {
                 params.setMargins(
                     safeInsets.left,
-                    0,
+                    safeInsets.top,
                     safeInsets.right,
                     safeInsets.bottom,
                 )
