@@ -13,12 +13,20 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Velocity
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import kotlin.math.abs
@@ -118,6 +126,27 @@ fun NativeDraggableComposeBottomSheet(
                 root.requestLayout()
             }
 
+            fun moveSheetBy(deltaY: Float): Float {
+                val sheet = bottomSheetView ?: return 0f
+                if (deltaY == 0f) return 0f
+                val actualParentHeight = (sheet.parent as? View)?.height
+                    ?.takeIf { it > 0 }
+                    ?: parentHeight.takeIf { it > 0 }
+                    ?: context.resources.displayMetrics.heightPixels
+                val oldTop = sheet.top
+                val targetTop = (oldTop + deltaY.toInt()).coerceIn(0, actualParentHeight)
+                if (targetTop == oldTop) return 0f
+                manualSheetMotion = true
+                sheet.offsetTopAndBottom(targetTop - oldTop)
+                root.setPadding(
+                    root.paddingLeft,
+                    root.paddingTop,
+                    root.paddingRight,
+                    targetTop,
+                )
+                return (targetTop - oldTop).toFloat()
+            }
+
             fun animateBackToExpanded() {
                 val sheet = bottomSheetView ?: return
                 sheetAnimator?.cancel()
@@ -150,6 +179,46 @@ fun NativeDraggableComposeBottomSheet(
                         }
                     })
                     start()
+                }
+            }
+
+            fun settleContentDrag() {
+                val sheet = bottomSheetView ?: return
+                if (sheet.top >= dismissDistance) {
+                    manualSheetMotion = false
+                    dialogRef?.dismiss()
+                } else {
+                    animateBackToExpanded()
+                }
+            }
+
+            val contentNestedScrollConnection = object : NestedScrollConnection {
+                override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                    val sheet = bottomSheetView ?: return Offset.Zero
+                    if (sheet.top > 0 && available.y < 0f) {
+                        val consumed = moveSheetBy(available.y)
+                        return Offset(0f, consumed)
+                    }
+                    return Offset.Zero
+                }
+
+                override fun onPostScroll(
+                    consumed: Offset,
+                    available: Offset,
+                    source: NestedScrollSource,
+                ): Offset {
+                    if (available.y > 0f) {
+                        val consumedBySheet = moveSheetBy(available.y)
+                        return Offset(0f, consumedBySheet)
+                    }
+                    return Offset.Zero
+                }
+
+                override suspend fun onPreFling(available: Velocity): Velocity {
+                    val sheet = bottomSheetView ?: return Velocity.Zero
+                    if (sheet.top <= 0) return Velocity.Zero
+                    settleContentDrag()
+                    return available
                 }
             }
 
@@ -260,7 +329,15 @@ fun NativeDraggableComposeBottomSheet(
 
             val composeView = ComposeView(context).apply {
                 setParentCompositionContext(parentComposition)
-                setContent { currentContent.value.invoke() }
+                setContent {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .nestedScroll(contentNestedScrollConnection)
+                    ) {
+                        currentContent.value.invoke()
+                    }
+                }
             }
             root.addView(
                 composeView,
