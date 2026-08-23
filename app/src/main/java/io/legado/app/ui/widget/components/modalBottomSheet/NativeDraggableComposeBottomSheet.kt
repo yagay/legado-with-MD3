@@ -1,7 +1,6 @@
 package io.legado.app.ui.widget.components.modalBottomSheet
 
 import android.graphics.drawable.GradientDrawable
-import android.util.TypedValue
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -11,6 +10,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.rememberCompositionContext
@@ -23,9 +23,8 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Velocity
-import androidx.core.content.res.ResourcesCompat
 import kotlin.math.abs
 
 /**
@@ -42,37 +41,29 @@ fun NativeDraggableComposeBottomSheet(
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
-    val resources = LocalResources.current
+    val density = LocalDensity.current.density
+    val surfaceColor = MaterialTheme.colorScheme.surface.toArgb()
+    val onSurfaceColor = MaterialTheme.colorScheme.onSurface.toArgb()
+    val onSurfaceVariantColor = MaterialTheme.colorScheme.onSurfaceVariant.toArgb()
+    val scrimColorArgb = scrimColor.toArgb()
     val parentComposition = rememberCompositionContext()
     val currentContent = rememberUpdatedState(content)
     val currentDismiss = rememberUpdatedState(onDismissRequest)
 
-    DisposableEffect(show, title) {
+    DisposableEffect(
+        show,
+        title,
+        density,
+        surfaceColor,
+        onSurfaceColor,
+        onSurfaceVariantColor,
+        scrimColorArgb,
+    ) {
         if (!show) {
             onDispose { }
         } else {
             var disposing = false
-            val density = resources.displayMetrics.density
             fun dp(value: Int) = (value * density).toInt()
-
-            fun resolveColor(attr: Int, fallback: Int): Int {
-                val value = TypedValue()
-                return if (context.theme.resolveAttribute(attr, value, true)) {
-                    if (value.resourceId != 0) {
-                        runCatching {
-                            ResourcesCompat.getColor(resources, value.resourceId, context.theme)
-                        }.getOrDefault(value.data)
-                    } else {
-                        value.data
-                    }
-                } else {
-                    fallback
-                }
-            }
-
-            val surfaceColor = resolveColor(android.R.attr.colorBackground, android.graphics.Color.WHITE)
-            val onSurfaceColor = resolveColor(android.R.attr.textColorPrimary, android.graphics.Color.BLACK)
-            val onSurfaceVariantColor = resolveColor(android.R.attr.textColorSecondary, onSurfaceColor)
 
             val sheetBackground = GradientDrawable().apply {
                 setColor(surfaceColor)
@@ -86,7 +77,7 @@ fun NativeDraggableComposeBottomSheet(
             lateinit var overlay: SimpleDraggableOverlay
             overlay = SimpleDraggableOverlay(
                 context = context,
-                scrimColor = scrimColor.toArgb(),
+                scrimColor = scrimColorArgb,
                 onDismiss = {
                     if (!disposing) currentDismiss.value.invoke()
                 }
