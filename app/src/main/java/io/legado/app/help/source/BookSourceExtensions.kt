@@ -15,10 +15,12 @@ import io.legado.app.utils.fromJsonArray
 import io.legado.app.utils.isJsonArray
 import io.legado.app.utils.printOnDebug
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
 
 /**
  * 采用md5作为key可以在分类修改后自动重新计算,不需要手动刷新
@@ -28,6 +30,18 @@ private val mutexMap by lazy { hashMapOf<String, Mutex>() }
 private val exploreKindsMap by lazy { ConcurrentHashMap<String, List<ExploreKind>>() }
 private val aCache by lazy { ACache.get("explore") }
 private val exploreInfoMapList by lazy { LruCache<String, InfoMap>(99) }
+
+/**
+ * Dynamic discovery rules execute Rhino code and must not inherit a foreign
+ * org.mozilla.javascript.Context left on a shared coroutine worker thread.
+ * Keep them on a dedicated thread so runScriptWithContext always enters the
+ * app's RhinoContext created by RhinoScriptEngine.
+ */
+private val exploreKindsJsDispatcher by lazy {
+    Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "ExploreKindsJs").apply { isDaemon = true }
+    }.asCoroutineDispatcher()
+}
 
 fun getExploreInfoMap(sourceUrl: String): InfoMap {
     return synchronized(exploreInfoMapList) {
@@ -74,10 +88,12 @@ suspend fun BookSource.exploreKinds(): List<ExploreKind> {
                         } else {
                             exploreUrl.substring(4, exploreUrl.lastIndexOf("<"))
                         }
-                        ruleStr = runScriptWithContext {
-                            evalJS(jsStr) {
-                                put("infoMap", exploreInfoMap)
-                            }.toString().trim()
+                        ruleStr = withContext(exploreKindsJsDispatcher) {
+                            runScriptWithContext {
+                                evalJS(jsStr) {
+                                    put("infoMap", exploreInfoMap)
+                                }.toString().trim()
+                            }
                         }
                         aCache.put(exploreKindsKey, ruleStr)
                     }
