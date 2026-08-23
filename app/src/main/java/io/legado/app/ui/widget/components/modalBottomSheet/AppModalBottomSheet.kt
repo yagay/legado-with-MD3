@@ -5,8 +5,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.BottomSheetDefaults
@@ -30,8 +30,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpSize
@@ -46,6 +44,7 @@ import top.yukonga.miuix.kmp.window.WindowBottomSheet
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
+@Suppress("UNUSED_PARAMETER")
 fun AppModalBottomSheet(
     show: Boolean,
     onDismissRequest: () -> Unit,
@@ -58,7 +57,7 @@ fun AppModalBottomSheet(
     contentPaddingEnabled: Boolean = true,
     sheetGesturesEnabled: Boolean = true,
     containerColor: Color? = null,
-    maxHeightFraction: Float = 0.8f,
+    maxHeightFraction: Float = 1f,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val colorScheme = LocalLegadoThemeColors.current.colorScheme
@@ -69,7 +68,7 @@ fun AppModalBottomSheet(
     if (ThemeResolver.isMiuixEngine(LegadoTheme.composeEngine)) {
         WindowBottomSheet(
             show = show,
-            modifier = modifier,
+            modifier = modifier.fillMaxSize(),
             title = title,
             startAction = startAction?.let { action ->
                 {
@@ -110,7 +109,7 @@ fun AppModalBottomSheet(
                     CompositionLocalProvider(LocalUseMiuixWindowPopup provides true) {
                         Column(
                             modifier = Modifier
-                                .fillMaxWidth()
+                                .fillMaxSize()
                                 .let {
                                     if (contentPaddingEnabled) {
                                         it.padding(bottom = 24.dp)
@@ -133,15 +132,6 @@ fun AppModalBottomSheet(
                 initialValue = Hidden,
                 enabledValues = setOf(Hidden, Expanded)
             )
-            val density = LocalDensity.current
-            val effectiveMaxHeightFraction = if (!contentPaddingEnabled && !sheetGesturesEnabled) {
-                1f
-            } else {
-                maxHeightFraction
-            }
-            val maxHeight = with(density) {
-                LocalWindowInfo.current.containerSize.height.toDp() * effectiveMaxHeightFraction.coerceIn(0f, 1f)
-            }
 
             MaterialExpressiveTheme(
                 colorScheme = colorScheme,
@@ -152,6 +142,7 @@ fun AppModalBottomSheet(
                 ModalBottomSheet(
                     onDismissRequest = onDismissRequest,
                     sheetState = sheetState,
+                    modifier = modifier,
                     containerColor = sheetContainerColor,
                     contentColor = sheetContentColor,
                     dragHandle = { BottomSheetDefaults.DragHandle(color = sheetDragHandleColor) },
@@ -161,7 +152,7 @@ fun AppModalBottomSheet(
                     ProvideAppDensity {
                         Column(
                             modifier = Modifier
-                                .fillMaxWidth()
+                                .fillMaxSize()
                                 .let {
                                     if (contentPaddingEnabled) {
                                         it.padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
@@ -169,11 +160,9 @@ fun AppModalBottomSheet(
                                         it
                                     }
                                 }
-                                .heightIn(max = maxHeight)
                                 .let { contentModifier ->
                                     if (animateContentSize) contentModifier.animateContentSize() else contentModifier
                                 }
-                                .then(modifier)
                         ) {
                             val hasHeader =
                                 !title.isNullOrEmpty() || startAction != null || endAction != null
@@ -252,7 +241,7 @@ fun <T> AppModalBottomSheet(
     animateContentSize: Boolean = true,
     contentWindowInsets: @Composable () -> WindowInsets = { BottomSheetDefaults.modalWindowInsets },
     sheetGesturesEnabled: Boolean = true,
-    maxHeightFraction: Float = 0.8f,
+    maxHeightFraction: Float = 1f,
     content: @Composable ColumnScope.(T) -> Unit
 ) {
     var cachedData by remember { mutableStateOf(data) }
