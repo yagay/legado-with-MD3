@@ -2,6 +2,9 @@ name: Beta5 Build Verification
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches:
+      - beta5
 
 permissions:
   contents: read
