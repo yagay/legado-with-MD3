@@ -374,7 +374,7 @@ fun ExploreScreen(
                                 }
                             )
                         }
-                    }
+                    )
                 }
             }
         } else null,
@@ -494,9 +494,7 @@ fun ExploreScreen(
 
             else -> {
                 LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 560.dp)
+                    modifier = Modifier.fillMaxSize()
                 ) {
                     itemsIndexed(
                         items = sourceKindPreviewRows,
