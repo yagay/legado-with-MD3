@@ -30,7 +30,8 @@ import io.legado.app.ui.login.SourceLoginViewModel
 import io.legado.app.ui.login.SourceLoginWebDialog
 import io.legado.app.ui.main.explore.ExploreIntent
 import io.legado.app.ui.main.explore.ExploreViewModel.ExploreUiState
-import io.legado.app.ui.widget.components.modalBottomSheet.NativeDraggableComposeBottomSheet
+import io.legado.app.ui.theme.LegadoTheme
+import io.legado.app.ui.widget.components.modalBottomSheet.AppModalBottomSheet
 import kotlinx.collections.immutable.persistentMapOf
 import org.koin.androidx.compose.koinViewModel
 
@@ -229,10 +230,11 @@ fun ExploreScreenEnhance(
             }
         }
 
-        NativeDraggableComposeBottomSheet(
+        AppModalBottomSheet(
             show = true,
-            title = null,
             onDismissRequest = { sheetRequest = null },
+            contentPaddingEnabled = false,
+            containerColor = LegadoTheme.colorScheme.background,
         ) {
             ExploreShowScreen(
                 state = sheetState,
