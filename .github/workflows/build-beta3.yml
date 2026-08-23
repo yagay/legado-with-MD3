@@ -7,6 +7,9 @@ on:
       - beta5
     paths-ignore:
       - '.ci-debug/**'
+  pull_request:
+    branches:
+      - beta5
 
 permissions:
   contents: write
@@ -61,7 +64,7 @@ jobs:
           exit 0
 
       - name: Publish build result log
-        if: always()
+        if: github.event_name == 'push' && always()
         shell: bash
         run: |
           git config user.name github-actions[bot]
