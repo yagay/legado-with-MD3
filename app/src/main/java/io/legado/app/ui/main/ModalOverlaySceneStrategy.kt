@@ -15,15 +15,15 @@ import androidx.navigation3.scene.Scene
 import androidx.navigation3.scene.SceneStrategy
 import androidx.navigation3.scene.SceneStrategyScope
 import io.legado.app.ui.theme.LegadoTheme
-import io.legado.app.ui.widget.components.modalBottomSheet.NativeDraggableComposeBottomSheet
+import io.legado.app.ui.widget.components.modalBottomSheet.AppModalBottomSheet
 
 /**
  * Global modal/secondary-page scene strategy.
  *
- * Explicit modal entries (currently source login) keep rendering their own modal window.
- * Normal pushed destinations are hosted by the shared draggable sheet while the previous
- * destination remains composed underneath. The destination content itself is untouched, so
- * its Scaffold, TopAppBar, navigation icon and page-specific action icons are all preserved.
+ * Explicit modal entries (currently source login) keep rendering their own modal content.
+ * Normal pushed destinations are hosted by the shared AppModalBottomSheet while the previous
+ * destination remains composed underneath. Destination content is untouched, so its Scaffold,
+ * TopAppBar, navigation icon and page-specific action icons remain intact.
  *
  * Reader, manga-reader and audio-player routes keep the normal full-screen scene because they
  * own system bars, input handling and other full-screen behaviour.
@@ -86,11 +86,11 @@ private data class SecondaryPageSheetScene(
     override val overlaidEntries: List<NavEntry<NavKey>> = previousEntries.takeLast(1)
     override val content: @Composable () -> Unit = {
         val activity = LocalContext.current.findComponentActivity()
-        NativeDraggableComposeBottomSheet(
+        AppModalBottomSheet(
             show = true,
-            title = null,
             onDismissRequest = { activity?.onBackPressedDispatcher?.onBackPressed() },
-            scrimColor = LegadoTheme.colorScheme.background,
+            contentPaddingEnabled = false,
+            containerColor = LegadoTheme.colorScheme.background,
         ) {
             entry.Content()
         }
