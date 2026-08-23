@@ -2,17 +2,9 @@ name: Beta5 Build Verification
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - beta5
-    paths-ignore:
-      - '.ci-debug/**'
-  pull_request:
-    branches:
-      - beta5
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: beta5-build-${{ github.workflow }}-${{ github.ref }}
@@ -40,47 +32,23 @@ jobs:
           sed -i '/maven.aliyun.com/d' settings.gradle
 
       - name: Build Universal Debug APK
-        id: build
-        shell: bash
         run: |
-          set +e
           chmod +x gradlew
-          ./gradlew assembleAppDebug \
-            -PenableAbiSplits=false \
-            --no-daemon \
-            --no-configuration-cache \
-            2>&1 | tee /tmp/beta5-gradle.log
-          status=${PIPESTATUS[0]}
-          mkdir -p .ci-debug
-          if [ "$status" -eq 0 ]; then
-            printf 'SUCCESS\ncommit=%s\n' "$GITHUB_SHA" > .ci-debug/beta5-build.log
-          else
-            {
-              printf 'FAILED\ncommit=%s\n\n' "$GITHUB_SHA"
-              tail -n 500 /tmp/beta5-gradle.log
-            } > .ci-debug/beta5-build.log
-          fi
-          echo "status=$status" >> "$GITHUB_OUTPUT"
-          exit 0
-
-      - name: Publish build result log
-        if: github.event_name == 'push' && always()
-        shell: bash
-        run: |
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add .ci-debug/beta5-build.log
-          if ! git diff --cached --quiet; then
-            git commit -m "ci: record beta5 debug build result"
-            git push origin HEAD:beta5
-          fi
-
-      - name: Fail when build failed
-        if: steps.build.outputs.status != '0'
-        run: exit 1
+          for attempt in 1 2 3; do
+            if ./gradlew assembleAppDebug \
+              -PenableAbiSplits=false \
+              --no-daemon \
+              --no-configuration-cache; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            echo "Gradle build attempt $attempt failed; retrying after transient dependency/network error..."
+            sleep $((attempt * 20))
+          done
 
       - name: Upload Universal Debug APK artifact
-        if: steps.build.outputs.status == '0'
         uses: actions/upload-artifact@v4
         with:
           name: beta5-debug-universal-apk
