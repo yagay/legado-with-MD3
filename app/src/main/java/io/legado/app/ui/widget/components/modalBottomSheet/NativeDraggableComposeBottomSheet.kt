@@ -5,7 +5,6 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
-import android.os.Build
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.MotionEvent
@@ -265,21 +264,21 @@ fun NativeDraggableComposeBottomSheet(
 
             val dialog = BottomSheetDialog(context).apply {
                 setContentView(root)
-                window?.apply {
-                    navigationBarColor = surfaceColor
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        isNavigationBarContrastEnforced = false
-                    }
+                window?.let { dialogWindow ->
+                    applyHostNavigationBarAppearance(context, dialogWindow, surfaceColor)
                 }
                 setCanceledOnTouchOutside(true)
                 setOnDismissListener {
                     if (!disposing) currentDismiss.value.invoke()
                 }
                 setOnShowListener {
-                    window?.setLayout(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                    )
+                    window?.let { dialogWindow ->
+                        applyHostNavigationBarAppearance(context, dialogWindow, surfaceColor)
+                        dialogWindow.setLayout(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                        )
+                    }
                     findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
                         ?.let { bottomSheet ->
                             bottomSheetView = bottomSheet
