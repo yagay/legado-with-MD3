@@ -10,7 +10,6 @@ import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.net.http.SslError
-import android.os.Build
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.MotionEvent
@@ -39,6 +38,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import io.legado.app.constant.AppConst
+import io.legado.app.ui.widget.components.modalBottomSheet.applyHostNavigationBarAppearance
 import kotlin.math.abs
 
 /**
@@ -434,18 +434,18 @@ fun SourceLoginWebDialog(
 
             val dialog = BottomSheetDialog(context).apply {
                 setContentView(root)
-                window?.apply {
-                    setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
-                    navigationBarColor = surfaceColor
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        isNavigationBarContrastEnforced = false
-                    }
+                window?.let { dialogWindow ->
+                    dialogWindow.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
+                    applyHostNavigationBarAppearance(context, dialogWindow, surfaceColor)
                 }
                 setCanceledOnTouchOutside(true)
                 setOnDismissListener {
                     if (!disposing) currentIntent(SourceLoginIntent.Back)
                 }
                 setOnShowListener {
+                    window?.let { dialogWindow ->
+                        applyHostNavigationBarAppearance(context, dialogWindow, surfaceColor)
+                    }
                     findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
                         ?.let { bottomSheet ->
                             bottomSheetView = bottomSheet
