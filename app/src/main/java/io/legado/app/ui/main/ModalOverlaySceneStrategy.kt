@@ -3,15 +3,7 @@ package io.legado.app.ui.main
 import android.content.Context
 import android.content.ContextWrapper
 import androidx.activity.ComponentActivity
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.consumeWindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
@@ -93,7 +85,6 @@ private data class SecondaryPageSheetScene(
     override val entries: List<NavEntry<NavKey>> = listOf(entry)
     override val overlaidEntries: List<NavEntry<NavKey>> = previousEntries.takeLast(1)
 
-    @OptIn(ExperimentalLayoutApi::class)
     override val content: @Composable () -> Unit = {
         val activity = LocalContext.current.findComponentActivity()
         AppModalBottomSheet(
@@ -102,14 +93,7 @@ private data class SecondaryPageSheetScene(
             contentPaddingEnabled = false,
             containerColor = LegadoTheme.colorScheme.background,
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .consumeWindowInsets(WindowInsets.statusBars)
-                    .consumeWindowInsets(WindowInsets.statusBarsIgnoringVisibility),
-            ) {
-                entry.Content()
-            }
+            entry.Content()
         }
     }
 }
