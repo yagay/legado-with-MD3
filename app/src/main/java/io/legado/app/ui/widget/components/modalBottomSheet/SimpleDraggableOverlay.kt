@@ -22,7 +22,7 @@ import androidx.activity.OnBackPressedCallback
  * on Y while dragging.
  */
 internal class SimpleDraggableOverlay(
-    context: Context,
+    private val context: Context,
     private val onDismiss: () -> Unit,
 ) {
     private val density = context.resources.displayMetrics.density
