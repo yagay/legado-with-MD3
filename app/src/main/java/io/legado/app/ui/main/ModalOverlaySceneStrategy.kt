@@ -1,10 +1,6 @@
 package io.legado.app.ui.main
 
-import android.content.Context
-import android.content.ContextWrapper
-import androidx.activity.ComponentActivity
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.NavMetadataKey
@@ -49,6 +45,7 @@ class ModalOverlaySceneStrategy : SceneStrategy<NavKey> {
         return SecondaryPageSheetScene(
             entry = entry,
             previousEntries = previousEntries,
+            onBack = onBack,
         )
     }
 
@@ -80,29 +77,20 @@ private data class ModalOverlayScene(
 private data class SecondaryPageSheetScene(
     private val entry: NavEntry<NavKey>,
     override val previousEntries: List<NavEntry<NavKey>>,
+    private val onBack: () -> Unit,
 ) : OverlayScene<NavKey> {
     override val key: Any = "secondary-sheet:${entry.contentKey}"
     override val entries: List<NavEntry<NavKey>> = listOf(entry)
     override val overlaidEntries: List<NavEntry<NavKey>> = previousEntries.takeLast(1)
 
     override val content: @Composable () -> Unit = {
-        val activity = LocalContext.current.findComponentActivity()
         AppModalBottomSheet(
             show = true,
-            onDismissRequest = { activity?.onBackPressedDispatcher?.onBackPressed() },
+            onDismissRequest = onBack,
             contentPaddingEnabled = false,
             containerColor = LegadoTheme.colorScheme.background,
         ) {
             entry.Content()
         }
     }
-}
-
-private fun Context.findComponentActivity(): ComponentActivity? {
-    var current: Context? = this
-    while (current is ContextWrapper) {
-        if (current is ComponentActivity) return current
-        current = current.baseContext
-    }
-    return current as? ComponentActivity
 }
