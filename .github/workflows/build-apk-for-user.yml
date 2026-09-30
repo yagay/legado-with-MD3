@@ -60,49 +60,54 @@ jobs:
             echo "RELEASE_KEY_PASSWORD=legado-debug"
           } >> "$GITHUB_WORKSPACE/gradle.properties"
 
-      - name: Build Debug APK
+      - name: Configure arm64-v8a Debug split
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -i 's/include("armeabi-v7a", "arm64-v8a")/include("arm64-v8a")/' app/build.gradle.kts
+          sed -i 's/isUniversalApk = true/isUniversalApk = false/' app/build.gradle.kts
+
+      - name: Build arm64-v8a Debug APK
         run: |
           chmod +x gradlew
-          ./gradlew assembleAppDebug -PenableAbiSplits=false --no-daemon --no-configuration-cache
+          ./gradlew assembleAppDebug -PenableAbiSplits=true --no-daemon --no-configuration-cache
         env:
           COMMIT_NUMBER: ${{ github.run_number }}
           APP_VERSION_NAME: debug-${{ github.run_number }}
 
       - name: Check Build Output
+        shell: bash
         run: |
+          set -euo pipefail
           APK_PATH="$GITHUB_WORKSPACE/app/build/outputs/apk/app/debug"
           echo "检查 APK 输出目录: $APK_PATH"
           ls -la "$APK_PATH" || true
-          APK_COUNT=$(find "$APK_PATH" -maxdepth 1 -name "*.apk" | wc -l | tr -d ' ')
-          if [ "$APK_COUNT" -ne 1 ]; then
-            echo "预期生成 1 个 universal APK，实际生成 $APK_COUNT 个！"
+          APK="$(find "$APK_PATH" -maxdepth 1 -type f -name '*arm64-v8a*.apk' | head -n 1)"
+          test -n "$APK"
+          ABIS="$(unzip -Z1 "$APK" | sed -n 's#^lib/\([^/]*\)/.*#\1#p' | sort -u)"
+          if [ -n "$ABIS" ] && [ "$ABIS" != "arm64-v8a" ]; then
+            echo "Unexpected ABIs in APK: $ABIS"
             exit 1
           fi
-
-      - name: Rename APK Files
-        run: |
-          APK_PATH="$GITHUB_WORKSPACE/app/build/outputs/apk/app/debug"
-          cd "$APK_PATH"
-          mv -- *.apk "legado-debug-${GITHUB_RUN_NUMBER}-universal.apk"
-          ls -la
+          mkdir -p "$GITHUB_WORKSPACE/artifacts"
+          cp "$APK" "$GITHUB_WORKSPACE/artifacts/legado-debug-arm64-v8a.apk"
 
       - name: Create ZIP Archive
         run: |
-          APK_PATH="$GITHUB_WORKSPACE/app/build/outputs/apk/app/debug"
-          ZIP_NAME="legado-debug-apks-${GITHUB_RUN_NUMBER}.zip"
-          cd "$APK_PATH"
-          zip "$GITHUB_WORKSPACE/$ZIP_NAME" *.apk
-          echo "ZIP 文件已创建: $ZIP_NAME"
-          ls -la "$GITHUB_WORKSPACE/$ZIP_NAME"
+          cd "$GITHUB_WORKSPACE/artifacts"
+          zip "$GITHUB_WORKSPACE/legado-debug-arm64-v8a.zip" legado-debug-arm64-v8a.apk
+          ls -la "$GITHUB_WORKSPACE/legado-debug-arm64-v8a.zip"
 
-      - name: Upload APK Artifacts
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: legado-apks-${{ github.run_number }}
-          path: app/build/outputs/apk/app/debug/*.apk
+          name: legado-debug-arm64-v8a
+          path: artifacts/legado-debug-arm64-v8a.apk
+          if-no-files-found: error
 
       - name: Upload ZIP Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: legado-apks-zip-${{ github.run_number }}
-          path: legado-debug-apks-*.zip
+          name: legado-debug-arm64-v8a-zip
+          path: legado-debug-arm64-v8a.zip
+          if-no-files-found: error
