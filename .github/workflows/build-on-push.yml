@@ -34,11 +34,18 @@ jobs:
         run: |
           sed -i '/maven.aliyun.com/d' settings.gradle
 
-      - name: Build Universal Debug APK
+      - name: Configure arm64-v8a Debug split
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -i 's/include("armeabi-v7a", "arm64-v8a")/include("arm64-v8a")/' app/build.gradle.kts
+          sed -i 's/isUniversalApk = true/isUniversalApk = false/' app/build.gradle.kts
+
+      - name: Build arm64-v8a Debug APK
         run: |
           chmod +x gradlew
           ./gradlew assembleAppDebug \
-            -PenableAbiSplits=false \
+            -PenableAbiSplits=true \
             --no-daemon \
             --no-configuration-cache
 
@@ -46,16 +53,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          APK="$(find app/build/outputs/apk/app/debug -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          APK="$(find app/build/outputs/apk/app/debug -maxdepth 1 -type f -name '*arm64-v8a*.apk' | head -n 1)"
           test -n "$APK"
-          cp "$APK" legado-debug-universal.apk
+          ABIS="$(unzip -Z1 "$APK" | sed -n 's#^lib/\([^/]*\)/.*#\1#p' | sort -u)"
+          if [ -n "$ABIS" ] && [ "$ABIS" != "arm64-v8a" ]; then
+            echo "Unexpected ABIs in APK: $ABIS"
+            exit 1
+          fi
+          cp "$APK" legado-debug-arm64-v8a.apk
 
-      - name: Upload Universal Debug APK artifact
+      - name: Upload arm64-v8a Debug APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: debug-universal-apk
+          name: legado-debug-arm64-v8a
           if-no-files-found: error
-          path: legado-debug-universal.apk
+          path: legado-debug-arm64-v8a.apk
 
       - name: Publish direct APK to debug-latest release
         env:
@@ -64,11 +76,11 @@ jobs:
         run: |
           set -euo pipefail
           if gh release view debug-latest >/dev/null 2>&1; then
-            gh release upload debug-latest legado-debug-universal.apk --clobber
+            gh release upload debug-latest legado-debug-arm64-v8a.apk --clobber
           else
-            gh release create debug-latest legado-debug-universal.apk \
+            gh release create debug-latest legado-debug-arm64-v8a.apk \
               --title "Debug Latest" \
-              --notes "Latest universal Debug APK from main." \
+              --notes "Latest ARM64-v8a Debug APK from main." \
               --prerelease \
               --target "${GITHUB_SHA}"
           fi
